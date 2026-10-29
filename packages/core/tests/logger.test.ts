@@ -47,6 +47,26 @@ describe('createLogger', () => {
     expect(parsed.time).toBe('2026-10-29T08:15:30.000Z');
   });
 
+  it.each(['debug', 'info', 'warn', 'error'] as const)(
+    'writes one line with level "%s"',
+    (level) => {
+      const { lines, logger } = setup();
+
+      logger[level]('something_happened');
+
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0] as string).level).toBe(level);
+    },
+  );
+
+  it('writes a bigint field as a string instead of throwing', () => {
+    const { lines, logger } = setup();
+
+    logger.info('big_number', { rows: 12345678901234567890n });
+
+    expect(JSON.parse(lines[0] as string).rows).toBe('12345678901234567890');
+  });
+
   it('never throws on unserialisable fields', () => {
     const { lines, logger } = setup();
     const circular: Record<string, unknown> = {};

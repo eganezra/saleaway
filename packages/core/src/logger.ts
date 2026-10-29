@@ -30,7 +30,9 @@ function replacer(_key: string, value: unknown): unknown {
 /**
  * Creates the structured logger used by every app.
  * Each call writes exactly one line of JSON: { level, message, time, ...fields }.
- * Logging never throws.
+ * Fields that cannot be serialised (for example a circular object) never make a log call throw:
+ * the line is written with `fields_unserialisable: true` instead. Errors from the caller's own
+ * `now` or `write` functions are not swallowed, so a broken sink is not hidden.
  */
 export function createLogger(options: LoggerOptions): Logger {
   const emit = (level: LogLevel, message: string, fields?: LogFields): void => {
