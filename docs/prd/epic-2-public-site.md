@@ -57,7 +57,7 @@ so that traffic can grow.
 2. `sitemap.xml` and `robots.txt` are served.
 3. The home page is server-rendered or static and cached at the edge, so content is present without JavaScript.
 4. A Lighthouse mobile run scores 90 or better for performance, accessibility and SEO, or the gaps are documented (NFR2).
-5. The caching code is in place, with a unit test. Whether the cache works on the real domain is confirmed in Story 4.4, because caching may not apply on temporary `workers.dev` addresses.
+5. The caching code is in place, with a unit test. Spike S0 (Story 1.2) measured that the Cache API does cache on `workers.dev` addresses (see `docs/spike-s0-workers-dev.md`). Whether the cache works for the real home page on the real domain is still confirmed in Story 4.4.
 6. A Playwright smoke test with an automated accessibility check (axe) runs in CI and finds no violations on the home page (NFR9).
 
 ## Story 2.5 Ad Slots, Analytics and Legal Pages

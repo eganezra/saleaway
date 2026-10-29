@@ -82,3 +82,7 @@ _Run by the PO agent (Sarah) on 2026-10-29 in comprehensive mode against `docs/b
 ## Final Decision
 
 **APPROVED** for sharding and development, on the condition that human prerequisites 1 to 3 are completed before Story 1.1 starts.
+
+## Update 2026-10-29 (after Story 1.2)
+
+Two statements above say page caching "may not work" on `workers.dev` (Story 2.4 under "Other fixes applied", and risk 4). Spike S0 in Story 1.2 measured that the Cache API **does** cache on `workers.dev` (see `docs/spike-s0-workers-dev.md`). The PRD (Story 2.4 criterion 5 and human prerequisite 3) was corrected to say so. Caching of the real home page is still confirmed on the real domain in Story 4.4. The original text above is left as written, as a record of what was known on the day of the check.

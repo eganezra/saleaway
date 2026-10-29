@@ -158,7 +158,7 @@ _Added by the PO on 2026-10-29 after validating all documents._
 |---|---|---|
 | 1 | A Cloudflare account, with `wrangler login` working on your computer (**done 2026-10-29**; use Node 22) | Story 1.2 |
 | 2 | A GitHub repository for the project, with repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (a repository is also a good place for backups before then) | Story 4.4 |
-| 3 | The domain saleaway.co.za registered, with its nameservers pointed at Cloudflare (otherwise a temporary address is used, and page caching may not work on it). Start this early, since nameserver changes can take hours | Story 4.4 |
+| 3 | The domain saleaway.co.za registered, with its nameservers pointed at Cloudflare (otherwise a temporary `workers.dev` address is used, where page caching was measured to work in Story 1.2). Start this early, since nameserver changes can take hours | Story 4.4 |
 | 4 | A monitored email address for retailer removal requests (Cloudflare Email Routing can forward it to your inbox once the domain is on Cloudflare) | Story 4.5 |
 | 5 | A webhook URL for failure alerts (for example a Discord or Slack channel) | Story 4.6 |
 | 6 | A Cloudflare Web Analytics site token (only usable once the domain is connected) | Story 4.4 |
@@ -288,7 +288,7 @@ so that traffic can grow.
 2. `sitemap.xml` and `robots.txt` are served.
 3. The home page is server-rendered or static and cached at the edge, so content is present without JavaScript.
 4. A Lighthouse mobile run scores 90 or better for performance, accessibility and SEO, or the gaps are documented (NFR2).
-5. The caching code is in place, with a unit test. Whether the cache works on the real domain is confirmed in Story 4.4, because caching may not apply on temporary `workers.dev` addresses.
+5. The caching code is in place, with a unit test. Spike S0 (Story 1.2) measured that the Cache API does cache on `workers.dev` addresses (see `docs/spike-s0-workers-dev.md`). Whether the cache works for the real home page on the real domain is still confirmed in Story 4.4.
 6. A Playwright smoke test with an automated accessibility check (axe) runs in CI and finds no violations on the home page (NFR9).
 
 ### Story 2.5 Ad Slots, Analytics and Legal Pages
