@@ -1,0 +1,6 @@
+{
+  "name": "saleaway-web",
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true }
+}

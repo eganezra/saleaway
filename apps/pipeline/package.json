@@ -1,0 +1,18 @@
+{
+  "name": "@saleaway/pipeline",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "types": "wrangler types",
+    "typecheck": "wrangler types && tsc --noEmit"
+  },
+  "dependencies": {
+    "@saleaway/core": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "wrangler": "^4.155.0"
+  }
+}
