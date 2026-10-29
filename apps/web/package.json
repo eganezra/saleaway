@@ -7,7 +7,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "typecheck": "astro check"
+    "typecheck": "wrangler types && astro check",
+    "types": "wrangler types"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.3",

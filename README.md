@@ -34,13 +34,60 @@ pnpm typecheck    # astro check for the web app, tsc for the other packages
 | Path | What it is |
 |---|---|
 | `apps/web` | Astro site (server-rendered on Cloudflare Workers) |
-| `apps/pipeline` | Cloudflare Worker for the daily job (placeholder until Story 3.1) |
+| `apps/pipeline` | Cloudflare Worker for the daily job (placeholder until Story 3.1, but deployed and bound to the database) |
 | `packages/core` | Pure shared logic with no I/O, starting with the structured logger |
 | `docs/` | Brief, PRD, front-end spec, architecture, stories |
 
 ## Deploying
 
-Nothing is deployed from this story. Deploying to a free `workers.dev` address comes in Story 1.2, and CI/CD with the real domain in Story 4.4.
+Both Workers run on Cloudflare's Free plan at `workers.dev` addresses, deployed by hand from this computer. CI/CD and the real domain (`saleaway.co.za`) come in Story 4.4.
+
+| Worker | Address |
+|---|---|
+| `saleaway-web` | `https://saleaway-web.<account>.workers.dev` |
+| `saleaway-pipeline` | `https://saleaway-pipeline.<account>.workers.dev` (placeholder, answers 404) |
+
+`<account>` is the `workers.dev` subdomain of the Cloudflare account. It is not stored in the repository.
+
+### One-time setup
+
+```bash
+pnpm --filter @saleaway/web exec wrangler login     # opens the browser to authorise your Cloudflare account
+pnpm --filter @saleaway/web exec wrangler whoami    # confirms the login
+```
+
+The D1 database `saleaway` already exists (created with `wrangler d1 create saleaway --location weur`). Both `wrangler.jsonc` files bind it as `DB`. The database ID in them is not a secret. A new machine only needs `wrangler login`.
+
+### Deploy
+
+```bash
+nvm use
+pnpm deploy:all         # builds and deploys the web Worker, then deploys the pipeline Worker
+```
+
+Or one at a time: `pnpm deploy:web` (builds first) and `pnpm deploy:pipeline`. Wrangler prints each Worker's address and its bindings (`env.DB` must be listed).
+
+Check it worked:
+
+```bash
+curl -i https://saleaway-web.<account>.workers.dev/health        # 200 and "ok"
+curl -i https://saleaway-pipeline.<account>.workers.dev/         # 404 (placeholder)
+```
+
+The `/health` log line appears in the Cloudflare dashboard under Workers & Pages, `saleaway-web`, Observability, Logs. For a live view use `pnpm --filter @saleaway/web exec wrangler tail saleaway-web`.
+
+### Roll back
+
+`wrangler rollback` returns a Worker to its previous version. Run it from the Worker's own folder, or pass `--name`:
+
+```bash
+pnpm --filter @saleaway/web exec wrangler rollback --name saleaway-web
+pnpm --filter @saleaway/pipeline exec wrangler rollback --name saleaway-pipeline
+```
+
+To go to a specific version, add its version ID (shown by `wrangler deployments list --name <worker>`). Database migrations will be additive only, so rolling code back never needs a database rollback.
+
+The results of the first deploy (Cache API on `workers.dev`, bundle size, logs) are in [`docs/spike-s0-workers-dev.md`](docs/spike-s0-workers-dev.md).
 
 ## Rules that matter
 

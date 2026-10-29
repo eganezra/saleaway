@@ -10,7 +10,10 @@
     "dev": "pnpm --filter @saleaway/web dev",
     "lint": "eslint .",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test"
+    "test": "pnpm -r --if-present test",
+    "deploy:web": "pnpm --filter @saleaway/web build && pnpm --filter @saleaway/web exec wrangler deploy",
+    "deploy:pipeline": "pnpm --filter @saleaway/pipeline exec wrangler deploy",
+    "deploy:all": "pnpm deploy:web && pnpm deploy:pipeline"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

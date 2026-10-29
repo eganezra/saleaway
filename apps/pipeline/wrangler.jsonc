@@ -3,5 +3,12 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-15",
   "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "saleaway",
+      "database_id": "0395d5e7-f570-4468-b2f2-b64c8e4f8ecc"
+    }
+  ],
   "observability": { "enabled": true }
 }

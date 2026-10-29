@@ -6,7 +6,7 @@ The system is built and tested on the developer's computer first. `wrangler dev`
 
 - **Early deploy:** Story 1.2 deploys the canary to a free `*.workers.dev` address, using the existing `wrangler login`. This is needed early because the 10 ms CPU limit and retailer blocking (risks R1 and R2) can only be measured on Cloudflare's network, not locally.
 - **Late:** the domain, GitHub Actions deploys and the API token come in Story 4.4, shortly before launch. Start the domain registration and nameserver change in parallel from day 1.
-- **Cache behaviour on `workers.dev`:** possibly different from the real domain, so caching is only confirmed in Story 4.4.
+- **Cache behaviour on `workers.dev`:** measured in Story 1.2 (spike S0): the Cache API does cache on `workers.dev`. Caching of the real home page is still confirmed on the production domain in Story 4.4. See `docs/spike-s0-workers-dev.md`.
 
 ## Local Development Setup
 

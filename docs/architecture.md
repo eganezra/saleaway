@@ -32,7 +32,7 @@ These numbers shape the design. They come from the official Cloudflare docs page
 | D1 | 500 MB per database, 5 GB per account, 10 databases, **5 million rows read per day, 100,000 rows written per day**, 50 queries per invocation, 100 bound parameters | Pipeline writes about 500 rows a day. Reads must be cached, so the home page cannot query D1 on every view. |
 | Browser Rendering | 10 minutes of browser time per day, 3 concurrent browsers | Enough for only a handful of JavaScript-only stores a day (Epic 5). |
 | Static assets | Free and unlimited per the docs. Whether they count toward the 100,000 requests a day was not stated. | CSS, JavaScript and fonts are served as static assets. |
-| Worker bundle size | The Workers limits page summary read "64 MiB uncompressed". The OpenNext docs state a **3 MiB compressed** Free limit. These disagree. | Treat 3 MiB compressed as the working limit and confirm at scaffold time. Astro fits easily. |
+| Worker bundle size | The Workers limits page summary read "64 MiB uncompressed". The OpenNext docs state a **3 MiB compressed** Free limit. These disagree. | Treat 3 MiB compressed as the working limit. **Measured in Story 1.2 (2026-10-29):** the web Worker deployed at 614.85 KiB total, 159.00 KiB gzip (about 5% of 3 MiB), and the Free plan accepted it. No limit was reached, so the disagreement is not settled. See `docs/spike-s0-workers-dev.md`. |
 
 **Next.js on Cloudflare (relevant to the framework choice):** Cloudflare's current Next.js guide recommends "vinext", a beta Vite plugin, as the default path. The OpenNext Cloudflare adapter is the other route, and its docs reference a 1.0 beta migration and the 3 MiB compressed Free limit. Both paths are beta or in flux.
 
@@ -901,7 +901,7 @@ The system is built and tested on the developer's computer first. `wrangler dev`
 
 - **Early deploy:** Story 1.2 deploys the canary to a free `*.workers.dev` address, using the existing `wrangler login`. This is needed early because the 10 ms CPU limit and retailer blocking (risks R1 and R2) can only be measured on Cloudflare's network, not locally.
 - **Late:** the domain, GitHub Actions deploys and the API token come in Story 4.4, shortly before launch. Start the domain registration and nameserver change in parallel from day 1.
-- **Cache behaviour on `workers.dev`:** possibly different from the real domain, so caching is only confirmed in Story 4.4.
+- **Cache behaviour on `workers.dev`:** measured in Story 1.2 (spike S0): the Cache API does cache on `workers.dev`. Caching of the real home page is still confirmed on the production domain in Story 4.4. See `docs/spike-s0-workers-dev.md`.
 
 ### Local Development Setup
 
@@ -1274,7 +1274,7 @@ export function classifyFetch(res: Response | null, err: unknown): FetchClass {
 | R6 | **D1 write limit** of 100,000 rows a day | Very low from the pipeline (about 500 rows a day), possible from click counting | D1 errors for the rest of the day | `CLICK_SAMPLE_RATE`, and the click path is wrapped so a D1 failure never blocks a page |
 | R7 | **Bundle size** limit on the Free plan | Low with Astro | Deploy fails | Check size in CI, working limit 3 MiB compressed |
 
-**Spike order:** S0 (Story 1.2) deploy "hello" Astro with a D1 binding, and confirm the Cache API works. I believe it does not cache on `*.workers.dev` addresses, so caching may only take effect on the custom domain. This has not been verified, and it also means the home page reads D1 on every view until the domain is connected. S1 (CPU measurement). S2 (fetch from a Worker). S3 click beacon write rate under load.
+**Spike order:** S0 (Story 1.2, done 2026-10-29) deployed the canary with a D1 binding and tested the Cache API. **Result: the Cache API does cache on `*.workers.dev`** (a response stored for 60 seconds was served as a HIT, expired, then cached again), contrary to the earlier belief, so the home page does not have to read D1 on every view before the domain is connected. Caching of the real home page is still confirmed on the production domain in Story 2.4. See `docs/spike-s0-workers-dev.md`. S1 (CPU measurement). S2 (fetch from a Worker). S3 click beacon write rate under load.
 
 ## Black Friday traffic decision (2026-10-29)
 
