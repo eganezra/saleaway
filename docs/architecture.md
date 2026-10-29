@@ -134,7 +134,7 @@ Exact versions were recorded in Story 1.1 on 2026-10-29 and are also pinned in t
 | File Storage | None at launch | - | No images or files stored | Text-only design (NFR7). R2 only if needed later |
 | Authentication | None for visitors. Bearer token secret for the manual-run endpoint. Operator CLI uses your Cloudflare login | - | Protect operator actions | No user accounts in the MVP |
 | Frontend Testing | Vitest + axe (via Playwright smoke test) | latest, pinned | Component logic, accessibility check of the built page | Spec requires automated axe checks |
-| Backend Testing | Vitest with `@cloudflare/vitest-pool-workers` | Vitest 5.0.5 (pinned in Story 1.1; the Workers pool is added in the first story that needs it) | Unit tests with page samples, D1 integration tests | Runs the Worker code and D1 locally (NFR12) |
+| Backend Testing | Vitest, with a real local D1 through Wrangler's `getPlatformProxy` (Story 3.1) | Vitest 5.0.5. `@cloudflare/vitest-pool-workers` 0.23.0, the tool first planned here, needs Vitest 4 and is not used | Unit tests with page samples, D1 integration tests | Runs the Worker logic against a real local D1 with foreign keys and constraints enforced (NFR12) |
 | E2E Testing | Playwright, smoke only (home loads, links present, axe) | latest, pinned | One or two checks | PRD: no full E2E suite for the MVP |
 | Build Tool | pnpm + Astro build + Wrangler | pnpm 9.0.0, Astro 7.4.4, Wrangler 4.155.0 (pinned in Story 1.1) | Build and deploy | Standard for Cloudflare |
 | Bundler | Vite (via Astro) and esbuild (via Wrangler) | managed | Bundle Workers | Defaults |
@@ -489,6 +489,8 @@ sequenceDiagram
 
 A record is hidden when it is `ended`, when its freshness time is older than 72 hours, or when an active override hides it. The **freshness time** is the latest of `last_validated_at`, the time an active override that sets a percentage was created, and, only for a store that has never been validated, the time the retailer row was created. Without that last part the site would be empty until the first pipeline run. These rules live in `isVisible` in `packages/core` and are built in Story 2.3, together with override precedence (an active override's percentage and sale URL replace the extracted ones).
 
+**Run totals (Story 3.1):** when a run is closed, `stores_ok` counts the results `ok`, `js_only` and `skipped_manual`, and `stores_failed` counts every other result (`blocked`, `not_found`, `redirected_away`, `error`, or any value that is not a known class). The rule is `summariseRun` in `packages/core`.
+
 ### Page view
 
 ```mermaid
@@ -611,6 +613,7 @@ CREATE TABLE click_counts (
 - D1 limits: 100 bound parameters per query, so seeding and batches are chunked. All write volumes are far below 100,000 rows a day.
 - **Timestamp defaults** use `strftime('%Y-%m-%dT%H:%M:%SZ','now')`, so stored times match the Coding Standards (`YYYY-MM-DDTHH:MM:SSZ`). SQLite's `datetime('now')` would store `YYYY-MM-DD HH:MM:SS` with no `T` or `Z`. Decided in Story 1.3.
 - **Migrations** live in `db/migrations` and are applied with `pnpm db:migrate:local` and `pnpm db:migrate:remote`. Both `wrangler.jsonc` files set `migrations_dir` to `../../db/migrations` on the `DB` binding (the Astro adapter's default path would be wrong). The local database for `pnpm dev` is the one in `apps/web/.wrangler/state`, so the migrate and seed commands run from the web app's folder. `0001_init.sql` was applied to the live database on 2026-10-29.
+- **Results are unique per run and store (Story 3.1).** Migration `0002_run_results_unique.sql` adds `CREATE UNIQUE INDEX idx_run_results_run_retailer ON run_results(run_id, retailer_id)`, and the pipeline saves a result with an upsert on that pair, so a redelivered queue message updates its row instead of adding a second one. `idx_run_results_run` stays, because migrations are additive.
 - The home page query joins `retailers`, `categories`, `sale_records` and `overrides` in a single query (about 110 rows), then `packages/core` applies the visibility and ranking rules.
 
 ### Seed data rules (found by checking `docs/data/retailers-seed.tsv`)
@@ -748,6 +751,8 @@ apps/pipeline/src/
 └── alert.ts          # POST to ALERT_WEBHOOK_URL
 ```
 
+**Built in Story 3.1 (2026-10-29):** `index.ts` (wiring only), `handlers.ts` (the three entry points), `start-run.ts` (no purge: retention is Story 4.6), `finalize-run.ts` (closes every open run), `repo.ts` (all pipeline SQL), `auth.ts` (`isAuthorized`), `admin-run.ts` (`POST /admin/run`), `config.ts` (`isPaused`), `log.ts`, `types.ts` and `env.d.ts`. `process-store.ts` is a **placeholder** that records `skipped_manual` for manual stores and `error` with `fetcher_not_built_yet` for the others, until Stories 3.2 to 3.5 build the fetch, classify, validate, extract and save steps. `fetcher.ts`, `robots.ts` and `alert.ts` do not exist yet.
+
 #### Function Template
 
 ```typescript
@@ -798,12 +803,14 @@ export default {
     "producers": [{ "binding": "FETCH_QUEUE", "queue": "saleaway-fetch" }],
     "consumers": [{ "queue": "saleaway-fetch", "max_batch_size": 1, "max_retries": 1, "max_concurrency": 2 }]
   },
-  "vars": { "FINALIZE_CRON": "45 3 * * *", "STAGGER_SECONDS": "15" },
+  "vars": { "FINALIZE_CRON": "45 3 * * *", "STAGGER_SECONDS": "15", "PIPELINE_ENABLED": "true" },
   "observability": { "enabled": true }
 }
 ```
 
-Secrets (`ADMIN_TOKEN`, `ALERT_WEBHOOK_URL`) are set with `wrangler secret put` and are never in the repository (NFR10).
+Secrets (`ADMIN_TOKEN`, `ALERT_WEBHOOK_URL`) are set with `wrangler secret put` and are never in the repository (NFR10). The `FETCH_QUEUE` queue is created once with `wrangler queues create saleaway-fetch`.
+
+**Decisions made in Story 3.1:** run totals count `ok`, `js_only` and `skipped_manual` as OK and every other result, including an unknown one, as failed. `controller.cron` is compared with `FINALIZE_CRON` to choose between closing and starting a run. The close step closes every open run (at most 10 per invocation) and a run with missing results is closed with a gap (`stores_ok + stores_failed` below `stores_total`). A failing queue message is retried once and then recorded as an `error` result, so every store of a run ends with a result; a message that cannot be read is acknowledged and logged as `bad_job`; a store that no longer exists is logged and nothing is written, because `run_results.retailer_id` is a foreign key. A paused pipeline starts no run and closes none, while messages already queued are still processed. `POST /admin/run` answers 401 for a bad or missing token, 409 when paused (checked after the token) and 500 if the run cannot start, with the error JSON from the error handling strategy; any other request is a plain 404. A manual run starts a new run; two runs in one day produce two sets of results.
 
 ### Database Architecture
 
@@ -1032,7 +1039,7 @@ The domain `saleaway.co.za` must have its DNS on Cloudflare for a custom domain 
 ### Rollback, pause and dependency upkeep
 
 - **Rollback:** `wrangler rollback` returns a Worker to its previous version. Migrations are written to be additive (new tables and columns only), so rolling the code back never needs a database rollback.
-- **Pause the pipeline:** the `scheduled` handler checks a `PIPELINE_ENABLED` variable and returns immediately when it is `false`. Change it in the Cloudflare dashboard or with a redeploy. The README documents this (PRD Story 4.5).
+- **Pause the pipeline:** the `scheduled` handler checks a `PIPELINE_ENABLED` variable and returns immediately when it is exactly `false`, and the manual run endpoint answers 409. A paused pipeline starts no run (cron or manual) and closes none, and an open run is closed by the first close step after resuming; messages already on the queue are still processed. Change it in `apps/pipeline/wrangler.jsonc` and redeploy (a dashboard edit is overwritten by the next deploy). The README documents this (Story 3.1 and PRD Story 4.5).
 - **Database recovery:** the database can be rebuilt from the seed file plus the next pipeline run. Only overrides are hand-entered, and `ops:override --export` saves them to the repository. D1 also offers point-in-time restore (Time Travel). It is always on and, per Cloudflare's docs, keeps 7 days of history on the Free plan (30 on Paid); `wrangler d1 time-travel info saleaway` returned a current bookmark on 2026-10-29 (Story 1.3). A restore (`wrangler d1 time-travel restore`) overwrites the database in place.
 - **Dependency upkeep:** enable Dependabot (or Renovate) for weekly update pull requests, and run `pnpm audit` in CI. Any new retailer or ad script that is added to the page needs a CSP review.
 

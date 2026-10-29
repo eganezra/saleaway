@@ -63,3 +63,13 @@ export interface SeedData {
   categories: SeedCategory[];
   retailers: SeedRetailer[];
 }
+
+/** What happened when a store's sale page was processed (architecture/data-models.md, SaleRecord). */
+export type FetchClass =
+  | 'ok'
+  | 'blocked'
+  | 'not_found'
+  | 'redirected_away'
+  | 'js_only'
+  | 'error'
+  | 'skipped_manual';

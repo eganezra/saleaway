@@ -2,9 +2,13 @@ export { createLogger } from './logger';
 export type { Logger, LoggerOptions } from './logger';
 export type { LogFields, LogLevel } from './types';
 export { buildSeed, parseSeedTsv, slugify } from './seed';
+export { summariseRun } from './run-summary';
+export type { ResultCount, RunSummary } from './run-summary';
+export { toIsoUtc } from './time';
 export type {
   Category,
   ExtractionMethod,
+  FetchClass,
   Retailer,
   SeedCategory,
   SeedData,

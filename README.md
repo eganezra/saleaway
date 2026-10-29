@@ -28,7 +28,7 @@ Stop the dev server with `pnpm --filter @saleaway/web exec astro dev stop`.
 ## Test and check
 
 ```bash
-pnpm test         # Vitest (the shared core package, the ops scripts and the web app)
+pnpm test         # Vitest (core, ops scripts, web app and pipeline; the pipeline tests use a real local D1)
 pnpm lint         # ESLint, including a ban on console.log outside the logger
 pnpm typecheck    # astro check for the web app, tsc for the other packages
 ```
@@ -38,7 +38,7 @@ pnpm typecheck    # astro check for the web app, tsc for the other packages
 | Path | What it is |
 |---|---|
 | `apps/web` | Astro site (server-rendered on Cloudflare Workers): `src/pages` (routes), `src/components`, `src/layouts`, `src/lib` (database access and page data), `src/styles` |
-| `apps/pipeline` | Cloudflare Worker for the daily job (placeholder until Story 3.1, but deployed and bound to the database) |
+| `apps/pipeline` | Cloudflare Worker for the daily job: schedule, queue and run log (it does not fetch any page yet, that is Story 3.2) |
 | `packages/core` | Pure shared logic with no I/O: the structured logger and the seed rules |
 | `scripts/ops` | Operator commands (`pnpm ops:seed`) and their SQL helpers, with tests |
 | `db/migrations` | SQL migrations for the D1 database (`0001_init.sql`) |
@@ -133,6 +133,55 @@ pnpm --filter @saleaway/pipeline exec wrangler rollback --name saleaway-pipeline
 To go to a specific version, add its version ID (shown by `wrangler deployments list --name <worker>`). Database migrations will be additive only, so rolling code back never needs a database rollback.
 
 The results of the first deploy (Cache API on `workers.dev`, bundle size, logs) are in [`docs/spike-s0-workers-dev.md`](docs/spike-s0-workers-dev.md).
+
+## Pipeline
+
+The pipeline Worker (`saleaway-pipeline`) runs the daily job. **Today it is the skeleton only: it does not fetch any store page yet** (Stories 3.2 to 3.5 add the fetcher, validation, extraction and saving of sale records). Every run records one result per store, so the plumbing can be checked end to end.
+
+| What | When |
+|---|---|
+| Start a run | every day at **03:00 UTC** (05:00 South African time) |
+| Close the run (record the totals) | every day at **03:45 UTC** (05:45 South African time) |
+
+- **How a run works:** the start cron records a run and puts one message per visible store on the queue `saleaway-fetch`, each delayed a bit more than the one before (`STAGGER_SECONDS`, 15 by default, so about 23 minutes for 92 stores). A queue consumer handles one store per message and records one result in `run_results`. A store that fails is retried once and then recorded as an `error`, so one store never stops the others. The close cron writes the finish time and the totals (`stores_ok`, `stores_failed`) into `pipeline_runs`. For now, the 3 manual stores record `skipped_manual` and the other stores record `error` with `fetcher_not_built_yet`.
+- **Settings:** the variables `FINALIZE_CRON`, `STAGGER_SECONDS` and `PIPELINE_ENABLED` are in `apps/pipeline/wrangler.jsonc`. The only secret is `ADMIN_TOKEN` (set with `wrangler secret put ADMIN_TOKEN`, never in the repository, kept in your password manager).
+- **Queue allowance:** the Free plan includes 10,000 queue operations a day. A delivered message costs about 3, so a run of 92 stores uses about 280, plus one more for each retry.
+
+### Run it by hand
+
+```bash
+export ADMIN_TOKEN='...'      # from your password manager; never put it in a file in this repository
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" https://saleaway-pipeline.<account>.workers.dev/admin/run
+# 200 {"ok":true,"runId":12,"storesTotal":92}   401 wrong or missing token   409 the pipeline is paused
+```
+
+A manual run starts a **new** run. Once the fetcher exists (Story 3.2) it will fetch every store again, which breaks the "one page fetch per store per day" politeness rule, so use it sparingly. A manual run is closed by the next 03:45 UTC close cron.
+
+### Pause and resume
+
+Set `"PIPELINE_ENABLED": "false"` in `apps/pipeline/wrangler.jsonc` and run `pnpm deploy:pipeline`. Only the exact text `false` pauses it. While paused, no run starts (cron or manual, the manual endpoint answers 409) and no run is closed. Messages already on the queue are still processed, and an open run is closed by the first close cron after you resume (set it back to `"true"` and redeploy). A change made only in the Cloudflare dashboard is overwritten by the next deploy.
+
+### Check a run
+
+```bash
+pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --remote --command \
+"SELECT id, trigger, started_at, finished_at, stores_total, stores_ok, stores_failed FROM pipeline_runs ORDER BY id DESC LIMIT 5"
+```
+
+A healthy run has a `finished_at` and `stores_ok + stores_failed = stores_total`. A smaller sum means some stores have no result (the Worker or the queue failed part way). Per-store detail is in `run_results` (`WHERE run_id = <id>`). Watch the live Worker with `pnpm --filter @saleaway/pipeline exec wrangler tail saleaway-pipeline --format json`.
+
+### Try it on your computer
+
+```bash
+pnpm db:migrate:local                    # once, and after new migrations
+printf 'ADMIN_TOKEN=local-test-token-not-a-secret\n' > apps/pipeline/.dev.vars     # git-ignored
+pnpm --filter @saleaway/pipeline exec wrangler dev --test-scheduled --persist-to ../web/.wrangler/state --var STAGGER_SECONDS:1
+# in another terminal (the port is printed; 8787 is the default):
+curl "http://localhost:8787/__scheduled?cron=0+3+*+*+*"     # start a run
+curl "http://localhost:8787/__scheduled?cron=45+3+*+*+*"    # close it
+```
+
+`--persist-to ../web/.wrangler/state` makes the pipeline use the same local database as `pnpm dev` (with the seeded stores). Add `--var PIPELINE_ENABLED:false` to try the pause. To roll the deployed Worker back: `pnpm --filter @saleaway/pipeline exec wrangler rollback --name saleaway-pipeline`.
 
 ## Rules that matter
 

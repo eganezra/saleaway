@@ -3,6 +3,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-15",
   "compatibility_flags": ["nodejs_compat"],
+  "triggers": { "crons": ["0 3 * * *", "45 3 * * *"] },
   "d1_databases": [
     {
       "binding": "DB",
@@ -11,5 +12,10 @@
       "migrations_dir": "../../db/migrations"
     }
   ],
+  "queues": {
+    "producers": [{ "binding": "FETCH_QUEUE", "queue": "saleaway-fetch" }],
+    "consumers": [{ "queue": "saleaway-fetch", "max_batch_size": 1, "max_retries": 1, "max_concurrency": 2 }]
+  },
+  "vars": { "FINALIZE_CRON": "45 3 * * *", "STAGGER_SECONDS": "15", "PIPELINE_ENABLED": "true" },
   "observability": { "enabled": true }
 }

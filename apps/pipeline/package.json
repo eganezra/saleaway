@@ -5,14 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "types": "wrangler types",
-    "typecheck": "wrangler types && tsc --noEmit"
+    "types": "wrangler types --strict-vars=false",
+    "typecheck": "wrangler types --strict-vars=false && tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@saleaway/core": "workspace:^"
   },
   "devDependencies": {
+    "@types/node": "22.20.5",
     "typescript": "5.9.3",
+    "vitest": "^5.0.5",
     "wrangler": "^4.155.0"
   }
 }

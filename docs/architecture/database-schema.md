@@ -94,6 +94,7 @@ CREATE TABLE click_counts (
 - D1 limits: 100 bound parameters per query, so seeding and batches are chunked. All write volumes are far below 100,000 rows a day.
 - **Timestamp defaults** use `strftime('%Y-%m-%dT%H:%M:%SZ','now')`, so stored times match the Coding Standards (`YYYY-MM-DDTHH:MM:SSZ`). SQLite's `datetime('now')` would store `YYYY-MM-DD HH:MM:SS` with no `T` or `Z`. Decided in Story 1.3.
 - **Migrations** live in `db/migrations` and are applied with `pnpm db:migrate:local` and `pnpm db:migrate:remote`. Both `wrangler.jsonc` files set `migrations_dir` to `../../db/migrations` on the `DB` binding (the Astro adapter's default path would be wrong). The local database for `pnpm dev` is the one in `apps/web/.wrangler/state`, so the migrate and seed commands run from the web app's folder. `0001_init.sql` was applied to the live database on 2026-10-29.
+- **Results are unique per run and store (Story 3.1).** Migration `0002_run_results_unique.sql` adds `CREATE UNIQUE INDEX idx_run_results_run_retailer ON run_results(run_id, retailer_id)`, and the pipeline saves a result with an upsert on that pair, so a redelivered queue message updates its row instead of adding a second one. `idx_run_results_run` stays, because migrations are additive.
 - The home page query joins `retailers`, `categories`, `sale_records` and `overrides` in a single query (about 110 rows), then `packages/core` applies the visibility and ranking rules.
 
 ## Seed data rules (found by checking `docs/data/retailers-seed.tsv`)

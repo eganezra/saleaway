@@ -1,7 +1,19 @@
-// Placeholder Worker for Story 1.1. The real scheduled, queue and fetch handlers
-// are built in Story 3.1.
+import { handleFetch, handleQueue, handleScheduled } from './handlers';
+import { log } from './log';
+import type { Deps, StoreJob } from './types';
+
+const deps: Deps = { log, clock: () => new Date() };
+
+// The pipeline Worker (architecture/backend-architecture.md): `scheduled` starts and closes the daily run,
+// `queue` processes one store per message, `fetch` serves POST /admin/run only.
 export default {
-  async fetch(): Promise<Response> {
-    return new Response('Not found', { status: 404 });
+  async scheduled(controller, env) {
+    await handleScheduled(controller, env, deps);
   },
-} satisfies ExportedHandler;
+  async queue(batch, env) {
+    await handleQueue(batch, env, deps);
+  },
+  async fetch(request, env) {
+    return handleFetch(request, env, deps);
+  },
+} satisfies ExportedHandler<Env, StoreJob>;

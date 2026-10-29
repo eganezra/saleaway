@@ -18,7 +18,7 @@ Exact versions were recorded in Story 1.1 on 2026-10-29 and are also pinned in t
 | File Storage | None at launch | - | No images or files stored | Text-only design (NFR7). R2 only if needed later |
 | Authentication | None for visitors. Bearer token secret for the manual-run endpoint. Operator CLI uses your Cloudflare login | - | Protect operator actions | No user accounts in the MVP |
 | Frontend Testing | Vitest + axe (via Playwright smoke test) | latest, pinned | Component logic, accessibility check of the built page | Spec requires automated axe checks |
-| Backend Testing | Vitest with `@cloudflare/vitest-pool-workers` | Vitest 5.0.5 (pinned in Story 1.1; the Workers pool is added in the first story that needs it) | Unit tests with page samples, D1 integration tests | Runs the Worker code and D1 locally (NFR12) |
+| Backend Testing | Vitest, with a real local D1 through Wrangler's `getPlatformProxy` (Story 3.1) | Vitest 5.0.5. `@cloudflare/vitest-pool-workers` 0.23.0, the tool first planned here, needs Vitest 4 and is not used | Unit tests with page samples, D1 integration tests | Runs the Worker logic against a real local D1 with foreign keys and constraints enforced (NFR12) |
 | E2E Testing | Playwright, smoke only (home loads, links present, axe) | latest, pinned | One or two checks | PRD: no full E2E suite for the MVP |
 | Build Tool | pnpm + Astro build + Wrangler | pnpm 9.0.0, Astro 7.4.4, Wrangler 4.155.0 (pinned in Story 1.1) | Build and deploy | Standard for Cloudflare |
 | Bundler | Vite (via Astro) and esbuild (via Wrangler) | managed | Bundle Workers | Defaults |

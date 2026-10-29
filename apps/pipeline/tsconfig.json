@@ -3,5 +3,9 @@
   "compilerOptions": {
     "types": []
   },
-  "include": ["src", "worker-configuration.d.ts"]
+  "include": [
+    "src",
+    "tests",
+    "worker-configuration.d.ts"
+  ]
 }
