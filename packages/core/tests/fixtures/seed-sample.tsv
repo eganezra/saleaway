@@ -1,0 +1,9 @@
+Category	Rank	Store	Homepage	Primary sale / promo URL	Label used on site	Secondary / Black Friday URL	Platform / URL pattern	Status (28 Oct 2026)	How it was found
+Fashion & apparel	1	Ackermans	https://www.ackermans.co.za	https://www.ackermans.co.za/sale	Sale	https://www.ackermans.co.za/black-friday	Shopify /collections/	Verified – products visible	Fetched directly
+Fashion & apparel	2	Hirsch's	https://www.hirschs.co.za	— (not found)	—	—	—	No sale page / not found	Not found
+Fashion & apparel	3	Estée Lauder SA	https://www.esteelauder.co.za	https://www.esteelauder.co.za/promotions	Offers	— (Black Friday banner, no link yet)	Custom	Verified – page loads (products load via JS)	Fetched directly
+Baby, kids & toys	1	Ackermans	https://www.ackermans.co.za	https://www.ackermans.co.za/baby-sale	Sale	—	Shopify	Found via search – not fetched	Search
+Baby, kids & toys	Alt	Naartjie	https://www.naartjie.co.za	— (label found, URL not resolved)	End of Season Sale	—	—	No sale page / not found	Search
+Baby, kids & toys	Alt	Toy Kingdom	https://www.toykingdom.co.za	https://www.toykingdom.co.za/sale	Sale	—	Custom	Found via search – not fetched	Search
+Marketplaces & department	1	Amazon.co.za	https://www.amazon.co.za	https://www.amazon.co.za/deals	Deals	—	Amazon standard	Found via search – not fetched	Search
+Marketplaces & department	2	Cielo	https://www.cielo.co.za	— (no evergreen page found)	—	https://www.cielo.co.za/all-black-friday-deals/	Custom	Found via search – not fetched	Search

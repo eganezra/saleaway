@@ -25,8 +25,8 @@ export default [
     },
   },
   {
-    // The single place the apps hand the console to the logger.
-    files: ['apps/web/src/lib/log.ts'],
+    // The single place per app or script folder that hands the console to the logger.
+    files: ['apps/web/src/lib/log.ts', 'scripts/ops/src/log.ts'],
     rules: {
       'no-console': 'off',
     },

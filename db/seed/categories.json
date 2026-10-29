@@ -1,0 +1,72 @@
+[
+  {
+    "slug": "marketplaces-department",
+    "name": "Marketplaces & department",
+    "tagline": "Everything under one roof.",
+    "sortOrder": 1,
+    "colorToken": "cat-default"
+  },
+  {
+    "slug": "fashion-apparel",
+    "name": "Fashion & apparel",
+    "tagline": "Dress up, pay less.",
+    "sortOrder": 2,
+    "colorToken": "cat-default"
+  },
+  {
+    "slug": "sport-athleisure-outdoor",
+    "name": "Sport, athleisure & outdoor",
+    "tagline": "Move more, spend less.",
+    "sortOrder": 3,
+    "colorToken": "cat-default"
+  },
+  {
+    "slug": "tech-electronics",
+    "name": "Tech & electronics",
+    "tagline": "Shiny things, smaller prices.",
+    "sortOrder": 4,
+    "colorToken": "cat-default"
+  },
+  {
+    "slug": "home-decor-furniture",
+    "name": "Home, decor & furniture",
+    "tagline": "Make it home for less.",
+    "sortOrder": 5,
+    "colorToken": "cat-default"
+  },
+  {
+    "slug": "diy-hardware-garden",
+    "name": "DIY, hardware & garden",
+    "tagline": "Build it, grow it, save on it.",
+    "sortOrder": 6,
+    "colorToken": "cat-default"
+  },
+  {
+    "slug": "beauty-health-pharmacy",
+    "name": "Beauty, health & pharmacy",
+    "tagline": "Look good, feel good, pay less.",
+    "sortOrder": 7,
+    "colorToken": "cat-default"
+  },
+  {
+    "slug": "grocery-liquor",
+    "name": "Grocery & liquor",
+    "tagline": "Fill the trolley for less.",
+    "sortOrder": 8,
+    "colorToken": "cat-default"
+  },
+  {
+    "slug": "baby-kids-toys",
+    "name": "Baby, kids & toys",
+    "tagline": "Little people, bigger savings.",
+    "sortOrder": 9,
+    "colorToken": "cat-default"
+  },
+  {
+    "slug": "pets",
+    "name": "Pets",
+    "tagline": "Happy pets, happy wallet.",
+    "sortOrder": 10,
+    "colorToken": "cat-default"
+  }
+]

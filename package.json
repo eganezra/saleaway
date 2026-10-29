@@ -13,7 +13,10 @@
     "test": "pnpm -r --if-present test",
     "deploy:web": "pnpm --filter @saleaway/web build && pnpm --filter @saleaway/web exec wrangler deploy",
     "deploy:pipeline": "pnpm --filter @saleaway/pipeline exec wrangler deploy",
-    "deploy:all": "pnpm deploy:web && pnpm deploy:pipeline"
+    "deploy:all": "pnpm deploy:web && pnpm deploy:pipeline",
+    "db:migrate:local": "pnpm --filter @saleaway/web exec wrangler d1 migrations apply saleaway --local",
+    "db:migrate:remote": "pnpm --filter @saleaway/web exec wrangler d1 migrations apply saleaway --remote",
+    "ops:seed": "pnpm --filter @saleaway/ops exec tsx src/seed.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

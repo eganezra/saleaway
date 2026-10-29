@@ -144,6 +144,8 @@ Exact versions were recorded in Story 1.1 on 2026-10-29 and are also pinned in t
 | Logging | Structured JSON logger in `packages/core` | - | One log shape everywhere | NFR11 |
 | Linting | ESLint with typescript-eslint and eslint-plugin-astro | ESLint 10.13.0, typescript-eslint 8.72.1, eslint-plugin-astro 3.2.1, @eslint/js 10.0.1 | `pnpm lint`, including no `console.log` outside the logger | Added in Story 1.1: the architecture named a lint command but no tool |
 | Type check (web) | @astrojs/check | 0.9.12 | `astro check` in `pnpm typecheck` | Needed by Story 1.1 for the web app |
+| Script runner | tsx | 4.23.15 (pinned in Story 1.3) | Runs the operator scripts in `scripts/ops`, for example `pnpm ops:seed` | The architecture names it for the ops scripts (Components, Operator CLI) |
+| Node types | @types/node | 22.20.5 (pinned in Story 1.3; Node 22 line, matching `.nvmrc`) | Types for `node:fs`, `process` and similar in `scripts/ops` and the core tests | The repository had no Node types, so `pnpm typecheck` needed them |
 | CSS Framework | None. CSS custom properties (design tokens) plus scoped component styles | - | Neo-brutalist style from the spec | Smaller than any framework |
 
 ### Framework decision (decided 2026-10-29: Astro)
@@ -542,8 +544,8 @@ CREATE TABLE retailers (
   seed_status            TEXT NOT NULL DEFAULT 'search_only'
     CHECK (seed_status IN ('verified_products','verified_js_shell','search_only','no_sale_page')),
   is_visible             INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1)),
-  created_at             TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at             TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  updated_at             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 CREATE INDEX idx_retailers_category_rank ON retailers(category_id, rank);
 
@@ -567,7 +569,7 @@ CREATE TABLE overrides (
   sale_url         TEXT,
   expires_at       TEXT,
   note             TEXT NOT NULL DEFAULT '',
-  created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 
 CREATE TABLE pipeline_runs (
@@ -589,7 +591,7 @@ CREATE TABLE run_results (
   discount_percent INTEGER,
   duration_ms      INTEGER,
   error            TEXT,
-  created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 CREATE INDEX idx_run_results_run ON run_results(run_id);
 CREATE INDEX idx_run_results_retailer_time ON run_results(retailer_id, created_at);
@@ -607,6 +609,8 @@ CREATE TABLE click_counts (
 - Per the PRD, schema changes come with the stories that need them. Story 1.3 creates `categories`, `retailers`, `sale_records`, `overrides` and `pipeline_runs`/`run_results`. `click_counts` arrives with Story 2.5.
 - `discount_percent BETWEEN 5 AND 90` enforces the sanity range from Story 3.4. A value outside the range is stored as `NULL` ("On sale").
 - D1 limits: 100 bound parameters per query, so seeding and batches are chunked. All write volumes are far below 100,000 rows a day.
+- **Timestamp defaults** use `strftime('%Y-%m-%dT%H:%M:%SZ','now')`, so stored times match the Coding Standards (`YYYY-MM-DDTHH:MM:SSZ`). SQLite's `datetime('now')` would store `YYYY-MM-DD HH:MM:SS` with no `T` or `Z`. Decided in Story 1.3.
+- **Migrations** live in `db/migrations` and are applied with `pnpm db:migrate:local` and `pnpm db:migrate:remote`. Both `wrangler.jsonc` files set `migrations_dir` to `../../db/migrations` on the `DB` binding (the Astro adapter's default path would be wrong). The local database for `pnpm dev` is the one in `apps/web/.wrangler/state`, so the migrate and seed commands run from the web app's folder. `0001_init.sql` was applied to the live database on 2026-10-29.
 - The home page query joins `retailers`, `categories`, `sale_records` and `overrides` in a single query (about 110 rows), then `packages/core` applies the visibility and ranking rules.
 
 ### Seed data rules (found by checking `docs/data/retailers-seed.tsv`)
@@ -619,6 +623,12 @@ The seed script (Story 1.3) must handle these facts about the spreadsheet:
 - **Rows with no primary sale URL.** 14 of 106 rows have no usable primary URL: 12 are marked "No sale page", and 2 (Cielo, Builders) have only a Black Friday campaign page. All 14 are seeded with `is_visible = 0`. **92 rows have a primary sale URL**, not 94 as the spreadsheet's summary tab suggests (it counts the two Black Friday-only stores).
 - **Extraction method.** The seed sets `extraction_method` from the `Platform` column: contains "Shopify" gives `shopify_json` (19 rows today); Amazon.co.za, Game and Checkers get `manual` (blocked in the fetch test); everything else gets `html`. Each can be changed later with the override command.
 - **Re-running the seed is safe.** It upserts only seed-owned columns (name, URLs, category, platform, rank, seed status) and never touches `is_visible` or `extraction_method` once an operator has changed them, `sale_records` or `overrides`. Seeding must also insert the 10 categories, with taglines to be written during Story 1.3.
+- **Categories.** `db/seed/categories.json` is the only definition of the 10 categories: the spreadsheet's names, `slug` = `slugify(name)` (for example `baby-kids-toys`), a tagline each, `sort_order` 1 to 10 in spreadsheet order, and `color_token` `cat-default` until Story 2.2 chooses the colours. The seed upserts every category column.
+- **Store slugs.** `slugify(Store)`: lowercase, accents and apostrophes removed, any other run of non-alphanumeric characters becomes one `-` (`Hirsch's` gives `hirschs`, `Estée Lauder SA` gives `estee-lauder-sa`). The first row keeps the plain slug, a later row with the same slug gets `-<category-slug>`, and a slug still taken is an error.
+- **`Alt` rank** becomes 100 plus the row's 1-based position within its category (Side Step is the 11th Sport row, so 111).
+- **URLs, platform and visibility.** A cell that does not start with `https://` (for example `— (not found)`) becomes `NULL` for `sale_url` and `black_friday_url`. `is_visible` is 1 exactly when `sale_url` is set, so Cielo and Builders are hidden although their status is `search_only`. `platform` keeps the spreadsheet text unchanged. `black_friday_verified` is not set by the seed (it stays 0). The manual stores are matched by homepage host: `amazon.co.za`, `game.co.za`, `checkers.co.za`.
+- **Columns the seed only sets on first insert:** `is_visible`, `extraction_method` and `black_friday_verified`. A re-seed never changes them, so a hidden store whose sale URL is found later stays hidden until the operator updates `is_visible`.
+- **First seed result (Story 1.3, 2026-10-29, local and live):** 10 categories and 106 retailers, 92 visible and 14 hidden; 84 `html`, 19 `shopify_json`, 3 `manual`; 68 Black Friday URLs. The first run writes 338 rows (index rows included) and a re-run about 222, far below the 100,000 rows a day Free limit.
 
 ## Frontend Architecture
 
@@ -1023,7 +1033,7 @@ The domain `saleaway.co.za` must have its DNS on Cloudflare for a custom domain 
 
 - **Rollback:** `wrangler rollback` returns a Worker to its previous version. Migrations are written to be additive (new tables and columns only), so rolling the code back never needs a database rollback.
 - **Pause the pipeline:** the `scheduled` handler checks a `PIPELINE_ENABLED` variable and returns immediately when it is `false`. Change it in the Cloudflare dashboard or with a redeploy. The README documents this (PRD Story 4.5).
-- **Database recovery:** the database can be rebuilt from the seed file plus the next pipeline run. Only overrides are hand-entered, and `ops:override --export` saves them to the repository. D1 also offers point-in-time restore (Time Travel). Its retention on the Free plan has not been verified here, so check it in Story 1.3.
+- **Database recovery:** the database can be rebuilt from the seed file plus the next pipeline run. Only overrides are hand-entered, and `ops:override --export` saves them to the repository. D1 also offers point-in-time restore (Time Travel). It is always on and, per Cloudflare's docs, keeps 7 days of history on the Free plan (30 on Paid); `wrangler d1 time-travel info saleaway` returned a current bookmark on 2026-10-29 (Story 1.3). A restore (`wrangler d1 time-travel restore`) overwrites the database in place.
 - **Dependency upkeep:** enable Dependabot (or Renovate) for weekly update pull requests, and run `pnpm audit` in CI. Any new retailer or ad script that is added to the page needs a CSP review.
 
 ## Security and Performance

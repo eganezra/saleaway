@@ -28,6 +28,8 @@ Exact versions were recorded in Story 1.1 on 2026-10-29 and are also pinned in t
 | Logging | Structured JSON logger in `packages/core` | - | One log shape everywhere | NFR11 |
 | Linting | ESLint with typescript-eslint and eslint-plugin-astro | ESLint 10.13.0, typescript-eslint 8.72.1, eslint-plugin-astro 3.2.1, @eslint/js 10.0.1 | `pnpm lint`, including no `console.log` outside the logger | Added in Story 1.1: the architecture named a lint command but no tool |
 | Type check (web) | @astrojs/check | 0.9.12 | `astro check` in `pnpm typecheck` | Needed by Story 1.1 for the web app |
+| Script runner | tsx | 4.23.15 (pinned in Story 1.3) | Runs the operator scripts in `scripts/ops`, for example `pnpm ops:seed` | The architecture names it for the ops scripts (Components, Operator CLI) |
+| Node types | @types/node | 22.20.5 (pinned in Story 1.3; Node 22 line, matching `.nvmrc`) | Types for `node:fs`, `process` and similar in `scripts/ops` and the core tests | The repository had no Node types, so `pnpm typecheck` needed them |
 | CSS Framework | None. CSS custom properties (design tokens) plus scoped component styles | - | Neo-brutalist style from the spec | Smaller than any framework |
 
 ## Framework decision (decided 2026-10-29: Astro)
