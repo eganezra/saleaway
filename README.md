@@ -143,7 +143,7 @@ The pipeline Worker (`saleaway-pipeline`) runs the daily job. **Today it is the 
 | Start a run | every day at **03:00 UTC** (05:00 South African time) |
 | Close the run (record the totals) | every day at **03:45 UTC** (05:45 South African time) |
 
-- **How a run works:** the start cron records a run and puts one message per visible store on the queue `saleaway-fetch`, each delayed a bit more than the one before (`STAGGER_SECONDS`, 15 by default, so about 23 minutes for 92 stores). A queue consumer handles one store per message and records one result in `run_results`. A store that fails is retried once and then recorded as an `error`, so one store never stops the others. The close cron writes the finish time and the totals (`stores_ok`, `stores_failed`) into `pipeline_runs`. For now, the 3 manual stores record `skipped_manual` and the other stores record `error` with `fetcher_not_built_yet`.
+- **How a run works:** the start cron records a run and puts one message per visible store on the queue `saleaway-fetch`, each delayed a bit more than the one before (`STAGGER_SECONDS`, 15 by default, so about 23 minutes for 92 stores). **Keep (number of stores - 1) x `STAGGER_SECONDS` under about 40 minutes** (26 seconds or less for 92 stores): the close cron runs 45 minutes after the start, and a run that is still going then is closed with the missing stores counted as a gap. A queue consumer handles one store per message and records one result in `run_results`. A store that fails is retried once and then recorded as an `error`, so one store never stops the others. The close cron writes the finish time and the totals (`stores_ok`, `stores_failed`) into `pipeline_runs`. For now, the 3 manual stores record `skipped_manual` and the other stores record `error` with `fetcher_not_built_yet`.
 - **Settings:** the variables `FINALIZE_CRON`, `STAGGER_SECONDS` and `PIPELINE_ENABLED` are in `apps/pipeline/wrangler.jsonc`. The only secret is `ADMIN_TOKEN` (set with `wrangler secret put ADMIN_TOKEN`, never in the repository, kept in your password manager).
 - **Queue allowance:** the Free plan includes 10,000 queue operations a day. A delivered message costs about 3, so a run of 92 stores uses about 280, plus one more for each retry.
 
@@ -174,6 +174,7 @@ A healthy run has a `finished_at` and `stores_ok + stores_failed = stores_total`
 
 ```bash
 pnpm db:migrate:local                    # once, and after new migrations
+pnpm ops:seed --local                    # once: load the stores (without them a run has 0 stores)
 printf 'ADMIN_TOKEN=local-test-token-not-a-secret\n' > apps/pipeline/.dev.vars     # git-ignored
 pnpm --filter @saleaway/pipeline exec wrangler dev --test-scheduled --persist-to ../web/.wrangler/state --var STAGGER_SECONDS:1
 # in another terminal (the port is printed; 8787 is the default):
