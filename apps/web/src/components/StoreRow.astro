@@ -1,0 +1,63 @@
+---
+// One store as one link card. Text only: no retailer images, logos or favicons.
+interface Props {
+  name: string;
+  url: string;
+  slug: string;
+}
+const { name, url, slug } = Astro.props;
+---
+
+<li>
+  <a class="store" href={url} target="_blank" rel="noopener noreferrer" data-store={slug}>
+    <span class="name">{name}</span>
+    <span class="label">On sale</span>
+    <span class="visually-hidden">(opens in a new tab)</span>
+  </a>
+</li>
+
+<style>
+  .store {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+    height: 100%;
+    padding: 12px 16px;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    border: 3px solid var(--color-ink);
+    box-shadow: 4px 4px 0 var(--color-ink);
+    text-decoration: none;
+  }
+
+  /* The name wraps onto a second line and is never cut off with an ellipsis. */
+  .name {
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .store:visited .name {
+    color: var(--color-muted);
+  }
+
+  .label {
+    flex: none;
+    padding: 4px 10px;
+    background: var(--color-surface);
+    border: 2px dashed var(--color-ink);
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  @media (hover: hover) {
+    .store:hover {
+      box-shadow: 2px 2px 0 var(--color-ink);
+      transform: translate(2px, 2px);
+    }
+  }
+</style>

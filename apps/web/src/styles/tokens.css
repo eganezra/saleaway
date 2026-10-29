@@ -1,0 +1,14 @@
+/* Design tokens from docs/front-end-spec.md (Color Palette). Only what the pages use today. */
+:root {
+  --color-ink: #111111;
+  --color-page: #faf6ec;
+  --color-surface: #ffffff;
+  --color-muted: #4a4a4a;
+  --color-yellow: #ffd23f;
+  --color-pink: #ff4f8b;
+  --color-sky: #7cc4ff;
+  --color-mint: #a8e6b0;
+  --color-focus: #1a4fff;
+
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}

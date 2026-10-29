@@ -14,17 +14,21 @@ This repository is a pnpm monorepo. Planning documents are in [`docs/`](docs/): 
 ```bash
 nvm use                 # reads .nvmrc
 pnpm install
+pnpm db:migrate:local   # first time only: create the local database tables
+pnpm ops:seed --local   # first time only: load the stores (see "Database" below)
 pnpm dev                # starts the web app at http://localhost:4321
 ```
 
-Then open http://localhost:4321 for the canary page, and http://localhost:4321/health, which returns `ok` and writes one structured JSON log line.
+Then open http://localhost:4321 for the store list: one card per visible store (92 after seeding), each opening the store's sale page in a new tab. The page is deliberately plain for now. Epic 2 adds categories, discounts and the real design. Also try http://localhost:4321/health, which returns `ok` and writes one structured JSON log line.
+
+If the database cannot be read, the page answers **503** with "Sales are loading, check back soon." and logs one `home_failed` line with the real error. If the database works but has no visible stores, it shows the same message with a normal 200. The message never contains technical detail.
 
 Stop the dev server with `pnpm --filter @saleaway/web exec astro dev stop`.
 
 ## Test and check
 
 ```bash
-pnpm test         # Vitest (the shared core package and the ops scripts)
+pnpm test         # Vitest (the shared core package, the ops scripts and the web app)
 pnpm lint         # ESLint, including a ban on console.log outside the logger
 pnpm typecheck    # astro check for the web app, tsc for the other packages
 ```
@@ -33,7 +37,7 @@ pnpm typecheck    # astro check for the web app, tsc for the other packages
 
 | Path | What it is |
 |---|---|
-| `apps/web` | Astro site (server-rendered on Cloudflare Workers) |
+| `apps/web` | Astro site (server-rendered on Cloudflare Workers): `src/pages` (routes), `src/components`, `src/layouts`, `src/lib` (database access and page data), `src/styles` |
 | `apps/pipeline` | Cloudflare Worker for the daily job (placeholder until Story 3.1, but deployed and bound to the database) |
 | `packages/core` | Pure shared logic with no I/O: the structured logger and the seed rules |
 | `scripts/ops` | Operator commands (`pnpm ops:seed`) and their SQL helpers, with tests |

@@ -1,15 +1,47 @@
 ---
-// Canary page for Story 1.1. The real home page arrives in later stories.
+import { env } from 'cloudflare:workers';
+import EmptyState from '../components/EmptyState.astro';
+import StoreRow from '../components/StoreRow.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { loadHomeViewModel } from '../lib/homeViewModel';
+import { log } from '../lib/log';
+
+// A failing database is a 503. An empty one is a normal 200. Both show the friendly message.
+const vm = await loadHomeViewModel(env.DB, log);
+if (vm.kind === 'error') Astro.response.status = 503;
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Saleaway</title>
-  </head>
-  <body>
+<BaseLayout>
+  <main>
     <h1>Saleaway</h1>
-  </body>
-</html>
+    <p class="intro">Current sales from South African online stores, in one place.</p>
+    {
+      vm.kind === 'ok' ? (
+        <ol class="stores" role="list">
+          {vm.stores.map((store) => (
+            <StoreRow name={store.name} url={store.saleUrl} slug={store.slug} />
+          ))}
+        </ol>
+      ) : (
+        <EmptyState />
+      )
+    }
+  </main>
+</BaseLayout>
+
+<style>
+  .intro {
+    margin: 0 0 24px;
+    color: var(--color-muted);
+  }
+
+  /* One column on a phone, more as the screen widens. No breakpoints needed. */
+  .stores {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+</style>

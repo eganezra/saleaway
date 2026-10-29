@@ -3,7 +3,8 @@
   "include": [
     ".astro/types.d.ts",
     "worker-configuration.d.ts",
-    "src/**/*"
+    "src/**/*",
+    "tests/**/*"
   ],
   "exclude": [
     "dist"
