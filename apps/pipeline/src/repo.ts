@@ -1,4 +1,4 @@
-import type { FetchClass, ResultCount } from '@saleaway/core';
+import type { FetchClass, ResultCount, SaleRecordFields } from '@saleaway/core';
 import type { RunTrigger } from './types';
 
 // Data access for the pipeline. All SQL for the pipeline lives here (coding standards).
@@ -87,6 +87,86 @@ export async function saveRunResult(db: D1Database, r: RunResultInput): Promise<
     )
     .bind(r.runId, r.retailerId, r.result, r.httpStatus, r.discountPercent, r.durationMs, r.error, r.createdAt)
     .run();
+}
+
+interface SaleRecordRow {
+  state: SaleRecordFields['state'];
+  validation: SaleRecordFields['validation'];
+  discount_percent: number | null;
+  last_result: FetchClass | null;
+  first_seen_at: string | null;
+  last_checked_at: string | null;
+  last_validated_at: string | null;
+  ended_at: string | null;
+}
+
+/** The store's sale record, or null when it has none. An old row without `last_result` reads as `error`. */
+export async function getSaleRecord(db: D1Database, retailerId: number): Promise<SaleRecordFields | null> {
+  const row = await db
+    .prepare(
+      `SELECT state, validation, discount_percent, last_result, first_seen_at, last_checked_at, last_validated_at, ended_at
+       FROM sale_records WHERE retailer_id = ?1`,
+    )
+    .bind(retailerId)
+    .first<SaleRecordRow>();
+  if (!row) return null;
+  return {
+    state: row.state,
+    validation: row.validation,
+    discountPercent: row.discount_percent,
+    lastResult: row.last_result ?? 'error',
+    firstSeenAt: row.first_seen_at,
+    lastCheckedAt: row.last_checked_at ?? '',
+    lastValidatedAt: row.last_validated_at,
+    endedAt: row.ended_at,
+  };
+}
+
+/**
+ * Saves one store's result and, when there is one, its sale record, in a single batch: D1 runs a batch as one
+ * transaction, so the two are saved together or not at all. Saving the same pair twice leaves one row of each.
+ * `record` is the whole new record (the rule in `packages/core` has already merged the old values).
+ */
+export async function saveStoreResult(db: D1Database, r: RunResultInput, record: SaleRecordFields | null): Promise<void> {
+  const statements = [
+    db
+      .prepare(
+        `INSERT INTO run_results (run_id, retailer_id, result, http_status, discount_percent, duration_ms, error, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+         ON CONFLICT(run_id, retailer_id) DO UPDATE SET
+           result = excluded.result, http_status = excluded.http_status,
+           discount_percent = excluded.discount_percent, duration_ms = excluded.duration_ms,
+           error = excluded.error, created_at = excluded.created_at`,
+      )
+      .bind(r.runId, r.retailerId, r.result, r.httpStatus, r.discountPercent, r.durationMs, r.error, r.createdAt),
+  ];
+  if (record !== null) {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO sale_records (retailer_id, state, validation, discount_percent, last_result,
+                                     first_seen_at, last_checked_at, last_validated_at, ended_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+           ON CONFLICT(retailer_id) DO UPDATE SET
+             state = excluded.state, validation = excluded.validation, discount_percent = excluded.discount_percent,
+             last_result = excluded.last_result, first_seen_at = excluded.first_seen_at,
+             last_checked_at = excluded.last_checked_at, last_validated_at = excluded.last_validated_at,
+             ended_at = excluded.ended_at`,
+        )
+        .bind(
+          r.retailerId,
+          record.state,
+          record.validation,
+          record.discountPercent,
+          record.lastResult,
+          record.firstSeenAt,
+          record.lastCheckedAt,
+          record.lastValidatedAt,
+          record.endedAt,
+        ),
+    );
+  }
+  await db.batch(statements);
 }
 
 export async function countResultsByClass(db: D1Database, runId: number): Promise<ResultCount[]> {

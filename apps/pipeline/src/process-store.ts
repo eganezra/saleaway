@@ -1,9 +1,9 @@
 import type { FetchClass, ValidationResult } from '@saleaway/core';
-import { classifyResponse, isSafeFetchUrl, redirectedAway, toIsoUtc, validateSalePage } from '@saleaway/core';
+import { classifyResponse, isSafeFetchUrl, nextSaleRecord, redirectedAway, toIsoUtc, validateSalePage } from '@saleaway/core';
 import { MAX_PAGE_BYTES, discard, fetchPage, readLimited } from './fetcher';
 import { runProbe } from './probe';
 import { checkRobots } from './robots';
-import { getRetailerForJob, saveRunResult } from './repo';
+import { getRetailerForJob, getSaleRecord, saveRunResult, saveStoreResult } from './repo';
 import type { RetailerForJob } from './repo';
 import type { Deps, StoreJob } from './types';
 
@@ -84,8 +84,9 @@ async function fetchAndClassify(
 
 /**
  * Processes one store of one run (Story 3.2): checks robots.txt, fetches the sale page politely, classifies
- * the answer and records one result. Since Story 3.3 it also reads an `ok` page and logs a verdict, but it never
- * reads a discount or touches `sale_records` or `overrides` (Stories 3.4 and 3.5); the verdict is not saved. A blocked or failed store is a returned result, never a thrown error,
+ * the answer and records one result. Since Story 3.3 it also reads an `ok` page and judges it, and since Story 3.5 it
+ * saves the sale record together with the result. It never reads a discount (Story 3.4) or touches `overrides`.
+ * A blocked or failed store is a returned result, never a thrown error,
  * so the queue does not retry it. It throws only for real bugs and database failures.
  */
 export async function processStore(
@@ -105,16 +106,28 @@ export async function processStore(
   const outcome = await fetchAndClassify(retailer, env, deps);
 
   const finished = deps.clock();
-  await saveRunResult(env.DB, {
-    runId: job.runId,
-    retailerId: job.retailerId,
+  // The result row and the sale record are saved together (Story 3.5). A manual store has no record to write.
+  const previous = await getSaleRecord(env.DB, job.retailerId);
+  const record = nextSaleRecord(previous, {
     result: outcome.result,
-    httpStatus: outcome.httpStatus,
-    discountPercent: null,
-    durationMs: finished.getTime() - started.getTime(),
-    error: outcome.error === null ? null : outcome.error.slice(0, 200),
-    createdAt: toIsoUtc(finished),
+    verdict: outcome.validation?.verdict ?? null,
+    discountPercent: null, // Story 3.4 reads the percentage
+    now: toIsoUtc(finished),
   });
+  await saveStoreResult(
+    env.DB,
+    {
+      runId: job.runId,
+      retailerId: job.retailerId,
+      result: outcome.result,
+      httpStatus: outcome.httpStatus,
+      discountPercent: null,
+      durationMs: finished.getTime() - started.getTime(),
+      error: outcome.error === null ? null : outcome.error.slice(0, 200),
+      createdAt: toIsoUtc(finished),
+    },
+    record,
+  );
   return outcome.result;
 }
 

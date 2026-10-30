@@ -199,6 +199,22 @@ Since Story 3.3 the pipeline reads each sale page it fetched (an ordinary `ok` a
 
 A page is called "not a sale" only when something on it says so. For now the answer is only **written to the log** (one `page_validated` line per store, with counts and the answer, never page text); saving it is Story 3.5, and the live site does not change.
 
+### Check the first records
+
+Since Story 3.5 the nightly run saves a **sale record** for each store it fetches: whether the sale is `active` or `ended`, how it was checked (`content_verified` for a page that shows discounted products, `url_verified` for a page that cannot be read, such as a JavaScript application), and when it was first seen, last checked and last validated. A blocked or failed night keeps the last good record. The live web app does **not** use the records yet (Story 2.3 is not deployed), so nothing on the site changes.
+
+**The morning check, before the web app is deployed.** The rules of Story 3.3 are new and were tested on 7 real pages, and a store judged `ended` would disappear from the site once the web app uses the records. After a run, look (read-only, nothing is changed):
+
+```bash
+pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --remote --command \
+"SELECT state, validation, COUNT(*) AS n FROM sale_records GROUP BY state, validation"
+
+pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --remote --command \
+"SELECT r.slug, s.last_result, s.last_checked_at FROM sale_records s JOIN retailers r ON r.id = s.retailer_id WHERE s.state = 'ended' ORDER BY r.slug"
+```
+
+Open a few of the stores in the second list in a browser. If one still shows a real sale, the rule is wrong for that store: do not deploy the web app yet, and tell the developer which store. Stores with a `last_result` of `blocked` or `error` and the state `unknown` have never been checked successfully.
+
 ### Pause and resume
 
 Set `"PIPELINE_ENABLED": "false"` in `apps/pipeline/wrangler.jsonc` and run `pnpm deploy:pipeline`. Only the exact text `false` pauses it. While paused, no run starts (cron or manual, the manual endpoint answers 409) and no run is closed. Messages already on the queue are still processed, and an open run is closed by the first close cron after you resume (set it back to `"true"` and redeploy). A change made only in the Cloudflare dashboard is overwritten by the next deploy.

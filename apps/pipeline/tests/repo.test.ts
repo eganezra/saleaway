@@ -4,12 +4,15 @@ import {
   countResultsByClass,
   findRunnableRetailerIdBySlug,
   getRetailerForJob,
+  getSaleRecord,
   getVisibleRetailerIds,
   insertRun,
   listUnfinishedRuns,
   saveRunResult,
+  saveStoreResult,
 } from '../src/repo';
 import type { RunResultInput } from '../src/repo';
+import type { SaleRecordFields } from '@saleaway/core';
 import { createTestDb, resetData, rows, seedRetailers } from './helpers/db';
 import type { TestDb } from './helpers/db';
 
@@ -145,6 +148,101 @@ describe('saveRunResult', () => {
 
   it('stores a discount percentage on a result (the range limit applies to sale records, not to the run log)', async () => {
     await expect(saveRunResult(t.db, result({ discountPercent: 40 }))).resolves.toBeUndefined();
+  });
+});
+
+const saleRecord = (over: Partial<SaleRecordFields> = {}): SaleRecordFields => ({
+  state: 'active',
+  validation: 'content_verified',
+  discountPercent: 30,
+  lastResult: 'ok',
+  firstSeenAt: '2026-10-29T03:00:00Z',
+  lastCheckedAt: '2026-10-30T03:10:00Z',
+  lastValidatedAt: '2026-10-30T03:10:00Z',
+  endedAt: null,
+  ...over,
+});
+const SALE_COLUMNS = 'SELECT retailer_id, state, validation, discount_percent, last_result, first_seen_at, last_checked_at, last_validated_at, ended_at FROM sale_records ORDER BY retailer_id';
+
+describe('getSaleRecord', () => {
+  beforeEach(async () => {
+    await seedRetailers(t.db, [{ id: 1 }, { id: 2 }]);
+  });
+
+  it('is null for a store with no record', async () => {
+    expect(await getSaleRecord(t.db, 1)).toBeNull();
+    expect(await getSaleRecord(t.db, 999)).toBeNull();
+  });
+  it('returns the record of that store only, in camel case', async () => {
+    await t.db
+      .prepare(
+        `INSERT INTO sale_records (retailer_id, state, validation, discount_percent, last_result, first_seen_at, last_checked_at, last_validated_at, ended_at)
+         VALUES (1, 'ended', 'none', NULL, 'not_found', '2026-10-01T03:00:00Z', '2026-10-30T03:00:00Z', '2026-10-20T03:00:00Z', '2026-10-30T03:00:00Z'),
+                (2, 'active', 'url_verified', 25, 'js_only', '2026-10-02T03:00:00Z', '2026-10-30T03:05:00Z', '2026-10-30T03:05:00Z', NULL)`,
+      )
+      .run();
+    expect(await getSaleRecord(t.db, 1)).toEqual({
+      state: 'ended',
+      validation: 'none',
+      discountPercent: null,
+      lastResult: 'not_found',
+      firstSeenAt: '2026-10-01T03:00:00Z',
+      lastCheckedAt: '2026-10-30T03:00:00Z',
+      lastValidatedAt: '2026-10-20T03:00:00Z',
+      endedAt: '2026-10-30T03:00:00Z',
+    });
+    expect(await getSaleRecord(t.db, 2)).toMatchObject({ state: 'active', validation: 'url_verified', discountPercent: 25, lastResult: 'js_only', endedAt: null });
+  });
+  it('reads a row that has no last_result as an error, and a default row as unknown', async () => {
+    await t.db.prepare('INSERT INTO sale_records (retailer_id) VALUES (1)').run();
+    expect(await getSaleRecord(t.db, 1)).toMatchObject({ state: 'unknown', validation: 'none', lastResult: 'error', discountPercent: null });
+  });
+});
+
+describe('saveStoreResult', () => {
+  beforeEach(async () => {
+    await seedRetailers(t.db, [{ id: 1 }, { id: 2 }]);
+    await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 2);
+    await insertRun(t.db, '2026-10-31T03:00:00Z', 'cron', 2);
+  });
+
+  it('writes the result row and the record together', async () => {
+    await saveStoreResult(t.db, result(), saleRecord());
+    expect(await rows(t.db, 'SELECT run_id, retailer_id, result FROM run_results')).toEqual([{ run_id: 1, retailer_id: 1, result: 'ok' }]);
+    expect(await rows(t.db, SALE_COLUMNS)).toEqual([
+      { retailer_id: 1, state: 'active', validation: 'content_verified', discount_percent: 30, last_result: 'ok', first_seen_at: '2026-10-29T03:00:00Z', last_checked_at: '2026-10-30T03:10:00Z', last_validated_at: '2026-10-30T03:10:00Z', ended_at: null },
+    ]);
+  });
+  it('writes only the result when there is no record to write (a manual store)', async () => {
+    await saveStoreResult(t.db, result({ retailerId: 2, result: 'skipped_manual' }), null);
+    expect(await rows(t.db, 'SELECT retailer_id FROM run_results')).toEqual([{ retailer_id: 2 }]);
+    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM sale_records')).toEqual([{ n: 0 }]);
+  });
+  it('saving the same pair twice leaves one row of each', async () => {
+    await saveStoreResult(t.db, result(), saleRecord());
+    await saveStoreResult(t.db, result(), saleRecord());
+    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM run_results')).toEqual([{ n: 1 }]);
+    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM sale_records')).toEqual([{ n: 1 }]);
+  });
+  it('replaces the whole record on the next night, every column', async () => {
+    await saveStoreResult(t.db, result(), saleRecord());
+    const ended = saleRecord({ state: 'ended', validation: 'none', discountPercent: null, lastResult: 'not_found', lastCheckedAt: '2026-10-31T03:10:00Z', endedAt: '2026-10-31T03:10:00Z' });
+    await saveStoreResult(t.db, result({ runId: 2, result: 'not_found' }), ended);
+    expect(await rows(t.db, SALE_COLUMNS)).toEqual([
+      { retailer_id: 1, state: 'ended', validation: 'none', discount_percent: null, last_result: 'not_found', first_seen_at: '2026-10-29T03:00:00Z', last_checked_at: '2026-10-31T03:10:00Z', last_validated_at: '2026-10-30T03:10:00Z', ended_at: '2026-10-31T03:10:00Z' },
+    ]);
+    expect(await rows(t.db, 'SELECT run_id FROM run_results ORDER BY run_id')).toEqual([{ run_id: 1 }, { run_id: 2 }]);
+  });
+  it('writes neither when the record is refused: the result row is rolled back too', async () => {
+    await expect(saveStoreResult(t.db, result(), saleRecord({ discountPercent: 3 }))).rejects.toThrow();
+    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM run_results')).toEqual([{ n: 0 }]);
+    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM sale_records')).toEqual([{ n: 0 }]);
+  });
+  it('does not touch another store, an override or a retailer row', async () => {
+    await t.db.prepare("INSERT INTO overrides (retailer_id, hide) VALUES (2, 1)").run();
+    await saveStoreResult(t.db, result(), saleRecord());
+    expect(await rows(t.db, 'SELECT retailer_id, hide FROM overrides')).toEqual([{ retailer_id: 2, hide: 1 }]);
+    expect(await rows(t.db, 'SELECT id, is_visible FROM retailers ORDER BY id')).toEqual([{ id: 1, is_visible: 1 }, { id: 2, is_visible: 1 }]);
   });
 });
 

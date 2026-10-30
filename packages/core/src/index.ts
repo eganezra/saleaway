@@ -26,3 +26,5 @@ export { STALE_AFTER_HOURS, isVisible, resolveStore } from './visibility';
 export type { HiddenBecause, StoreInput, StoreView, VisibilityOverride, VisibilityRecord } from './visibility';
 export { recordEffect, validateSalePage } from './validate';
 export type { PageInput, ValidationReason, ValidationResult, ValidationSignals, ValidationVerdict } from './validate';
+export { nextSaleRecord } from './sale-record';
+export type { FetchEvent, SaleRecordFields } from './sale-record';

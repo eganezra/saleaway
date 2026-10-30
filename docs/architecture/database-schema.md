@@ -89,6 +89,7 @@ CREATE TABLE click_counts (
 
 **Notes**
 
+- `sale_records` has no URL column and holds no page text (NFR7): the URL of a sale is `retailers.sale_url`, or an active override's `sale_url`.
 - Per the PRD, schema changes come with the stories that need them. Story 1.3 creates `categories`, `retailers`, `sale_records`, `overrides` and `pipeline_runs`/`run_results`. `click_counts` arrives with Story 2.5.
 - `discount_percent BETWEEN 5 AND 90` enforces the sanity range from Story 3.4. A value outside the range is stored as `NULL` ("On sale").
 - D1 limits: 100 bound parameters per query, so seeding and batches are chunked. All write volumes are far below 100,000 rows a day.

@@ -20,6 +20,8 @@ apps/pipeline/src/
 
 **Built in Story 3.3 (2026-10-30):** `validate.ts` in `packages/core` (`validateSalePage`, `recordEffect`, the verdict and signal types) and its samples in `packages/core/tests/fixtures/pages/` (a manifest `index.json` and 13 trimmed pages, each at most 16 KiB). In the pipeline `readLimited(response, maxBytes)` moved from `robots.ts` to `fetcher.ts` and returns `{ text, bytes, truncated }` (or null if the read fails); `MAX_PAGE_BYTES` is 3 MiB. `process-store.ts` reads the body of a plain `ok` page (not a `js_only`, blocked, not found, redirected or error answer, and not when `MEASURE_CPU` is on), judges it with `deps.validate ?? validateSalePage`, and logs one `page_validated` line; a failed read (`page_read_failed`) or a failing validator (`validation_failed`) is logged and never stops the store. Nothing about the verdict is saved yet: the `run_results` row is unchanged and `sale_records` is not written (Story 3.5).
 
+**Built in Story 3.5 (2026-10-30):** `sale-record.ts` in `packages/core` (`nextSaleRecord`, the types `SaleRecordFields` and `FetchEvent`); in `repo.ts`, `getSaleRecord` (one `SELECT`, an old row with no `last_result` reads as `error`) and `saveStoreResult` (the result row and the sale record in one `db.batch`); in `process-store.ts` the result is now saved with its record. `recordStoreError` still writes only a result row. Nothing in the web app changed: the home query already reads `sale_records` (Story 2.3), but the live web app does not use the new rules until it is deployed.
+
 ### Function Template
 
 ```typescript

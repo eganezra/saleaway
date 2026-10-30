@@ -174,10 +174,11 @@ describe('processStore: page validation (Story 3.3)', () => {
     for (const reserved of ['level', 'message', 'time']) expect(Object.keys(lines[0]?.fields ?? {})).not.toContain(reserved);
   });
 
-  it('does not change what is saved: the same result row as before, and no sale record', async () => {
+  it('does not change the result row: the same as before, and the record is saved with it', async () => {
     const { saved } = await runStore({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: SALE_PAGE } });
     expect(saved).toMatchObject([{ result: 'ok', http_status: 200, error: null, discount_percent: null }]);
-    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM sale_records')).toEqual([{ n: 0 }]);
+    // since Story 3.5 the page also makes a sale record, saved with the result
+    expect(await rows(t.db, 'SELECT state, validation FROM sale_records')).toEqual([{ state: 'active', validation: 'content_verified' }]);
   });
 
   it('a page that says no sale is only logged: the class stays ok and the row is unchanged', async () => {
@@ -288,6 +289,135 @@ describe('processStore: page validation (Story 3.3)', () => {
   });
 });
 
+describe('processStore: sale records (Story 3.5)', () => {
+  const NIGHT1 = '2026-10-30T03:10:00.000Z';
+  const NIGHT2 = '2026-10-31T03:10:00.000Z';
+  const PAGE_OK = '<html><head><title>Sale</title></head><body><ol><li><span class="old-price">R999</span><span>R499</span></li><li><span class="old-price">R599</span><span>R299</span></li></ol></body></html>';
+  const PAGE_NO_SALE = '<html><head><title>Specials</title></head><body><ol><li>R100</li><li>R200</li><li>R300</li></ol></body></html>';
+  type SaleRow = { state: string; validation: string; discount_percent: number | null; last_result: string; first_seen_at: string | null; last_checked_at: string; last_validated_at: string | null; ended_at: string | null };
+  const records = () => rows<SaleRow>(t.db, 'SELECT state, validation, discount_percent, last_result, first_seen_at, last_checked_at, last_validated_at, ended_at FROM sale_records');
+
+  /** One night: a new run, then the store processed with the clock at `start`. */
+  async function night(runId: number, start: string, routes: Record<string, Spec | Spec[]>) {
+    if (runId > 1) await insertRun(t.db, start.replace('.000', ''), 'cron', 1);
+    const network = fakeFetch(routes);
+    const { deps, named } = fakeDeps({ start, fetch: network.fetch });
+    const result = await processStore(makeEnv(t.db, fakeQueue().queue), { runId, retailerId: 1 }, deps);
+    return { result, named, network };
+  }
+
+  it('a valid page saves an active, content-verified record, validated at the time of the run, with no percentage yet', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+    expect(await records()).toEqual([
+      { state: 'active', validation: 'content_verified', discount_percent: null, last_result: 'ok', first_seen_at: '2026-10-30T03:10:00Z', last_checked_at: '2026-10-30T03:10:00Z', last_validated_at: '2026-10-30T03:10:00Z', ended_at: null },
+    ]);
+  });
+
+  it('a page with no sale ends the sale, and a valid page on the next night starts a new one', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+    await night(2, NIGHT2, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_NO_SALE } });
+    expect(await records()).toMatchObject([{ state: 'ended', validation: 'none', last_result: 'ok', ended_at: '2026-10-31T03:10:00Z', last_validated_at: '2026-10-30T03:10:00Z', first_seen_at: '2026-10-30T03:10:00Z' }]);
+    await insertRun(t.db, '2026-11-01T03:10:00Z', 'cron', 1);
+    const network = fakeFetch({ [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+    await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 3, retailerId: 1 }, fakeDeps({ start: '2026-11-01T03:10:00.000Z', fetch: network.fetch }).deps);
+    expect(await records()).toMatchObject([{ state: 'active', validation: 'content_verified', ended_at: null, first_seen_at: '2026-11-01T03:10:00Z', last_validated_at: '2026-11-01T03:10:00Z' }]);
+  });
+
+  it('a 404 ends the sale', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 404 } });
+    expect(await records()).toMatchObject([{ state: 'ended', last_result: 'not_found', ended_at: '2026-10-30T03:10:00Z' }]);
+  });
+
+  it('a js_only store gets an active, URL-verified record, validated now', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE, seedStatus: 'verified_js_shell' }]);
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: '<div id="root"></div>' } });
+    expect(await records()).toMatchObject([{ state: 'active', validation: 'url_verified', last_result: 'js_only', last_validated_at: '2026-10-30T03:10:00Z' }]);
+  });
+
+  it('a page that cannot be judged (a JavaScript application) is active and URL-verified', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: '<html><body><div id="root"></div></body></html>' } });
+    expect(await records()).toMatchObject([{ state: 'active', validation: 'url_verified', last_result: 'ok' }]);
+  });
+
+  it('a blocked or error night keeps the last good record and changes only last_result and last_checked_at', async () => {
+    for (const [status, last] of [[403, 'blocked'], [500, 'error']] as const) {
+      await resetData(t.db);
+      await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+      const before = (await records())[0];
+      await night(2, NIGHT2, { [ROBOTS]: OK_ROBOTS, [SALE]: { status } });
+      expect((await records())[0], String(status)).toEqual({ ...before, last_result: last, last_checked_at: '2026-10-31T03:10:00Z' });
+    }
+  });
+
+  it('a first night that is blocked makes an unknown record; a robots refusal and a timeout do the same', async () => {
+    const cases: Array<[Record<string, Spec | Spec[]>, string]> = [
+      [{ [ROBOTS]: OK_ROBOTS, [SALE]: { status: 429 } }, 'blocked'],
+      [{ [ROBOTS]: { status: 200, body: 'User-agent: *\nDisallow: /\n' } }, 'blocked'],
+      [{ [ROBOTS]: OK_ROBOTS, [SALE]: { throws: 'timeout' } }, 'error'],
+    ];
+    for (const [routes, last] of cases) {
+      await resetData(t.db);
+      await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      await night(1, NIGHT1, routes);
+      expect(await records(), last).toEqual([
+        { state: 'unknown', validation: 'none', discount_percent: null, last_result: last, first_seen_at: null, last_checked_at: '2026-10-30T03:10:00Z', last_validated_at: null, ended_at: null },
+      ]);
+    }
+  });
+
+  it('a validator that throws keeps the record: it is not a validation', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+    const before = (await records())[0];
+    await insertRun(t.db, '2026-10-31T03:10:00Z', 'cron', 1);
+    const network = fakeFetch({ [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+    const { deps } = fakeDeps({ start: NIGHT2, fetch: network.fetch });
+    deps.validate = () => {
+      throw new Error('boom');
+    };
+    await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 2, retailerId: 1 }, deps);
+    expect((await records())[0]).toEqual({ ...before, last_checked_at: '2026-10-31T03:10:00Z' });
+  });
+
+  it('a manual store writes no record and makes no request', async () => {
+    await seedRetailers(t.db, [{ id: 1, extractionMethod: 'manual' }]);
+    const { network } = await night(1, NIGHT1, {});
+    expect(network.requests).toEqual([]);
+    expect(await records()).toEqual([]);
+    expect(await rows(t.db, 'SELECT result FROM run_results')).toEqual([{ result: 'skipped_manual' }]);
+  });
+
+  it('saving the same job twice leaves one record', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+    expect(await records()).toHaveLength(1);
+    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM run_results')).toEqual([{ n: 1 }]);
+  });
+
+  it('the result row is the same as before whatever the record does', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_NO_SALE } });
+    expect(await rows(t.db, 'SELECT result, http_status, error, discount_percent FROM run_results')).toEqual([{ result: 'ok', http_status: 200, error: null, discount_percent: null }]);
+  });
+
+  it('never writes an override or changes the store, and no record column holds page text', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM overrides')).toEqual([{ n: 0 }]);
+    expect(await rows(t.db, 'SELECT extraction_method, is_visible, sale_url FROM retailers')).toEqual([{ extraction_method: 'html', is_visible: 1, sale_url: SALE }]);
+    const text = JSON.stringify(await records());
+    for (const word of ['old-price', 'Sale', 'html', 'R999', 'R499']) expect(text).not.toContain(word);
+  });
+});
+
 describe('processStore: robots.txt', () => {
   it('a robots.txt that forbids the page records blocked and never requests the page', async () => {
     const { saved, network } = await runStore({}, { [ROBOTS]: { status: 200, body: 'User-agent: *\nDisallow: /sale\n' }, [SALE]: { status: 200 } });
@@ -351,9 +481,8 @@ describe('processStore: what it must never do', () => {
     expect(await rows(t.db, 'SELECT run_id FROM run_results ORDER BY run_id')).toEqual([{ run_id: 1 }, { run_id: 2 }]);
   });
 
-  it('never writes sale_records or overrides, and never changes the store', async () => {
+  it('never writes overrides, and never changes the store', async () => {
     await runStore({ seedStatus: 'verified_js_shell' }, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200 } });
-    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM sale_records')).toEqual([{ n: 0 }]);
     expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM overrides')).toEqual([{ n: 0 }]);
     expect(await rows(t.db, 'SELECT extraction_method, is_visible, sale_url FROM retailers')).toEqual([{ extraction_method: 'html', is_visible: 1, sale_url: SALE }]);
   });
