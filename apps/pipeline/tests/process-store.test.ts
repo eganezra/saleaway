@@ -402,6 +402,18 @@ describe('processStore: sale records (Story 3.5)', () => {
     expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM run_results')).toEqual([{ n: 1 }]);
   });
 
+  it('stamps the record with the same time as the result row: the end of the store job, not its start', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    const network = fakeFetch({ [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+    const { deps } = fakeDeps({ start: NIGHT1, stepMs: 2000, fetch: network.fetch }); // every clock read is 2 seconds later
+    await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, deps);
+    const [result] = await rows<{ created_at: string }>(t.db, 'SELECT created_at FROM run_results');
+    const [record] = await records();
+    expect(record?.last_checked_at).toBe(result?.created_at);
+    expect(record?.last_validated_at).toBe(result?.created_at);
+    expect(result?.created_at).not.toBe('2026-10-30T03:10:00Z'); // it is later than the start
+  });
+
   it('the result row is the same as before whatever the record does', async () => {
     await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
     await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_NO_SALE } });
