@@ -74,7 +74,7 @@ so that I never get sent to a dead sale.
 
 ### Acceptance Criteria
 
-1. Validated results are saved as sale records with percentage, URL, first seen, last checked and last validated (FR9).
+1. Validated results are saved as sale records with percentage, first seen, last checked and last validated (FR9). The record points to the store's sale URL, which is the store's `sale_url` or an active override's, so no URL is copied into the record.
 2. A page that fails validation is marked ended (FR10).
 3. A temporary failure (blocked, timeout, error) keeps the last good record for up to 72 hours, then the store is hidden, using the visibility rule from Story 2.3 (FR10, NFR3).
 4. The home page reads only current records.

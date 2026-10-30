@@ -32,6 +32,7 @@ A spreadsheet of 106 SA stores (`docs/data/`) provides primary sale URLs for 92 
 | 2026-10-30 | 0.7 | Sprint change (correct-course) after the first live run: launch with 57 stores, blocked stores hidden (Story 3.9), edits to Stories 3.4, 3.6, 3.8, 4.1, 4.3 and 4.5, new Story 5.4, domain `saleaway.online` throughout, risk R2 updated (`docs/change-proposals/2026-10-30-blocked-stores.md`) | Sarah (PO) |
 | 2026-10-30 | 0.8 | PO validation of Story 2.3: Story 3.5 criterion 6 (a `js_only` result updates `last_validated_at`); any active override counts as a fresh check (FR10, `core-workflows.md`) | Sarah (PO) |
 | 2026-10-30 | 0.9 | PO validation of Story 3.3: a challenge or login page is treated like a blocked fetch (Story 3.3 criterion 4, Story 3.5 criterion 7, state table in `core-workflows.md`) | Sarah (PO) |
+| 2026-10-30 | 1.0 | PO validation of Story 3.5: criterion 1 says the record points to the store's sale URL (the table has no URL column) | Sarah (PO) |
 
 ## Requirements
 
@@ -398,7 +399,7 @@ so that I never get sent to a dead sale.
 
 #### Acceptance Criteria
 
-1. Validated results are saved as sale records with percentage, URL, first seen, last checked and last validated (FR9).
+1. Validated results are saved as sale records with percentage, first seen, last checked and last validated (FR9). The record points to the store's sale URL, which is the store's `sale_url` or an active override's, so no URL is copied into the record.
 2. A page that fails validation is marked ended (FR10).
 3. A temporary failure (blocked, timeout, error) keeps the last good record for up to 72 hours, then the store is hidden, using the visibility rule from Story 2.3 (FR10, NFR3).
 4. The home page reads only current records.
