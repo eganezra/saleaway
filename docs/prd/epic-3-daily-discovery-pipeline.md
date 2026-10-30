@@ -79,6 +79,7 @@ so that I never get sent to a dead sale.
 3. A temporary failure (blocked, timeout, error) keeps the last good record for up to 72 hours, then the store is hidden, using the visibility rule from Story 2.3 (FR10, NFR3).
 4. The home page reads only current records.
 5. No retailer product content is stored (NFR7).
+6. A `js_only` result (the page answered, products load with JavaScript) saves the record as `active` and `url_verified` and updates `last_validated_at`, so the store stays visible while its page keeps answering (Story 2.3, rule 6).
 
 ## Story 3.6 First Full Run and Coverage Report
 

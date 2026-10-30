@@ -30,6 +30,7 @@ A spreadsheet of 106 SA stores (`docs/data/`) provides primary sale URLs for 92 
 | 2026-10-29 | 0.5 | Local-first build order: Story 1.1 runs locally, Story 1.2 is now a first deploy to workers.dev, CI/CD and domain moved to new Story 4.4, launch checklist is 4.5, alert and retention is 4.6 | Sarah (PO) |
 | 2026-10-30 | 0.6 | After the first live run (Story 3.2): Story 3.4 criterion 8 (repeat the CPU measurement) and new Story 3.9 (hide blocked stores for launch). The domain is `saleaway.online` in the code and architecture docs; the older text of this PRD still says `saleaway.co.za` and is for the PO to update | Bob (SM) |
 | 2026-10-30 | 0.7 | Sprint change (correct-course) after the first live run: launch with 57 stores, blocked stores hidden (Story 3.9), edits to Stories 3.4, 3.6, 3.8, 4.1, 4.3 and 4.5, new Story 5.4, domain `saleaway.online` throughout, risk R2 updated (`docs/change-proposals/2026-10-30-blocked-stores.md`) | Sarah (PO) |
+| 2026-10-30 | 0.8 | PO validation of Story 2.3: Story 3.5 criterion 6 (a `js_only` result updates `last_validated_at`); any active override counts as a fresh check (FR10, `core-workflows.md`) | Sarah (PO) |
 
 ## Requirements
 
@@ -401,6 +402,7 @@ so that I never get sent to a dead sale.
 3. A temporary failure (blocked, timeout, error) keeps the last good record for up to 72 hours, then the store is hidden, using the visibility rule from Story 2.3 (FR10, NFR3).
 4. The home page reads only current records.
 5. No retailer product content is stored (NFR7).
+6. A `js_only` result (the page answered, products load with JavaScript) saves the record as `active` and `url_verified` and updates `last_validated_at`, so the store stays visible while its page keeps answering (Story 2.3, rule 6).
 
 ### Story 3.6 First Full Run and Coverage Report
 
