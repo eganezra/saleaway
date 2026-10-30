@@ -34,6 +34,7 @@ A spreadsheet of 106 SA stores (`docs/data/`) provides primary sale URLs for 92 
 | 2026-10-30 | 0.9 | PO validation of Story 3.3: a challenge or login page is treated like a blocked fetch (Story 3.3 criterion 4, Story 3.5 criterion 7, state table in `core-workflows.md`) | Sarah (PO) |
 | 2026-10-30 | 1.0 | PO validation of Story 3.5: criterion 1 says the record points to the store's sale URL (the table has no URL column) | Sarah (PO) |
 | 2026-10-30 | 1.1 | PO validation of Story 4.1: FR10 and Story 2.3 criterion 2 say an active override counts as a fresh check for as long as it is active (the rule of Story 2.3 changes in Story 4.1, Task 2) | Sarah (PO) |
+| 2026-10-30 | 1.2 | PO validation of Story 3.4: criterion 3 (price pairs before labels), criterion 7 (the two collection stores; the hub and product-page stores wait for Story 4.3), criterion 8 (CPU with the real code) moved to Story 3.6 as criterion 6 | Sarah (PO) |
 
 ## Requirements
 
@@ -385,12 +386,11 @@ so that I can pick the best sales.
 
 1. The extraction method comes from the store's `extraction_method` field: `shopify_json`, `html`, `structured_data`, or `manual` (FR8).
 2. Shopify stores use the collection's product JSON to compute the largest percentage from compare-at and current prices.
-3. HTML and structured-data stores read was/now prices and "% off" labels and use the largest percentage found.
+3. HTML and structured-data stores read was/now prices and "% off" labels and use the largest percentage found. Was/now price pairs are read first, because a label can come from a banner, and the labels are used only when no price pair is found.
 4. Values outside a sane range (below 5% or above 90%) **[Assumption]** are ignored, and the record falls back to "On sale".
 5. If nothing can be read, the record is "On sale", not an error.
 6. Each method has unit tests using saved page samples (NFR12).
-7. The Shopify stores that answered the Worker in Story 3.2 (`beauty-on-tapp`, `norman-goodfellows`, `toy-kingdom`) are covered as the first examples, after confirming that each one's `/products.json` also answers the Worker. Under Armour SA is a custom storefront with no product feed (Story 3.2) and uses the `html` method. Wellness Warehouse is hidden (blocked).
-8. CPU time per store is measured again on the deployed Worker, now with the real validation and extraction, for the same stores as in Story 3.2 (Bash, Woolworths, Takealot and Under Armour SA) and one Shopify store whose product feed answers, because Story 3.2 could only measure a stand-in for these steps and could not measure the JSON path. The result is added to `docs/fetch-spike.md`. If any store regularly exceeds 8 ms of CPU **[Assumption]**, the response is chosen as in Story 3.2, criterion 6: a streaming parse, the `manual` method for that store, or Story 3.8 (fallback runner).
+7. The Shopify stores whose sale address is a collection and that answered the Worker in Story 3.2 (`beauty-on-tapp` and `toy-kingdom`) are covered as the first examples, once the first night shows that each one's `/products.json` also answers the Worker. `norman-goodfellows` has a hub page as its sale address and `benji-moon` a single product page, so they use their pages until their addresses are fixed (Story 4.3). Under Armour SA is a custom storefront with no product feed (Story 3.2) and is set to the `html` method. Wellness Warehouse is hidden (blocked).
 
 ### Story 3.5 Save Sale Records and Expiry
 
@@ -421,6 +421,7 @@ so that I know where manual overrides are needed.
 3. Stores that need manual handling are listed with their reason, and the stores hidden by Story 3.9 are listed with theirs (from `docs/data/hidden-stores.json`).
 4. Extraction methods are updated for stores where a better method is found during this run.
 5. The result is saved to `docs/data/first-run-coverage.md`.
+6. CPU time per store is measured on the deployed Worker with the real validation and extraction (Stories 3.3 to 3.5), read from the Workers logs of the first full run (no extra request), for the same stores as in Story 3.2 (Bash, Woolworths, Takealot and Under Armour SA) and one Shopify store whose product feed answers, because Story 3.2 could only measure a stand-in for these steps and could not measure the JSON path (this criterion moved here from Story 3.4 on 2026-10-30). The result is added to `docs/fetch-spike.md`. If any store regularly exceeds 8 ms of CPU **[Assumption]**, the response is chosen as in Story 3.2, criterion 6: a streaming parse, the `manual` method for that store, or Story 3.8 (fallback runner).
 
 ### Story 3.7 Biggest Discounts Today Card
 
