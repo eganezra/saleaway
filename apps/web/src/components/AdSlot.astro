@@ -7,11 +7,13 @@ interface Props {
   enabled: boolean;
 }
 const { slot, enabled } = Astro.props;
+// Each slot is a landmark, and landmarks on one page need different names (axe: landmark-unique).
+const names = { top: 'Advertisement, top of the page', grid: 'Advertisement, between the categories', footer: 'Advertisement, bottom of the page' } as const;
 ---
 
 {
   enabled ? (
-    <aside class={`ad ad--${slot}`} data-ad-slot={slot} aria-label="Advertisement">
+    <aside class={`ad ad--${slot}`} data-ad-slot={slot} aria-label={names[slot]}>
       <span class="label" aria-hidden="true">
         Advertisement
       </span>

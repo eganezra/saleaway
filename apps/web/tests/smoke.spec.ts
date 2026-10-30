@@ -10,6 +10,11 @@ const WIDTHS = [
   { name: 'phone', width: 360, height: 740 },
 ] as const;
 
+// WCAG 2.0 and 2.1 Level A and AA and 2.2 AA. `wcag21a` holds 2.5.3 Label in Name, whose rule axe keeps behind an "experimental" switch, so
+// it is turned on by name (it was missing until QA's review of Story 2.5: the row links failed it).
+const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+const AXE_OPTIONS = { rules: { 'label-content-name-mismatch': { enabled: true } } };
+
 /** Collects what the browser complains about while the page loads (a CSP violation shows up as a console error). */
 function watchProblems(page: Page): string[] {
   const problems: string[] = [];
@@ -43,7 +48,7 @@ for (const { name, width, height } of WIDTHS) {
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://saleaway.online/');
 
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).options(AXE_OPTIONS).analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`)).toEqual([]);
     expect(problems).toEqual([]);
     await context.close();
@@ -158,7 +163,7 @@ for (const { name, width, height } of WIDTHS) {
       const response = await page.goto(path);
       expect(response?.status(), path).toBe(200);
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).options(AXE_OPTIONS).analyze();
       expect(results.violations.map((v) => `${path} ${v.id}: ${v.help} (${v.nodes.length})`)).toEqual([]);
       expect(problems, path).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${path} overflows`).toBe(true);

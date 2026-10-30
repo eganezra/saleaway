@@ -47,6 +47,7 @@ export function toRowData(store: StoreLink, now: Date): StoreRowData {
   const checkedAge: CheckedAge = days === null ? 'never' : days === 0 ? 'today' : 'older';
   const checkedText = days === null ? 'Not checked yet' : days === 0 ? 'Checked today' : `Checked ${days} ${days === 1 ? 'day' : 'days'} ago`;
   const figure = percent === null ? 'on sale' : `up to ${percent}% off`;
-  const label = `${store.name}, ${figure}, ${checkedText.toLowerCase()}, opens in a new tab`;
+  // The words follow the order they are drawn in (name, checked, figure), so the name holds the visible text (WCAG 2.5.3).
+  const label = `${store.name}, ${checkedText.toLowerCase()}, ${figure}, opens in a new tab`;
   return { slug: store.slug, name: store.name, saleUrl: store.saleUrl, percent, tier, checkedText, checkedAge, label };
 }

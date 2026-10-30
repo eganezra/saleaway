@@ -59,14 +59,14 @@ describe('the "Checked" words (AC2)', () => {
 });
 
 describe('the link\'s accessible name', () => {
-  it('reads like the spec: name, up to X% off, checked today, opens in a new tab', () => {
-    expect(toRowData(link(), NOW).label).toBe('Crocs SA, up to 50% off, checked today, opens in a new tab');
+  it('reads in the order the row is drawn: name, checked, figure, opens in a new tab (WCAG 2.5.3: the name holds the visible text)', () => {
+    expect(toRowData(link(), NOW).label).toBe('Crocs SA, checked today, up to 50% off, opens in a new tab');
   });
   it('says "on sale" with no figure, and "checked N days ago" for an older check', () => {
-    expect(toRowData(link({ discountPercent: null, checkedAt: at(50) }), NOW).label).toBe('Crocs SA, on sale, checked 2 days ago, opens in a new tab');
+    expect(toRowData(link({ discountPercent: null, checkedAt: at(50) }), NOW).label).toBe('Crocs SA, checked 2 days ago, on sale, opens in a new tab');
   });
   it('says "not checked yet" for a store never checked', () => {
-    expect(toRowData(link({ discountPercent: null, checkedAt: null }), NOW).label).toBe('Crocs SA, on sale, not checked yet, opens in a new tab');
+    expect(toRowData(link({ discountPercent: null, checkedAt: null }), NOW).label).toBe('Crocs SA, not checked yet, on sale, opens in a new tab');
   });
   it.each([
     [link()],
@@ -79,6 +79,15 @@ describe('the link\'s accessible name', () => {
     expect(row.label.toLowerCase()).toContain(row.name.toLowerCase());
     expect(row.label.toLowerCase()).toContain(shown);
     expect(row.label.toLowerCase()).toContain(row.checkedText.toLowerCase());
+  });
+  it.each([
+    [link(), 'Crocs SA Checked today Up to 50% off'],
+    [link({ discountPercent: 5, checkedAt: at(30) }), 'Crocs SA Checked 1 day ago Up to 5% off'],
+    [link({ discountPercent: null, checkedAt: at(80) }), 'Crocs SA Checked 3 days ago On sale'],
+    [link({ discountPercent: null, checkedAt: null }), 'Crocs SA Not checked yet On sale'],
+  ])('holds the visible text of the row, in its order, so a voice-control visitor can say what they read (found in QA review)', (store, visible) => {
+    const normal = (text: string): string => text.toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
+    expect(normal(toRowData(store, NOW).label)).toContain(normal(visible));
   });
   it('passes a name with markup characters through unchanged (Astro escapes it when it draws the page)', () => {
     const name = 'A <b>&"\' store';

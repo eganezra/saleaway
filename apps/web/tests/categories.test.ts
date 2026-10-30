@@ -77,7 +77,7 @@ describe('positions and rows', () => {
   });
   it('gives each row the data of Story 2.1 (figure, tier, checked words, label)', () => {
     const [fashion] = buildCategories([store('a', FASHION, 1, 60)], NOW);
-    expect(fashion?.rows[0]).toMatchObject({ slug: 'a', percent: 60, tier: 'hot', checkedText: 'Checked today', checkedAge: 'today', label: 'A, up to 60% off, checked today, opens in a new tab' });
+    expect(fashion?.rows[0]).toMatchObject({ slug: 'a', percent: 60, tier: 'hot', checkedText: 'Checked today', checkedAge: 'today', label: 'A, checked today, up to 60% off, opens in a new tab' });
   });
   it('gives all the rows: the cut at ROWS_SHOWN is the component\'s job', () => {
     expect(ROWS_SHOWN).toBe(8);

@@ -70,6 +70,37 @@ describe('handleClick (Story 2.5)', () => {
     expect((await handleClick(streamed, deps)).status).toBe(413);
     expect(writes).toEqual([]);
   });
+  it('does not read an endless body: it stops after the first chunks (found in QA review)', async () => {
+    const { deps, writes } = harness();
+    let pulls = 0;
+    const endless = new ReadableStream({
+      pull(controller) {
+        pulls += 1;
+        controller.enqueue(new TextEncoder().encode('a'.repeat(1024)));
+        if (pulls > 5000) controller.close();
+      },
+    });
+    const request = new Request(URL_, { method: 'POST', body: endless, duplex: 'half' } as RequestInit);
+    expect((await handleClick(request, deps)).status).toBe(413);
+    // the limit is 128 bytes: the first 1 KB chunk is already over it, so nothing more is pulled than the stream's own look-ahead
+    expect(pulls).toBeLessThan(10);
+    expect(writes).toEqual([]);
+  });
+  it('refuses an announced long body without reading it (found in QA review)', async () => {
+    const { deps } = harness();
+    let pulls = 0;
+    const body = new ReadableStream({
+      pull(controller) {
+        pulls += 1;
+        controller.enqueue(new TextEncoder().encode('a'));
+        if (pulls > 5000) controller.close();
+      },
+    });
+    const request = new Request(URL_, { method: 'POST', body, duplex: 'half', headers: { 'content-length': '100000' } } as RequestInit);
+    expect((await handleClick(request, deps)).status).toBe(413);
+    // a stream primes itself with one pull when it is made; the handler must not pull more (one byte a chunk would take 129 pulls to hit the read limit)
+    expect(pulls).toBeLessThanOrEqual(2);
+  });
   it('accepts a body of exactly 100 bytes only if it is a slug (and a slug that long is a valid one)', async () => {
     const { deps } = harness();
     expect((await handleClick(post('a'.repeat(MAX_BODY_BYTES)), deps)).status).toBe(204);

@@ -10,14 +10,13 @@ const { row } = Astro.props;
 ---
 
 <li>
-  <a class="store" href={row.saleUrl} target="_blank" rel="noopener noreferrer" data-store={row.slug} aria-label={row.label}>
-    <span class="rank" aria-hidden="true">{row.position}</span>
+  {/* The spaces between the parts are real text: the link's visible text then reads "Name Checked today Up to 60% off", which is what the accessible name has to contain. Flex containers do not draw them. */}
+  <a class="store" href={row.saleUrl} target="_blank" rel="noopener noreferrer" data-store={row.slug} data-position={row.position} aria-label={row.label}>
     <span class="text">
-      <span class="name">{row.name}</span>
+      <span class="name">{row.name}</span>{' '}
       <span class={`checked checked--${row.checkedAge}`}>{row.checkedText}</span>
-    </span>
+    </span>{' '}
     <DiscountPill percent={row.percent} tier={row.tier} />
-    <span class="chevron" aria-hidden="true">›</span>
   </a>
 </li>
 
@@ -41,8 +40,13 @@ const { row } = Astro.props;
     text-decoration: none;
   }
 
-  /* The list already numbers the rows for a screen reader, so the visible number is hidden from it. */
-  .rank {
+  /* The rank number and the chevron are drawn with generated content, not text in the link, so the link's visible text is exactly
+     its name, its "Checked" words and its figure, and its accessible name can hold all of that (WCAG 2.5.3, Label in Name). The
+     list already numbers the rows for a screen reader; `/ ''` gives the generated content no spoken text. The first declaration
+     is the fallback for a browser that does not know the second. */
+  .store::before {
+    content: attr(data-position);
+    content: attr(data-position) / '';
     flex: none;
     min-width: 1.25rem;
     color: var(--color-subtle);
@@ -93,7 +97,9 @@ const { row } = Astro.props;
     color: var(--color-subtle);
   }
 
-  .chevron {
+  .store::after {
+    content: '›';
+    content: '›' / '';
     flex: none;
     color: var(--color-subtle);
     font-size: 1.5rem;
