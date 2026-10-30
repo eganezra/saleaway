@@ -63,6 +63,7 @@ so that releases are quick and safe, and the site is reachable at saleaway.onlin
 5. Page caching is confirmed to work on the real domain (a repeated request is served from cache), and the result is noted (see Story 2.4, AC5).
 6. Cookie-free Web Analytics is confirmed working on the real domain (see Story 2.5, AC2).
 7. A deploy takes less than 5 minutes.
+8. The workflow installs the Playwright browser and runs `pnpm test:smoke` (the smoke test with the axe check of Story 2.4) before the deploy step; a failure stops the deploy.
 
 ## Story 4.5 Launch Checklist
 
@@ -78,6 +79,7 @@ so that we launch with confidence.
 4. The retailer contact route works (a monitored email address).
 5. A short rollback and "pause the pipeline" note exists in the README.
 6. The remaining known issues are listed, including the stores hidden by Story 3.9 and why.
+7. Indexing is switched on: `ALLOW_INDEXING` is set to `"true"` in `apps/web/wrangler.jsonc` and deployed (Story 2.4 ships it off, so the site is not indexed before launch), and `robots.txt` then allows crawling and lists the sitemap.
 
 ## Story 4.6 Failure Alert and Data Retention
 
