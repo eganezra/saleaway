@@ -40,7 +40,7 @@ so that I don't click through to ended sales.
 ### Acceptance Criteria
 
 1. Stores flagged hidden are not shown.
-2. A store is not shown when it was last validated more than 72 hours ago (FR10, FR15, NFR3). A store that has never been validated is measured from the time it was added, and an active override counts as a fresh check. Without this, the site would be empty until the first pipeline run (Epic 3).
+2. A store is not shown when it was last validated more than 72 hours ago (FR10, FR15, NFR3). A store that has never been validated is measured from the time it was added, and an active override counts as a fresh check for as long as it is active (until its expiry date, if it has one). Without this, the site would be empty until the first pipeline run (Epic 3).
 3. Records marked ended are not shown.
 4. Override precedence is built here, so every later story can rely on it: an active override's percentage replaces the extracted one, its hide flag hides the store, its sale URL replaces the stored one, and an expired override is ignored (FR12).
 5. A unit test covers each rule, including a never-validated store and an expired override.

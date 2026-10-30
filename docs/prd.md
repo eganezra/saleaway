@@ -33,6 +33,7 @@ A spreadsheet of 106 SA stores (`docs/data/`) provides primary sale URLs for 92 
 | 2026-10-30 | 0.8 | PO validation of Story 2.3: Story 3.5 criterion 6 (a `js_only` result updates `last_validated_at`); any active override counts as a fresh check (FR10, `core-workflows.md`) | Sarah (PO) |
 | 2026-10-30 | 0.9 | PO validation of Story 3.3: a challenge or login page is treated like a blocked fetch (Story 3.3 criterion 4, Story 3.5 criterion 7, state table in `core-workflows.md`) | Sarah (PO) |
 | 2026-10-30 | 1.0 | PO validation of Story 3.5: criterion 1 says the record points to the store's sale URL (the table has no URL column) | Sarah (PO) |
+| 2026-10-30 | 1.1 | PO validation of Story 4.1: FR10 and Story 2.3 criterion 2 say an active override counts as a fresh check for as long as it is active (the rule of Story 2.3 changes in Story 4.1, Task 2) | Sarah (PO) |
 
 ## Requirements
 
@@ -47,7 +48,7 @@ A spreadsheet of 106 SA stores (`docs/data/`) provides primary sale URLs for 92 
 - **FR7:** The job validates that a fetched page is a real, active sale with discounted products (not an error page, a redirect to the home page, or an empty listing). A page whose products load with JavaScript cannot be content-checked, so it is recorded as URL-verified only (the URL loads and the operator checked it in Story 4.3) and shown as "On sale".
 - **FR8:** The job extracts the deepest discount on the page using the store's extraction method (Shopify JSON, HTML or structured-data parse, or manual) and stores it as a percentage. If no percentage can be read, the record is stored as "On sale".
 - **FR9:** The job saves, per store, a sale record: status, deepest discount percentage (if known), sale URL, first seen, last checked and last validated times. It stores no retailer product content (images, descriptions, layouts).
-- **FR10:** A sale that fails validation is marked ended and removed from the site on the next run. A temporary fetch failure keeps the last good record for up to 72 hours **[Assumption]** before the store is hidden. A store that has never been validated is measured from the time it was added, so the first pipeline run has 72 hours to check it, and an active override counts as a fresh check.
+- **FR10:** A sale that fails validation is marked ended and removed from the site on the next run. A temporary fetch failure keeps the last good record for up to 72 hours **[Assumption]** before the store is hidden. A store that has never been validated is measured from the time it was added, so the first pipeline run has 72 hours to check it, and an active override counts as a fresh check for as long as it is active (until its expiry date, if it has one).
 - **FR11:** The job records every run (start, end, per-store result) so problems can be seen and fixed.
 - **FR12:** An operator can override a store from a command or script: set a manual discount, hide or show the store, change its sale URL, with an optional expiry date. Overrides win over extracted values.
 - **FR13:** The home page shows one row per visible store with an active sale, inside its category card: store name, "Up to X% off" or "On sale", and a link to the store's sale page, opening in a new tab.
@@ -277,7 +278,7 @@ so that I don't click through to ended sales.
 #### Acceptance Criteria
 
 1. Stores flagged hidden are not shown.
-2. A store is not shown when it was last validated more than 72 hours ago (FR10, FR15, NFR3). A store that has never been validated is measured from the time it was added, and an active override counts as a fresh check. Without this, the site would be empty until the first pipeline run (Epic 3).
+2. A store is not shown when it was last validated more than 72 hours ago (FR10, FR15, NFR3). A store that has never been validated is measured from the time it was added, and an active override counts as a fresh check for as long as it is active (until its expiry date, if it has one). Without this, the site would be empty until the first pipeline run (Epic 3).
 3. Records marked ended are not shown.
 4. Override precedence is built here, so every later story can rely on it: an active override's percentage replaces the extracted one, its hide flag hides the store, its sale URL replaces the stored one, and an expired override is ignored (FR12).
 5. A unit test covers each rule, including a never-validated store and an expired override.
