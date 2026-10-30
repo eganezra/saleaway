@@ -432,6 +432,10 @@ Server-render the home page and cache it at the edge so content exists without J
 2. **"Biggest discounts today" sticker card:** in scope. It is the first card in the grid, listing the 8 deepest discounts across all stores (PRD FR23, Story 3.7). It depends on extracted percentages, so it is built in Epic 3 and hidden until at least 3 stores have a known percentage.
 3. **Terminology:** a "card" is one category card, containing a "row" per store. The PRD has a note explaining this.
 
+**Decided on 2026-10-30**
+
+- **The status strip is not part of the MVP** (PO ruling when validating Story 2.5): the freshness it would show is already on each row. It can come back in Epic 5. The header, skip link and footer are built in Story 2.5 (two header links, no menu button; no Contact link: there is no Contact page).
+
 **Still open**
 
 4. **[Assumption] Heading font** is Space Grotesk. A different free font is fine.

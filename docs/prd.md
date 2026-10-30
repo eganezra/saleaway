@@ -551,6 +551,7 @@ so that we launch with confidence.
 5. A short rollback and "pause the pipeline" note exists in the README.
 6. The remaining known issues are listed, including the stores hidden by Story 3.9 and why.
 7. Indexing is switched on: `ALLOW_INDEXING` is set to `"true"` in `apps/web/wrangler.jsonc` and deployed (Story 2.4 ships it off, so the site is not indexed before launch), and `robots.txt` then allows crawling and lists the sitemap.
+8. A Cloudflare rate-limiting rule protects `/api/click` (for example 30 requests a minute per visitor), if the plan allows it, and `CLICK_SAMPLE_RATE` is lowered if the daily D1 write count nears the 100,000 limit (Story 2.5).
 
 ### Story 4.6 Failure Alert and Data Retention
 
