@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
+    "test:smoke": "pnpm --filter @saleaway/web test:smoke",
     "deploy:web": "pnpm --filter @saleaway/web build && pnpm --filter @saleaway/web exec wrangler deploy",
     "deploy:pipeline": "pnpm --filter @saleaway/pipeline exec wrangler deploy",
     "deploy:all": "pnpm deploy:web && pnpm deploy:pipeline",

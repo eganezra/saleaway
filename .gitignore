@@ -23,3 +23,7 @@ worker-configuration.d.ts
 # tool caches
 .eslintcache
 coverage/
+
+# Playwright output (Story 2.4)
+test-results/
+playwright-report/

@@ -1,19 +1,37 @@
 ---
+import { env } from 'cloudflare:workers';
 import '../styles/tokens.css';
 import '../styles/global.css';
+import { FAVICON_HREF, HOME_DESCRIPTION, HOME_TITLE, canonicalUrl, isIndexingAllowed } from '../lib/seo';
 
 interface Props {
   title?: string;
+  description?: string;
+  /** The page's own path, for its canonical address and Open Graph URL. */
+  path?: string;
 }
-const { title = 'Saleaway' } = Astro.props;
+const { title = HOME_TITLE, description = HOME_DESCRIPTION, path = '/' } = Astro.props;
+const canonical = canonicalUrl(env.SITE_URL, path);
+const indexable = isIndexingAllowed(env.ALLOW_INDEXING);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en-ZA">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href={FAVICON_HREF} />
+    {indexable ? null : <meta name="robots" content="noindex, nofollow" />}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Saleaway" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content="en_ZA" />
+    <meta name="twitter:card" content="summary" />
   </head>
   <body>
     <slot />

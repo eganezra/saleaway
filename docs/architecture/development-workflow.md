@@ -41,7 +41,8 @@ pnpm --filter pipeline exec wrangler dev --test-scheduled
 
 # Run tests
 pnpm test            # unit + integration (Vitest)
-pnpm test:smoke      # Playwright smoke + axe, against the built site
+pnpm test:smoke      # Playwright smoke + axe, against the built site on its own small local database
+                     # (first time: `pnpm --filter @saleaway/web exec playwright install chromium`; it never touches the database `pnpm dev` uses)
 pnpm lint && pnpm typecheck
 ```
 
@@ -51,6 +52,8 @@ pnpm lint && pnpm typecheck
 
 ```bash
 # Web Worker (wrangler vars)
+SITE_URL=https://saleaway.online      # canonical address, sitemap (Story 2.4); a wrangler var
+ALLOW_INDEXING=false                 # "true" lets search engines in; off until launch (a wrangler var, needs a deploy)
 CLICK_SAMPLE_RATE=1.0
 CF_WEB_ANALYTICS_TOKEN=<token>      # public, goes in the page
 

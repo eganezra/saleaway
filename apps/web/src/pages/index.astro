@@ -4,12 +4,16 @@ import CategoryCard from '../components/CategoryCard.astro';
 import CategoryChips from '../components/CategoryChips.astro';
 import EmptyState from '../components/EmptyState.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { PAGE_CACHE_SECONDS } from '../lib/cache';
 import { loadHomeViewModel } from '../lib/homeViewModel';
 import { log } from '../lib/log';
 
 // A failing database is a 503. An empty one is a normal 200. Both show the friendly message.
 const vm = await loadHomeViewModel(env.DB, log);
 if (vm.kind === 'error') Astro.response.status = 503;
+// Only a real page may be cached (Story 2.4): the empty page and the 503 are never stored.
+Astro.response.headers.set('Cache-Control', vm.kind === 'ok' ? `public, max-age=${PAGE_CACHE_SECONDS}` : 'no-store');
+if (vm.kind === 'error') Astro.response.headers.set('Retry-After', '60');
 ---
 
 <BaseLayout>

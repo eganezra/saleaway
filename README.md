@@ -37,7 +37,10 @@ Stop the dev server with `pnpm --filter @saleaway/web exec astro dev stop`.
 pnpm test         # Vitest (core, ops scripts, web app and pipeline; the pipeline tests use a real local D1)
 pnpm lint         # ESLint, including a ban on console.log outside the logger
 pnpm typecheck    # astro check for the web app, tsc for the other packages
+pnpm test:smoke   # Playwright and axe on the built site (needs a browser once: `pnpm --filter @saleaway/web exec playwright install chromium`)
 ```
+
+The smoke test starts the built site on its own small local database (`apps/web/.wrangler/smoke`), so it never changes the data `pnpm dev` shows. `pnpm test` does not run it.
 
 ## Layout
 
@@ -133,6 +136,10 @@ pnpm ops:override --remote --slug zara-sa --bring-back --percent 30 --expires 20
 ### Recovery
 
 D1 Time Travel is always on and keeps 7 days of history on the Free plan. `wrangler d1 time-travel info saleaway` shows the current bookmark, and `wrangler d1 time-travel restore saleaway --bookmark=<id>` (or `--timestamp=<unix time>`) rolls the database back. **A restore overwrites the database in place**, so note the current bookmark first. Applying a migration also captures a backup. The store list can always be rebuilt with `pnpm ops:seed --remote`. Only overrides (Story 4.1) are hand-entered data.
+
+### Search engines and the page cache
+
+**Indexing is off until launch.** While `ALLOW_INDEXING` in `apps/web/wrangler.jsonc` is `"false"` (the default), every page sends `X-Robots-Tag: noindex, nofollow` and `robots.txt` says `Disallow: /`, so the `workers.dev` page does not end up in a search engine. At launch (the launch checklist, Story 4.5) set it to `"true"` and deploy the web app. The home page is kept in Cloudflare's cache for about 10 minutes (`x-cache: HIT` in the response headers shows it), so a change in the data shows within 10 minutes. A deploy starts a new cache: the pages of the previous build are never served.
 
 ## Deploying
 

@@ -3,7 +3,7 @@
 ## Security Requirements
 
 **Frontend Security:**
-- CSP Headers: `default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'`. Ad network domains are added only when ads go live. Scripts ship as one same-origin file, so scripts need no `'unsafe-inline'`. Check at build that Astro has not inlined it (if it has, emit an external file or add the script's hash to `script-src`). Styles use `'unsafe-inline'` because Astro inlines scoped styles.
+- CSP Headers (built in Story 2.4, production builds only): `default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'`. Ad network domains are added only when ads go live. Scripts ship as one same-origin file, so scripts need no `'unsafe-inline'`. Check at build that Astro has not inlined it (if it has, emit an external file or add the script's hash to `script-src`). Styles use `'unsafe-inline'` because Astro inlines scoped styles.
 - XSS Prevention: Astro escapes output by default, and no database value is rendered as raw HTML.
 - Secure Storage: no sensitive data in the browser. `localStorage` holds only the strip dismissal flag.
 - Outbound links: `rel="noopener noreferrer"` and `target="_blank"`.
@@ -24,6 +24,7 @@
 - Bundle Size Target: under 50 KB of JavaScript in total (one small script file), HTML under 100 KB compressed.
 - Loading Strategy: server-rendered HTML, one subset web font with `font-display: swap`, no images, inline SVG icons.
 - Caching Strategy: HTML in the Cache API for about 10 minutes, static assets with long cache lifetimes and hashed file names.
+- **As built (Story 2.4, 2026-10-30):** the home page is stored for 600 seconds, keyed by the address without the query string and by the build; only a 200 that says `public` is stored; `x-cache` shows HIT, MISS or BYPASS. The home query read 334 rows for 57 stores on the live database (read-only check, 2026-10-30), so a view that misses the cache costs about 334 of the 5,000,000 daily row reads, and a hit costs none; with the cache that is about 334 rows per data centre per 10 minutes. The HTML of the page with 92 stores is about 75 KB, 5.9 KB gzipped. A Lighthouse mobile run (13.5.0, headless Chrome on the built site, local): performance 100, accessibility 100, best practices 100, SEO 100 with indexing allowed (66 while it is off: Lighthouse reports "Page is blocked from indexing", which is the intended state before launch). The three security headers are added by the Worker in a production build; HSTS waits for the real domain.
 
 **Backend Performance:**
 - Response Time Target: cache hit under 50 ms at the edge, cache miss under 300 ms.

@@ -133,9 +133,9 @@ Exact versions were recorded in Story 1.1 on 2026-10-29 and are also pinned in t
 | Cache | Cloudflare Cache API in the web Worker | managed | Cache rendered home page HTML | Protects D1 quotas and speeds up pages |
 | File Storage | None at launch | - | No images or files stored | Text-only design (NFR7). R2 only if needed later |
 | Authentication | None for visitors. Bearer token secret for the manual-run endpoint. Operator CLI uses your Cloudflare login | - | Protect operator actions | No user accounts in the MVP |
-| Frontend Testing | Vitest + axe (via Playwright smoke test) | latest, pinned | Component logic, accessibility check of the built page | Spec requires automated axe checks |
+| Frontend Testing | Vitest + axe (via Playwright smoke test) | Vitest 5.0.5, `@axe-core/playwright` 4.14.0 (pinned in Story 2.4) | Component logic, accessibility check of the built page | Spec requires automated axe checks |
 | Backend Testing | Vitest, with a real local D1 through Wrangler's `getPlatformProxy` (Story 3.1) | Vitest 5.0.5. `@cloudflare/vitest-pool-workers` 0.23.0, the tool first planned here, needs Vitest 4 and is not used | Unit tests with page samples, D1 integration tests | Runs the Worker logic against a real local D1 with foreign keys and constraints enforced (NFR12) |
-| E2E Testing | Playwright, smoke only (home loads, links present, axe) | latest, pinned | One or two checks | PRD: no full E2E suite for the MVP |
+| E2E Testing | Playwright, smoke only (home loads, links present, axe, the cache, the headers, a keyboard pass) | `@playwright/test` 1.64.1 (pinned in Story 2.4; the browser is a one-off `pnpm exec playwright install chromium`) | One or two checks | PRD: no full E2E suite for the MVP |
 | Build Tool | pnpm + Astro build + Wrangler | pnpm 9.0.0, Astro 7.4.4, Wrangler 4.155.0 (pinned in Story 1.1) | Build and deploy | Standard for Cloudflare |
 | Bundler | Vite (via Astro) and esbuild (via Wrangler) | managed | Bundle Workers | Defaults |
 | IaC Tool | `wrangler.jsonc` per Worker, plus SQL migrations in `db/migrations` | - | Bindings, cron schedules, queues | Cloudflare config as code, no Terraform for 3 days |
@@ -679,6 +679,8 @@ apps/web/src/
 
 **Built in Story 2.2 (2026-10-30):** the category sections. `rankStores` in `packages/core/src/rank.ts` (FR14: the biggest percentage first, then "On sale" stores by `retailers.rank`, ties by rank, stable; the pure rule); in `apps/web`, the home query also selects the category's slug, name, tagline and colour token and the store's `rank` (same tables, no extra rows read), `lib/categories.ts` (`buildCategories`: groups the visible stores by category in `sort_order`, ranks each by the figure its row shows, numbers the rows; `ROWS_SHOWN` is 8), `CategoryCard.astro` (header with the name, a count badge, the tagline and a colour tab; the first 8 rows; a native `<details>` "Show all N" for the rest, no JavaScript, every row in the HTML), `CategoryChips.astro` (the anchor menu: a link per category that has stores; below 640px it scrolls sideways and sticks to the top, and `html` gets `scroll-padding-top` so a jump or a keyboard focus clears it) and a flat `StoreRow.astro` (a rank number, a line between rows, 48px high). `HomeViewModel.ok` now holds `categories`. The cards are a plain grid (not a masonry) with as many columns as fit, none narrower than 21rem: 1 on a phone, 2 on a tablet, 3 on a desktop and never 4, because a row's rank, name, "Checked" label and pill need about 290px inside the card and four cards in the 1280px content would be about 250px each. A category with no visible store is not drawn. The tab colour is `--cat-default` for every category (the seed gives all ten `cat-default`; a class of the same name carries it). Not built: the active-chip highlight (needs a script), the "Biggest discounts today" card, the status strip, header, footer, skip link and ad slots.
 
+**Built in Story 2.4 (2026-10-30):** the page cache, the search engine basics, the security headers and the smoke test. `src/middleware.ts` serves the home page (`/` only) from the Cache API through `lib/cache.ts` (`cachedPage`): only `GET`; the key is the address **without the visitor's query string plus the build's name** (`__BUILD_ID__`, set when the site is built), so a visitor cannot make a new database query by changing the query string and a deploy never serves the previous build's cached HTML (that HTML points at the previous build's hashed stylesheet, which no longer exists: an unstyled page); a 200 whose `Cache-Control` says `public, max-age=600` is stored, the empty page and the 503 say `no-store` and are never stored; every response carries `x-cache: HIT|MISS|BYPASS` (there is no per-view log line); a failing cache is never the visitor's problem; HEAD requests are not cached. `lib/headers.ts` adds the headers on the way out and never into the cache: `X-Robots-Tag: noindex, nofollow` while `ALLOW_INDEXING` is not `"true"`, and in a production build the Content-Security-Policy of the architecture, `X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`. `lib/seo.ts`, `pages/robots.txt.ts` and `pages/sitemap.xml.ts`: the canonical address, `robots.txt` (`Disallow: /` while indexing is off, else `Allow: /` and the sitemap line) and the sitemap (the home page; Story 2.5 adds its pages); the layout writes the title, description, canonical, Open Graph and Twitter tags, `lang="en-ZA"`, an inline text-only favicon and, while indexing is off, `<meta name="robots" content="noindex, nofollow">`. `SITE_URL` and `ALLOW_INDEXING` are `vars` in `wrangler.jsonc` (default `"false"`: turning indexing on is an edit and a deploy, a step of the launch checklist; the `<meta name="robots">` of a cached page can stay up to 10 minutes old after that deploy, the headers and `robots.txt` change at once). After a deploy the cache of the previous build is simply not read. The smoke test is `tests/smoke.spec.ts` (Playwright and axe, `pnpm test:smoke`), against the built site started with `astro preview` on its own local database (`.wrangler/smoke`, made from `tests/smoke-fixture.sql`); Vitest runs only `tests/**/*.test.ts` (`vitest.config.ts`). The web app's `types` scripts use `--strict-vars=false`, so the two settings are typed `string`. There is no CI yet: Story 4.4 runs the smoke test before its deploy step.
+
 ### Component Template
 
 ```astro
@@ -977,7 +979,8 @@ pnpm --filter pipeline exec wrangler dev --test-scheduled
 
 # Run tests
 pnpm test            # unit + integration (Vitest)
-pnpm test:smoke      # Playwright smoke + axe, against the built site
+pnpm test:smoke      # Playwright smoke + axe, against the built site on its own small local database
+                     # (first time: `pnpm --filter @saleaway/web exec playwright install chromium`; it never touches the database `pnpm dev` uses)
 pnpm lint && pnpm typecheck
 ```
 
@@ -987,6 +990,8 @@ pnpm lint && pnpm typecheck
 
 ```bash
 # Web Worker (wrangler vars)
+SITE_URL=https://saleaway.online      # canonical address, sitemap (Story 2.4); a wrangler var
+ALLOW_INDEXING=false                 # "true" lets search engines in; off until launch (a wrangler var, needs a deploy)
 CLICK_SAMPLE_RATE=1.0
 CF_WEB_ANALYTICS_TOKEN=<token>      # public, goes in the page
 
@@ -1072,7 +1077,7 @@ The domain `saleaway.online` must have its DNS on Cloudflare for a custom domain
 ### Security Requirements
 
 **Frontend Security:**
-- CSP Headers: `default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'`. Ad network domains are added only when ads go live. Scripts ship as one same-origin file, so scripts need no `'unsafe-inline'`. Check at build that Astro has not inlined it (if it has, emit an external file or add the script's hash to `script-src`). Styles use `'unsafe-inline'` because Astro inlines scoped styles.
+- CSP Headers (built in Story 2.4, production builds only): `default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'`. Ad network domains are added only when ads go live. Scripts ship as one same-origin file, so scripts need no `'unsafe-inline'`. Check at build that Astro has not inlined it (if it has, emit an external file or add the script's hash to `script-src`). Styles use `'unsafe-inline'` because Astro inlines scoped styles.
 - XSS Prevention: Astro escapes output by default, and no database value is rendered as raw HTML.
 - Secure Storage: no sensitive data in the browser. `localStorage` holds only the strip dismissal flag.
 - Outbound links: `rel="noopener noreferrer"` and `target="_blank"`.
@@ -1093,6 +1098,7 @@ The domain `saleaway.online` must have its DNS on Cloudflare for a custom domain
 - Bundle Size Target: under 50 KB of JavaScript in total (one small script file), HTML under 100 KB compressed.
 - Loading Strategy: server-rendered HTML, one subset web font with `font-display: swap`, no images, inline SVG icons.
 - Caching Strategy: HTML in the Cache API for about 10 minutes, static assets with long cache lifetimes and hashed file names.
+- **As built (Story 2.4, 2026-10-30):** the home page is stored for 600 seconds, keyed by the address without the query string and by the build; only a 200 that says `public` is stored; `x-cache` shows HIT, MISS or BYPASS. The home query read 334 rows for 57 stores on the live database (read-only check, 2026-10-30), so a view that misses the cache costs about 334 of the 5,000,000 daily row reads, and a hit costs none; with the cache that is about 334 rows per data centre per 10 minutes. The HTML of the page with 92 stores is about 75 KB, 5.9 KB gzipped. A Lighthouse mobile run (13.5.0, headless Chrome on the built site, local): performance 100, accessibility 100, best practices 100, SEO 100 with indexing allowed (66 while it is off: Lighthouse reports "Page is blocked from indexing", which is the intended state before launch). The three security headers are added by the Worker in a production build; HSTS waits for the real domain.
 
 **Backend Performance:**
 - Response Time Target: cache hit under 50 ms at the edge, cache miss under 300 ms.
