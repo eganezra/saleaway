@@ -21,10 +21,21 @@ export interface CacheDeps {
   waitUntil(promise: Promise<unknown>): void;
 }
 
-/** A copy with `x-cache` set: a response from the cache (or a fetch) can have read-only headers in the Workers runtime. */
+/**
+ * What the visitor's browser is told about a page the edge cache holds: ask again every time (a cheap cache hit). The stored
+ * copy says `max-age=600` for the edge, but a browser that kept the HTML for 10 minutes would keep a page of a previous build,
+ * which links a hashed stylesheet that a deploy has removed (an unstyled page).
+ */
+export const BROWSER_CACHE_CONTROL = 'public, max-age=0, must-revalidate';
+
+/**
+ * A copy with `x-cache` set (and, for a page the edge cache holds, the browser's `Cache-Control`): a response from the cache
+ * (or a fetch) can have read-only headers in the Workers runtime.
+ */
 function tagged(response: Response, value: 'HIT' | 'MISS' | 'BYPASS'): Response {
   const copy = new Response(response.body, response);
   copy.headers.set('x-cache', value);
+  if (value !== 'BYPASS') copy.headers.set('cache-control', BROWSER_CACHE_CONTROL);
   return copy;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PAGE_CACHE_SECONDS, cachedPage } from '../src/lib/cache';
+import { BROWSER_CACHE_CONTROL, PAGE_CACHE_SECONDS, cachedPage } from '../src/lib/cache';
 import type { PageCache } from '../src/lib/cache';
 
 /** A fake cache that keeps what it is given, by address. */
@@ -66,8 +66,19 @@ describe('cachedPage (AC3, AC5)', () => {
     await Promise.all(waited);
     const hit = await cachedPage(get('https://saleaway.example/'), next, deps);
     expect(hit.status).toBe(200);
-    expect(hit.headers.get('cache-control')).toBe('public, max-age=600');
     expect(hit.headers.get('content-type')).toBe('text/html');
+  });
+
+  it('keeps max-age=600 on the stored copy but tells the browser to revalidate (a browser must not keep a previous build\'s page)', async () => {
+    const { deps, store, waited } = harness();
+    const { next } = counting(page('<p>x</p>'));
+    const miss = await cachedPage(get('https://saleaway.example/'), next, deps);
+    await Promise.all(waited);
+    expect(store.get('https://saleaway.example/?v=b1')?.headers.get('cache-control')).toBe('public, max-age=600');
+    expect(miss.headers.get('cache-control')).toBe(BROWSER_CACHE_CONTROL);
+    const hit = await cachedPage(get('https://saleaway.example/'), next, deps);
+    expect(hit.headers.get('cache-control')).toBe(BROWSER_CACHE_CONTROL);
+    expect(BROWSER_CACHE_CONTROL).toBe('public, max-age=0, must-revalidate');
   });
 
   it('ignores the query string in the key, and keeps different paths apart', async () => {

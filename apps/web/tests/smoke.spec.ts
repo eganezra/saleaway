@@ -63,7 +63,8 @@ test('the page cache answers the second request, and the endpoints are served', 
   const second = await request.get('/?utm_source=smoke');
   expect(['MISS', 'HIT']).toContain(first.headers()['x-cache']);
   expect(second.headers()['x-cache']).toBe('HIT');
-  expect(second.headers()['cache-control']).toBe('public, max-age=600');
+  // the edge keeps it for 600 seconds; the browser is told to ask again (it must not keep a previous build's page)
+  expect(second.headers()['cache-control']).toBe('public, max-age=0, must-revalidate');
   expect(await second.text()).toBe(await first.text());
 
   const robots = await request.get('/robots.txt');
