@@ -23,6 +23,7 @@ const { row } = Astro.props;
 <style>
   .store {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
     min-height: 44px;
@@ -35,9 +36,11 @@ const { row } = Astro.props;
     text-decoration: none;
   }
 
+  /* The name keeps at least 7rem; when the row is too narrow for that (a 320px phone, or two columns just above 640px) the
+     pill drops to its own line instead of squeezing the name into broken words. */
   .text {
     display: flex;
-    flex: 1;
+    flex: 1 1 7rem;
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
