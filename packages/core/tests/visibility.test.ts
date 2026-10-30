@@ -149,6 +149,11 @@ describe('AC4: override precedence', () => {
     expect(resolveStore(store({ override: override({ hide: true, expiresAt: ago(0) }) }), NOW).visible).toBe(true);
     expect(resolveStore(store({ override: override({ hide: true, expiresAt: inFuture(0.001) }) }), NOW).visible).toBe(false);
   });
+  it('counts the expiry to the second: one second after now is still active, now itself is expired', () => {
+    const oneSecondLater = new Date(NOW.getTime() + 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    expect(resolveStore(store({ override: override({ hide: true, expiresAt: oneSecondLater }) }), NOW).hiddenBecause).toBe('override_hide');
+    expect(resolveStore(store({ override: override({ hide: true, expiresAt: ago(0) }) }), NOW).visible).toBe(true);
+  });
   it('keeps an override with no expiry active', () => {
     expect(resolveStore(store({ override: override({ hide: true, expiresAt: null }) }), NOW).hiddenBecause).toBe('override_hide');
   });

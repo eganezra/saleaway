@@ -146,6 +146,11 @@ describe('getVisibleStores', () => {
       );
       expect(stores.map((s) => s.discountPercent)).toEqual([50, 30, null]);
     });
+    it('judges a store with no record by its own created_at, not by the time an override was made', async () => {
+      // Added an hour ago, with an old override that does not hide it: fresh, so shown.
+      const r = { ...takealot, created_at: ago(1), override_created_at: ago(100) };
+      expect(await slugs([r])).toEqual(['takealot']);
+    });
     it('keeps the order of the rows it is given', async () => {
       expect(await slugs([temu, takealot])).toEqual(['temu-sa-storefront', 'takealot']);
     });
@@ -179,6 +184,13 @@ describe('loadHomeViewModel', () => {
   it('returns empty when every row is dropped for an unsafe URL', async () => {
     const { log } = fakeLog();
     expect(await loadHomeViewModel(fakeDb([row('a', 'A', 'javascript:alert(1)')]).db, log, NOW)).toEqual({ kind: 'empty' });
+  });
+
+  it('judges the stores against the time it is given (a store shown now is hidden three days later)', async () => {
+    const { log } = fakeLog();
+    const db = fakeDb([takealot]).db;
+    expect((await loadHomeViewModel(db, log, NOW)).kind).toBe('ok');
+    expect(await loadHomeViewModel(db, log, new Date(NOW.getTime() + 4 * 24 * HOUR))).toEqual({ kind: 'empty' });
   });
 
   it('returns empty, not error, when the rules hide every store (all stale)', async () => {
