@@ -22,6 +22,8 @@ export type { FetchOutcome } from './classify';
 export { isAllowedByRobots } from './robots';
 export { parseHiddenStores } from './hidden-stores';
 export type { HiddenStore, HiddenStores } from './hidden-stores';
+export { rankStores } from './rank';
+export type { Rankable } from './rank';
 export { STALE_AFTER_HOURS, isOverrideActive, isVisible, resolveStore } from './visibility';
 export type { HiddenBecause, StoreInput, StoreView, VisibilityOverride, VisibilityRecord } from './visibility';
 export { recordEffect, validateSalePage } from './validate';

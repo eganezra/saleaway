@@ -12,6 +12,8 @@ const link = (over: Partial<StoreLink> = {}): StoreLink => ({
   saleUrl: 'https://www.crocs.co.za/sale',
   discountPercent: 50,
   checkedAt: at(1),
+  rank: 1,
+  category: { slug: 'fashion-apparel', name: 'Fashion & apparel', tagline: 'Dress up, pay less.', colorToken: 'cat-default' },
   ...over,
 });
 

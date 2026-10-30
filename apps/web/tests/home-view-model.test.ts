@@ -8,6 +8,11 @@ type Row = {
   name: string;
   sale_url: string | null;
   created_at: string;
+  rank: number;
+  category_slug: string;
+  category_name: string;
+  category_tagline: string;
+  category_color_token: string;
   record_state: 'active' | 'ended' | 'unknown' | null;
   record_percent: number | null;
   last_validated_at: string | null;
@@ -51,6 +56,11 @@ const row = (slug: string, name: string, sale_url: string | null, over: Partial<
   name,
   sale_url,
   created_at: ago(1),
+  rank: 999,
+  category_slug: 'marketplaces-department',
+  category_name: 'Marketplaces & department',
+  category_tagline: 'Everything under one roof.',
+  category_color_token: 'cat-default',
   record_state: null,
   record_percent: null,
   last_validated_at: null,
@@ -61,6 +71,7 @@ const row = (slug: string, name: string, sale_url: string | null, over: Partial<
   override_created_at: null,
   ...over,
 });
+const CATEGORY = { slug: 'marketplaces-department', name: 'Marketplaces & department', tagline: 'Everything under one roof.', colorToken: 'cat-default' };
 const takealot = row('takealot', 'Takealot', 'https://www.takealot.com/deals');
 const temu = row('temu-sa-storefront', 'Temu (SA storefront)', 'https://www.temu.com/za/channel/lightning-deals.html');
 
@@ -68,9 +79,15 @@ describe('getVisibleStores', () => {
   it('maps sale_url to saleUrl and keeps the order the database returned', async () => {
     const { db } = fakeDb([temu, takealot]);
     expect(await getVisibleStores(db, NOW)).toEqual([
-      { slug: 'temu-sa-storefront', name: 'Temu (SA storefront)', saleUrl: 'https://www.temu.com/za/channel/lightning-deals.html', discountPercent: null, checkedAt: null },
-      { slug: 'takealot', name: 'Takealot', saleUrl: 'https://www.takealot.com/deals', discountPercent: null, checkedAt: null },
+      { slug: 'temu-sa-storefront', name: 'Temu (SA storefront)', saleUrl: 'https://www.temu.com/za/channel/lightning-deals.html', discountPercent: null, checkedAt: null, rank: 999, category: CATEGORY },
+      { slug: 'takealot', name: 'Takealot', saleUrl: 'https://www.takealot.com/deals', discountPercent: null, checkedAt: null, rank: 999, category: CATEGORY },
     ]);
+  });
+
+  it('carries the store rank and its category through (Story 2.2)', async () => {
+    const fashion = row('bash-tfg', 'Bash (TFG)', 'https://bash.com/sale', { rank: 3, category_slug: 'fashion-apparel', category_name: 'Fashion & apparel', category_tagline: 'Dress up, pay less.', category_color_token: 'cat-fashion' });
+    const [store] = await getVisibleStores(fakeDb([fashion]).db, NOW);
+    expect(store).toMatchObject({ rank: 3, category: { slug: 'fashion-apparel', name: 'Fashion & apparel', tagline: 'Dress up, pay less.', colorToken: 'cat-fashion' } });
   });
 
   it('asks for the operator-visible stores in one query, joined to records and overrides, in category order then rank', async () => {
@@ -81,6 +98,7 @@ describe('getVisibleStores', () => {
     expect(queries[0]).toContain('LEFT JOIN sale_records');
     expect(queries[0]).toContain('LEFT JOIN overrides');
     expect(queries[0]).toMatch(/ORDER BY c\.sort_order, r\.rank/);
+    for (const column of ['c.slug', 'c.name', 'c.tagline', 'c.color_token', 'r.rank']) expect(queries[0]).toContain(column);
     // The https rule moved into core, so an override URL can show a store that has no URL of its own.
     expect(queries[0]).not.toContain('sale_url LIKE');
   });
@@ -182,7 +200,7 @@ describe('loadHomeViewModel', () => {
     const { log, errors } = fakeLog();
     const vm = await loadHomeViewModel(fakeDb([takealot, temu]).db, log, NOW);
     expect(vm.kind).toBe('ok');
-    if (vm.kind === 'ok') expect(vm.stores.map((s) => s.slug)).toEqual(['takealot', 'temu-sa-storefront']);
+    if (vm.kind === 'ok') expect(vm.categories.flatMap((c) => c.rows.map((r) => r.slug))).toEqual(['takealot', 'temu-sa-storefront']);
     expect(errors).toEqual([]);
   });
 
@@ -200,12 +218,13 @@ describe('loadHomeViewModel', () => {
       NOW,
     );
     if (vm.kind !== 'ok') throw new Error('expected ok');
-    expect(vm.stores.map((s) => [s.slug, s.percent, s.tier, s.checkedText])).toEqual([
-      ['a', 60, 'hot', 'Checked today'],
-      ['b', 20, 'warm', 'Checked 2 days ago'],
-      ['c', null, 'plain', 'Checked today'],
-      ['d', null, 'plain', 'Not checked yet'],
-      ['e', 35, 'warm', 'Checked today'],
+    // one category: the biggest percentage first, then "On sale" in the order of their rank (all 999, so as they came)
+    expect(vm.categories.flatMap((c) => c.rows).map((s) => [s.slug, s.percent, s.tier, s.checkedText, s.position])).toEqual([
+      ['a', 60, 'hot', 'Checked today', 1],
+      ['e', 35, 'warm', 'Checked today', 2],
+      ['b', 20, 'warm', 'Checked 2 days ago', 3],
+      ['c', null, 'plain', 'Checked today', 4],
+      ['d', null, 'plain', 'Not checked yet', 5],
     ]);
   });
 

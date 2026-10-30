@@ -1,7 +1,8 @@
 ---
 import { env } from 'cloudflare:workers';
+import CategoryCard from '../components/CategoryCard.astro';
+import CategoryChips from '../components/CategoryChips.astro';
 import EmptyState from '../components/EmptyState.astro';
-import StoreRow from '../components/StoreRow.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { loadHomeViewModel } from '../lib/homeViewModel';
 import { log } from '../lib/log';
@@ -17,11 +18,14 @@ if (vm.kind === 'error') Astro.response.status = 503;
     <p class="intro">Current sales from South African online stores, in one place.</p>
     {
       vm.kind === 'ok' ? (
-        <ol class="stores" role="list">
-          {vm.stores.map((row) => (
-            <StoreRow row={row} />
-          ))}
-        </ol>
+        <>
+          <CategoryChips categories={vm.categories.map(({ slug, name }) => ({ slug, name }))} />
+          <div class="cards">
+            {vm.categories.map((category) => (
+              <CategoryCard category={category} />
+            ))}
+          </div>
+        </>
       ) : (
         <EmptyState />
       )
@@ -35,30 +39,30 @@ if (vm.kind === 'error') Astro.response.status = 503;
     color: var(--color-muted);
   }
 
-  /* One column on a phone, then 2, 3 and 4 as the screen widens (the spec's breakpoints). */
-  .stores {
+  /* One column on a phone, then 2, 3 and 4 cards across (the spec's breakpoints). A plain grid, not a masonry: a card is
+     as tall as its rows, and the reading and tab order stay the order of the page. */
+  .cards {
     display: grid;
     grid-template-columns: 1fr;
     gap: 16px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
+    align-items: start;
   }
 
   @media (min-width: 640px) {
-    .stores {
+    .cards {
       grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
     }
   }
 
   @media (min-width: 1024px) {
-    .stores {
+    .cards {
       grid-template-columns: repeat(3, 1fr);
     }
   }
 
   @media (min-width: 1440px) {
-    .stores {
+    .cards {
       grid-template-columns: repeat(4, 1fr);
     }
   }

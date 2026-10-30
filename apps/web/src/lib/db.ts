@@ -14,13 +14,17 @@ export interface StoreLink {
   discountPercent: number | null;
   /** When the store was last really checked (UTC), or null when it never was (Story 2.1). */
   checkedAt: string | null;
+  /** `retailers.rank`: the lower, the more popular (used to order stores inside a category, Story 2.2). */
+  rank: number;
+  category: { slug: string; name: string; tagline: string; colorToken: string };
 }
 
 // One query for the whole page (one round trip). Stores the operator has hidden (`is_visible = 0`) are not
 // read at all; every other rule (ended, stale, an override that hides, the https URL rule) is applied by
 // `resolveStore` in `packages/core`, so the rules live in one place (Story 2.3). Ordered by category and
-// then store rank; ranking by discount is Stories 2.1 and 2.2.
-const STORES_SQL = `SELECT r.slug, r.name, r.sale_url, r.created_at,
+// then store rank; the order inside a category (biggest discount first) is `rankStores` in core (Story 2.2).
+const STORES_SQL = `SELECT r.slug, r.name, r.sale_url, r.created_at, r.rank,
+       c.slug AS category_slug, c.name AS category_name, c.tagline AS category_tagline, c.color_token AS category_color_token,
        s.state AS record_state, s.discount_percent AS record_percent, s.last_validated_at,
        o.discount_percent AS override_percent, o.hide AS override_hide, o.sale_url AS override_url,
        o.expires_at AS override_expires_at, o.created_at AS override_created_at
@@ -36,6 +40,11 @@ interface StoreRow {
   name: string;
   sale_url: string | null;
   created_at: string;
+  rank: number;
+  category_slug: string;
+  category_name: string;
+  category_tagline: string;
+  category_color_token: string;
   record_state: 'active' | 'ended' | 'unknown' | null;
   record_percent: number | null;
   last_validated_at: string | null;
@@ -75,6 +84,16 @@ export async function getVisibleStores(db: Database, now: Date = new Date()): Pr
     const view = resolveStore(toStoreInput(row), now);
     // Second line of defence: only https links ever reach an href, whatever the database holds.
     if (!view.visible || typeof view.saleUrl !== 'string' || !view.saleUrl.startsWith('https://')) return [];
-    return [{ slug: row.slug, name: row.name, saleUrl: view.saleUrl, discountPercent: view.discountPercent, checkedAt: view.checkedAt }];
+    return [
+      {
+        slug: row.slug,
+        name: row.name,
+        saleUrl: view.saleUrl,
+        discountPercent: view.discountPercent,
+        checkedAt: view.checkedAt,
+        rank: row.rank,
+        category: { slug: row.category_slug, name: row.category_name, tagline: row.category_tagline, colorToken: row.category_color_token },
+      },
+    ];
   });
 }

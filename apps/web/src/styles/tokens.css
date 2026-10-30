@@ -11,5 +11,8 @@
   --color-mint: #a8e6b0;
   --color-focus: #1a4fff;
 
+  /* The colour tab of a category card: the token the category carries is a class name (Story 2.2). */
+  --cat-default: #7cc4ff;
+
   --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }

@@ -1,0 +1,72 @@
+---
+// The anchor menu (Story 2.2): one pill per category that has stores, each a link to its section. Below 640px the row
+// scrolls sideways and sticks to the top of the screen; from 640px it wraps and scrolls with the page.
+interface Props {
+  categories: Array<{ slug: string; name: string }>;
+}
+const { categories } = Astro.props;
+---
+
+<nav class="chips" aria-label="Categories">
+  <ul role="list">
+    {
+      categories.map((category) => (
+        <li>
+          <a href={`#${category.slug}`}>{category.name}</a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>
+
+<style>
+  .chips {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    margin: 0 -16px 16px;
+    padding: 8px 16px;
+    overflow-x: auto;
+    background: var(--color-page);
+  }
+
+  ul {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 16px;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    border: 2px solid var(--color-ink);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  @media (hover: hover) {
+    a:hover {
+      background: var(--color-yellow);
+    }
+  }
+
+  @media (min-width: 640px) {
+    .chips {
+      position: static;
+      margin: 0 0 24px;
+      padding: 0;
+      overflow: visible;
+    }
+
+    ul {
+      flex-wrap: wrap;
+    }
+  }
+</style>

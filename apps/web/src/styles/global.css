@@ -55,3 +55,11 @@ a:focus-visible {
   white-space: nowrap;
   border: 0;
 }
+
+/* Below 640px the category chips stick to the top of the screen; an anchor jump or a keyboard focus scrolls clear of them
+   (WCAG 2.2, Focus Not Obscured). The row is 60px high. */
+@media (max-width: 639px) {
+  html {
+    scroll-padding-top: 4.5rem;
+  }
+}

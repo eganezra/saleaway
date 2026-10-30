@@ -1,0 +1,159 @@
+---
+// One category as one card (Story 2.2): a header (name, store count, tagline) and its stores in FR14 order. The card shows
+// ROWS_SHOWN rows; a native <details> (no JavaScript) holds the rest. Every row is in the HTML either way.
+import { ROWS_SHOWN } from '../lib/categories';
+import type { CategoryData } from '../lib/categories';
+import StoreRow from './StoreRow.astro';
+
+interface Props {
+  category: CategoryData;
+}
+const { category } = Astro.props;
+const shown = category.rows.slice(0, ROWS_SHOWN);
+const more = category.rows.slice(ROWS_SHOWN);
+const titleId = `${category.slug}-title`;
+---
+
+<section id={category.slug} class={`card ${category.colorToken}`} aria-labelledby={titleId}>
+  <header class="head">
+    <div class="title">
+      <h2 id={titleId}>{category.name}</h2>
+      <span class="count">
+        <span aria-hidden="true">{category.count}</span>
+        <span class="visually-hidden">{category.count} {category.count === 1 ? 'store' : 'stores'} on sale</span>
+      </span>
+    </div>
+    <p class="tagline">&ldquo;{category.tagline}&rdquo;</p>
+  </header>
+  <ol class="rows" role="list">
+    {shown.map((row) => <StoreRow row={row} />)}
+  </ol>
+  {
+    more.length > 0 && (
+      <details>
+        <summary>
+          <span class="when-closed">Show all {category.count}</span>
+          <span class="when-open">Show fewer</span>
+          <span class="arrow" aria-hidden="true" />
+        </summary>
+        <ol class="rows" role="list" start={ROWS_SHOWN + 1}>
+          {more.map((row) => <StoreRow row={row} />)}
+        </ol>
+      </details>
+    )
+  }
+</section>
+
+<style>
+  .card {
+    --tab: var(--cat-default);
+    padding: 16px;
+    background: var(--color-surface);
+    border: 3px solid var(--color-ink);
+    box-shadow: 6px 6px 0 var(--color-ink);
+  }
+
+  /* 20px from 640px (the spec); 16px on a phone, so a row has room for its name, label and pill on 360px. */
+  @media (min-width: 640px) {
+    .card {
+      padding: 20px;
+    }
+  }
+
+  /* A later per-category colour is a CSS rule on the token's class, e.g. `.cat-fashion { --tab: ... }`. */
+  .head {
+    margin-bottom: 8px;
+    padding-left: 12px;
+    border-left: 8px solid var(--tab);
+  }
+
+  .title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .count {
+    flex: none;
+    min-width: 32px;
+    padding: 4px 8px;
+    background: var(--color-ink);
+    color: var(--color-surface);
+    font-size: 0.9375rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .tagline {
+    margin: 4px 0 0;
+    color: var(--color-muted);
+    font-size: 0.9375rem;
+    font-style: italic;
+  }
+
+  .rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    padding: 0 4px;
+    border-top: 2px solid var(--color-ink);
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  details[open] > summary {
+    border-bottom: 2px solid var(--color-ink);
+  }
+
+  .when-open,
+  details[open] .when-closed {
+    display: none;
+  }
+
+  details[open] .when-open {
+    display: inline;
+  }
+
+  .arrow {
+    flex: none;
+    width: 0.625rem;
+    height: 0.625rem;
+    margin-top: -4px;
+    border-right: 3px solid var(--color-ink);
+    border-bottom: 3px solid var(--color-ink);
+    transform: rotate(45deg);
+  }
+
+  details[open] .arrow {
+    margin-top: 4px;
+    transform: rotate(-135deg);
+  }
+</style>

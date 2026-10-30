@@ -1,16 +1,17 @@
 ---
-// One store as one link row (Story 2.1). Text only: no retailer images, logos or favicons (NFR7).
-import type { StoreRowData } from '../lib/storeRow';
+// One store as one link row inside a category card (Stories 2.1 and 2.2). Text only: no retailer images, logos or favicons (NFR7).
+import type { PositionedRow } from '../lib/categories';
 import DiscountPill from './DiscountPill.astro';
 
 interface Props {
-  row: StoreRowData;
+  row: PositionedRow;
 }
 const { row } = Astro.props;
 ---
 
 <li>
   <a class="store" href={row.saleUrl} target="_blank" rel="noopener noreferrer" data-store={row.slug} aria-label={row.label}>
+    <span class="rank" aria-hidden="true">{row.position}</span>
     <span class="text">
       <span class="name">{row.name}</span>
       <span class={`checked checked--${row.checkedAge}`}>{row.checkedText}</span>
@@ -21,26 +22,40 @@ const { row } = Astro.props;
 </li>
 
 <style>
+  li {
+    border-bottom: 2px solid var(--color-ink);
+  }
+
+  li:last-child {
+    border-bottom: 0;
+  }
+
   .store {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
-    min-height: 44px;
-    height: 100%;
-    padding: 12px 16px;
-    background: var(--color-surface);
+    gap: 8px;
+    min-height: 48px;
+    padding: 8px 2px;
     color: var(--color-ink);
-    border: 3px solid var(--color-ink);
-    box-shadow: 4px 4px 0 var(--color-ink);
     text-decoration: none;
   }
 
-  /* The name keeps at least 7rem; when the row is too narrow for that (a 320px phone, or two columns just above 640px) the
-     pill drops to its own line instead of squeezing the name into broken words. */
+  /* The list already numbers the rows for a screen reader, so the visible number is hidden from it. */
+  .rank {
+    flex: none;
+    min-width: 1.25rem;
+    color: var(--color-subtle);
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  /* The name keeps at least 5.5rem; when the row is too narrow for that (a 320px phone) the pill drops to its own line
+     instead of squeezing the name into broken words. At 360px the pill stays on the right (the spec). */
   .text {
     display: flex;
-    flex: 1 1 7rem;
+    flex: 1 1 5.5rem;
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
@@ -86,15 +101,18 @@ const { row } = Astro.props;
     line-height: 1;
   }
 
+  /* Only the cream, never yellow or mint: the grey rank number is 4.9:1 on the cream and only 3.7:1 on those. */
   @media (hover: hover) {
     .store:hover {
-      box-shadow: 2px 2px 0 var(--color-ink);
-      transform: translate(2px, 2px);
+      background: var(--color-page);
     }
   }
 
   .store:active {
-    box-shadow: 0 0 0 var(--color-ink);
-    transform: translate(4px, 4px);
+    background: var(--color-page);
+  }
+
+  .store:active .name {
+    text-decoration: underline;
   }
 </style>
