@@ -36,7 +36,9 @@ sequenceDiagram
 | Result | Effect on sale record |
 |---|---|
 | `ok` and validated with discounted products | `active`, `content_verified`, percentage set (or null for "On sale"), `last_validated_at` updated |
-| `ok` but no discounted products | `ended`, `ended_at` set (FR10) |
+| `ok` but no discounted products (verdict `ended`) | `ended`, `ended_at` set (FR10) |
+| `ok` but the page is a bot challenge or a login page (verdict `blocked`, Story 3.3) | last good record is kept, as for `blocked`: only `last_checked_at` and `last_result` change |
+| `ok` but the page cannot be judged, for example it is a JavaScript application (verdict `unverifiable`, Story 3.3) | `active`, `url_verified`, shown as "On sale", `last_validated_at` updated |
 | `js_only` (page loads but products render with JavaScript) | `active`, `url_verified`, shown as "On sale", `last_validated_at` updated (the URL answered), so the store stays fresh |
 | `blocked`, `error` | last good record is kept, only `last_checked_at` and `last_result` change |
 | `not_found`, `redirected_away` | `ended` |

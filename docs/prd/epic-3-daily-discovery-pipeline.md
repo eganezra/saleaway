@@ -45,7 +45,7 @@ so that I can trust Saleaway.
 1. A page passes validation only when it shows discounted products, for example was/now prices, percentage-off labels or discount badges (FR7).
 2. An error page, a redirect to the home page, a login or challenge page, or an empty listing fails validation.
 3. Validation is a pure function with unit tests using saved page samples from at least 5 different stores (NFR12).
-4. A failing validation marks the sale ended (FR10).
+4. A failing validation marks the sale ended (FR10), except a challenge or login page, which is treated like a blocked fetch and keeps the last good record.
 5. A page whose products load with JavaScript is recorded as URL-verified only, not content-verified, and shown as "On sale" (FR7).
 6. Test samples are trimmed to the minimum markup needed (a few KB), not whole retailer pages (NFR7).
 
@@ -80,6 +80,7 @@ so that I never get sent to a dead sale.
 4. The home page reads only current records.
 5. No retailer product content is stored (NFR7).
 6. A `js_only` result (the page answered, products load with JavaScript) saves the record as `active` and `url_verified` and updates `last_validated_at`, so the store stays visible while its page keeps answering (Story 2.3, rule 6).
+7. The record's state and validation level come from the verdict of Story 3.3 (`recordEffect`): a valid page is `active` and content-verified, a page with no sale is `ended`, a challenge or login page keeps the last good record, and a page that cannot be judged (a JavaScript page) is `active` and URL-verified. Only `active` results update `last_validated_at`.
 
 ## Story 3.6 First Full Run and Coverage Report
 
