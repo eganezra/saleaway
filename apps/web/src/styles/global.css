@@ -63,3 +63,30 @@ a:focus-visible {
     scroll-padding-top: 4.5rem;
   }
 }
+
+/* The skip link (Story 2.5): the first thing a keyboard visitor reaches, shown only while it has focus. */
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  background: var(--color-yellow);
+  color: var(--color-ink);
+  border: 3px solid var(--color-ink);
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* `main` takes focus when the skip link is used; no outline on it (it is not a control). */
+main:focus {
+  outline: none;
+}

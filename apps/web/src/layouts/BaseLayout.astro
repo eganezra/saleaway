@@ -2,6 +2,10 @@
 import { env } from 'cloudflare:workers';
 import '../styles/tokens.css';
 import '../styles/global.css';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import { isAdsEnabled } from '../lib/ads';
+import { analyticsToken } from '../lib/analytics';
 import { FAVICON_HREF, HOME_DESCRIPTION, HOME_TITLE, canonicalUrl, isIndexingAllowed } from '../lib/seo';
 
 interface Props {
@@ -13,6 +17,8 @@ interface Props {
 const { title = HOME_TITLE, description = HOME_DESCRIPTION, path = '/' } = Astro.props;
 const canonical = canonicalUrl(env.SITE_URL, path);
 const indexable = isIndexingAllowed(env.ALLOW_INDEXING);
+const adsEnabled = isAdsEnabled(env.ADS_ENABLED);
+const token = analyticsToken(env.CF_WEB_ANALYTICS_TOKEN);
 ---
 
 <!doctype html>
@@ -34,6 +40,13 @@ const indexable = isIndexingAllowed(env.ALLOW_INDEXING);
     <meta name="twitter:card" content="summary" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Header />
     <slot />
+    <Footer adsEnabled={adsEnabled} />
+    <script>
+      import '../scripts/site';
+    </script>
+    {token ? <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token })} /> : null}
   </body>
 </html>

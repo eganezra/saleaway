@@ -1,0 +1,65 @@
+---
+// The site footer (Story 2.5): the footer ad slot (when ads are on), two links, the disclaimer and the year.
+import AdSlot from './AdSlot.astro';
+
+interface Props {
+  adsEnabled: boolean;
+}
+const { adsEnabled } = Astro.props;
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="inner">
+    <AdSlot slot="footer" enabled={adsEnabled} />
+    <nav aria-label="Footer">
+      <a href="/about">About</a>
+      <a href="/privacy">Privacy</a>
+    </nav>
+    <p>Discounts are read automatically and may change. Check the store's page before you buy.</p>
+    <p class="copy">&copy; Saleaway {year}</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    background: var(--color-surface);
+    border-top: 3px solid var(--color-ink);
+  }
+
+  .inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 16px 16px 24px;
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 16px 0 0;
+    color: var(--color-ink);
+    font-weight: 600;
+  }
+
+  p {
+    margin: 8px 0 0;
+    color: var(--color-muted);
+    font-size: 0.9375rem;
+  }
+
+  .copy {
+    font-size: 0.8125rem;
+  }
+
+  @media (min-width: 640px) {
+    .inner {
+      padding: 16px 24px 24px;
+    }
+  }
+</style>

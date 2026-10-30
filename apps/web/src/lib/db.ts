@@ -97,3 +97,19 @@ export async function getVisibleStores(db: Database, now: Date = new Date()): Pr
     ];
   });
 }
+
+/**
+ * Adds `amount` to today's click count of the store with this slug (Story 2.5): one statement, one row written. Returns false
+ * when there is no such store (nothing was written). Counters only: nothing about the visitor is ever passed in.
+ */
+export async function recordClick(db: Database, slug: string, day: string, amount: number): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `INSERT INTO click_counts (day, retailer_id, clicks)
+SELECT ?, id, ? FROM retailers WHERE slug = ?
+ON CONFLICT (day, retailer_id) DO UPDATE SET clicks = clicks + excluded.clicks`,
+    )
+    .bind(day, amount, slug)
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}

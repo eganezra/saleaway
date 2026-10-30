@@ -4,6 +4,9 @@
 /** How long a stored page is kept. The page says it too, in its `Cache-Control: public, max-age=600`. */
 export const PAGE_CACHE_SECONDS = 600;
 
+/** The pages kept in the cache: the home page and the two text pages. Nothing else (not `/contact`, not `/api/click`). */
+export const CACHED_PATHS: ReadonlySet<string> = new Set(['/', '/about', '/privacy']);
+
 /** The shape of `caches.default` that this file uses. */
 export interface PageCache {
   match(request: Request): Promise<Response | undefined>;

@@ -54,8 +54,9 @@ pnpm lint && pnpm typecheck
 # Web Worker (wrangler vars)
 SITE_URL=https://saleaway.online      # canonical address, sitemap (Story 2.4); a wrangler var
 ALLOW_INDEXING=false                 # "true" lets search engines in; off until launch (a wrangler var, needs a deploy)
-CLICK_SAMPLE_RATE=1.0
-CF_WEB_ANALYTICS_TOKEN=<token>      # public, goes in the page
+CLICK_SAMPLE_RATE=1                  # share of clicks to count, above 0 and at most 1 (Story 2.5); a wrangler var
+ADS_ENABLED=false                    # "true" turns the ad slots on; off until an ad network approves the site (Story 2.5)
+CF_WEB_ANALYTICS_TOKEN=              # public, goes in the page; empty means no analytics tag (Story 2.5); set in Story 4.4
 
 # Pipeline Worker (wrangler vars)
 FINALIZE_CRON="45 3 * * *"

@@ -1,9 +1,11 @@
 ---
 import { env } from 'cloudflare:workers';
+import AdSlot from '../components/AdSlot.astro';
 import CategoryCard from '../components/CategoryCard.astro';
 import CategoryChips from '../components/CategoryChips.astro';
 import EmptyState from '../components/EmptyState.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { isAdsEnabled } from '../lib/ads';
 import { PAGE_CACHE_SECONDS } from '../lib/cache';
 import { loadHomeViewModel } from '../lib/homeViewModel';
 import { log } from '../lib/log';
@@ -14,19 +16,24 @@ if (vm.kind === 'error') Astro.response.status = 503;
 // Only a real page may be cached (Story 2.4): the empty page and the 503 are never stored.
 Astro.response.headers.set('Cache-Control', vm.kind === 'ok' ? `public, max-age=${PAGE_CACHE_SECONDS}` : 'no-store');
 if (vm.kind === 'error') Astro.response.headers.set('Retry-After', '60');
+const adsEnabled = isAdsEnabled(env.ADS_ENABLED);
 ---
 
 <BaseLayout>
-  <main>
+  <main id="main" tabindex="-1">
     <h1>Saleaway</h1>
     <p class="intro">Current sales from South African online stores, in one place.</p>
     {
       vm.kind === 'ok' ? (
         <>
           <CategoryChips categories={vm.categories.map(({ slug, name }) => ({ slug, name }))} />
+          <AdSlot slot="top" enabled={adsEnabled} />
           <div class="cards">
-            {vm.categories.map((category) => (
-              <CategoryCard category={category} />
+            {vm.categories.map((category, index) => (
+              <>
+                <CategoryCard category={category} />
+                {index === Math.min(2, vm.categories.length - 1) ? <AdSlot slot="grid" enabled={adsEnabled} /> : null}
+              </>
             ))}
           </div>
         </>

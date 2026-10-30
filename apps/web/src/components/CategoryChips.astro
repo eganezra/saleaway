@@ -7,7 +7,7 @@ interface Props {
 const { categories } = Astro.props;
 ---
 
-<nav class="chips" aria-label="Categories">
+<nav id="categories" class="chips" aria-label="Categories">
   <ul role="list">
     {
       categories.map((category) => (

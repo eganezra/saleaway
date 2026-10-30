@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
@@ -116,4 +117,126 @@ test('on a phone, a focused row is never hidden behind the sticky chip row, and 
   await page.keyboard.press('Enter');
   await expect(page.locator('details').first()).toHaveAttribute('open', '');
   await context.close();
+});
+
+// ---- Story 2.5: the layout, the pages, the beacon and the flags ----
+
+const BOT_USER_AGENT = 'SaleawayBot/1.0 (+https://saleaway.online/contact)';
+
+for (const path of ['/', '/about']) {
+  test(`the skip link is the first thing Tab reaches on ${path}, and Enter moves focus to the main part`, async ({ page }) => {
+    await page.goto(path);
+    await page.keyboard.press('Tab');
+    await expect(page.locator(':focus')).toHaveText('Skip to content');
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe('main');
+  });
+}
+
+for (const { name, width, height } of WIDTHS) {
+  test(`the header and footer are there and nothing overflows (${name})`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width, height } });
+    const page = await context.newPage();
+    await page.goto('/');
+    const header = page.locator('header');
+    await expect(header.getByRole('link', { name: 'Saleaway' })).toHaveAttribute('href', '/');
+    await expect(header.getByRole('link', { name: 'Categories' })).toHaveAttribute('href', '/#categories');
+    await expect(header.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '/about');
+    const footerLinks = page.locator('footer a');
+    await expect(footerLinks).toHaveCount(2);
+    await expect(footerLinks.nth(0)).toHaveText('About');
+    await expect(footerLinks.nth(1)).toHaveText('Privacy');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await context.close();
+  });
+
+  test(`/about and /privacy have no accessibility violations and no console errors (${name})`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width, height } });
+    for (const path of ['/about', '/privacy']) {
+      const page = await context.newPage();
+      const problems = watchProblems(page);
+      const response = await page.goto(path);
+      expect(response?.status(), path).toBe(200);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+      expect(results.violations.map((v) => `${path} ${v.id}: ${v.help} (${v.nodes.length})`)).toEqual([]);
+      expect(problems, path).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${path} overflows`).toBe(true);
+      await page.close();
+    }
+    await context.close();
+  });
+}
+
+test('the About page names the bot and has the "Our bot" part; the Privacy page claims no visit count that is not running', async ({ page }) => {
+  await page.goto('/about');
+  await expect(page.locator('h2#our-bot')).toHaveText('Our bot');
+  await expect(page.locator('main')).toContainText(BOT_USER_AGENT);
+  await expect(page.locator('main')).toContainText('robots.txt');
+  await page.goto('/privacy');
+  await expect(page.locator('main')).toContainText('sets no cookies');
+  // the default build has no analytics token, so the page must not say that visits are counted
+  await expect(page.locator('main')).not.toContainText('Cloudflare Web Analytics');
+});
+
+test('/contact forwards to the "Our bot" part of the About page', async ({ request }) => {
+  const response = await request.get('/contact', { maxRedirects: 0 });
+  expect(response.status()).toBe(302);
+  expect(response.headers()['location']).toBe('/about#our-bot');
+});
+
+test('the page has no inline script, loads the click script from this site, and has no ad slot or analytics tag by default', async ({ page }) => {
+  const scripts: string[] = [];
+  page.on('response', (response) => {
+    if (response.url().includes('/_astro/') && response.url().endsWith('.js')) scripts.push(`${response.status()} ${response.url()}`);
+  });
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  expect(await page.locator('script:not([src])').count()).toBe(0);
+  expect(await page.locator('script[src*="/_astro/"]').count()).toBe(1);
+  expect(scripts).toHaveLength(1);
+  expect(scripts[0]).toMatch(/^200 /);
+  expect(await page.locator('[data-ad-slot]').count()).toBe(0);
+  expect(await page.locator('script[src*="cloudflareinsights"]').count()).toBe(0);
+});
+
+test('following a store link sends the beacon, and the database counts it', async ({ browser, request }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  // no real request leaves the machine: the store's address is answered here
+  await context.route('https://fashion-1.example/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>store</p>' }));
+  await page.goto('/');
+  const beacon = page.waitForResponse((r) => r.url().endsWith('/api/click') && r.request().method() === 'POST');
+  const [store] = await Promise.all([context.waitForEvent('page'), page.locator('a[data-store="fashion-1"]').click()]);
+  expect((await beacon).status()).toBe(204);
+  await store.close();
+
+  const today = new Date().toISOString().slice(0, 10);
+  const out = execFileSync(
+    'pnpm',
+    ['exec', 'wrangler', 'd1', 'execute', 'saleaway', '--local', '--persist-to', '.wrangler/smoke', '--json', '--command', `SELECT clicks FROM click_counts WHERE day = '${today}' AND retailer_id = (SELECT id FROM retailers WHERE slug = 'fashion-1')`],
+    { encoding: 'utf-8' },
+  );
+  const rows = (JSON.parse(out.slice(out.indexOf('['))) as Array<{ results: Array<{ clicks: number }> }>)[0]?.results ?? [];
+  expect(rows).toEqual([{ clicks: 1 }]);
+
+  // the endpoint's refusals
+  const post = (data: string, headers: Record<string, string> = {}) => request.post('/api/click', { data, headers: { 'content-type': 'text/plain', ...headers } });
+  expect((await post('no-such-store')).status()).toBe(404);
+  expect((await post('Bad Slug!')).status()).toBe(400);
+  expect((await post('fashion-1', { origin: 'https://evil.example' })).status()).toBe(403);
+  expect((await post('a'.repeat(300))).status()).toBe(413);
+  const get = await request.get('/api/click');
+  expect(get.status()).toBe(405);
+  expect(get.headers()['allow']).toBe('POST');
+  const ok = await post('fashion-1');
+  expect(ok.headers()['cache-control']).toBe('no-store');
+  expect(ok.headers()['set-cookie']).toBeUndefined();
+  await context.close();
+});
+
+test('the sitemap lists the home page, About and Privacy', async ({ request }) => {
+  const xml = await (await request.get('/sitemap.xml')).text();
+  for (const path of ['/', '/about', '/privacy']) expect(xml).toContain(`<loc>https://saleaway.online${path}</loc>`);
+  expect(xml.match(/<loc>/g)).toHaveLength(3);
 });

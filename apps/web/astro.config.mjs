@@ -16,5 +16,7 @@ export default defineConfig({
   }),
   session: false,
   // Names this build: part of the page cache key (Story 2.4), so a deploy never serves the previous build's cached HTML.
-  vite: { define: { __BUILD_ID__: JSON.stringify(String(Date.now())) } },
+  // `assetsInlineLimit: 0` keeps the click script (Story 2.5) a separate file: Astro would otherwise put a script this small
+  // into the page, and the site's CSP (`script-src 'self'`, no 'unsafe-inline') blocks an inline script.
+  vite: { define: { __BUILD_ID__: JSON.stringify(String(Date.now())) }, build: { assetsInlineLimit: 0 } },
 });

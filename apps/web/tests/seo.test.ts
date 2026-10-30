@@ -68,8 +68,8 @@ describe('sitemapXml (AC2)', () => {
     expect(xml).toContain('<urlset');
     expect(xml).not.toContain('<url>');
   });
-  it('lists the home page today', () => {
-    expect(SITEMAP_PATHS).toEqual(['/']);
+  it('lists the home page, About and Privacy (there is no Contact page)', () => {
+    expect(SITEMAP_PATHS).toEqual(['/', '/about', '/privacy']);
   });
 });
 

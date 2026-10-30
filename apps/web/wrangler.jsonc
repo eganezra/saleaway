@@ -10,6 +10,12 @@
       "migrations_dir": "../../db/migrations"
     }
   ],
-  "vars": { "SITE_URL": "https://saleaway.online", "ALLOW_INDEXING": "false" },
+  "vars": {
+    "SITE_URL": "https://saleaway.online",
+    "ALLOW_INDEXING": "false",
+    "ADS_ENABLED": "false",
+    "CLICK_SAMPLE_RATE": "1",
+    "CF_WEB_ANALYTICS_TOKEN": ""
+  },
   "observability": { "enabled": true }
 }

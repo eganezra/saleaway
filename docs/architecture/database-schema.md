@@ -90,7 +90,7 @@ CREATE TABLE click_counts (
 **Notes**
 
 - `sale_records` has no URL column and holds no page text (NFR7): the URL of a sale is `retailers.sale_url`, or an active override's `sale_url`.
-- Per the PRD, schema changes come with the stories that need them. Story 1.3 creates `categories`, `retailers`, `sale_records`, `overrides` and `pipeline_runs`/`run_results`. `click_counts` arrives with Story 2.5.
+- Per the PRD, schema changes come with the stories that need them. Story 1.3 creates `categories`, `retailers`, `sale_records`, `overrides` and `pipeline_runs`/`run_results`. `click_counts` was created by migration `0003_click_counts.sql` in Story 2.5 (additive; apply it to the live database before deploying the web app that writes to it).
 - `discount_percent BETWEEN 5 AND 90` enforces the sanity range from Story 3.4. A value outside the range is stored as `NULL` ("On sale").
 - D1 limits: 100 bound parameters per query, so seeding and batches are chunked. All write volumes are far below 100,000 rows a day.
 - **Timestamp defaults** use `strftime('%Y-%m-%dT%H:%M:%SZ','now')`, so stored times match the Coding Standards (`YYYY-MM-DDTHH:MM:SSZ`). SQLite's `datetime('now')` would store `YYYY-MM-DD HH:MM:SS` with no `T` or `Z`. Decided in Story 1.3.

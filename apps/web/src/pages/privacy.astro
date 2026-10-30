@@ -1,0 +1,56 @@
+---
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { isAdsEnabled } from '../lib/ads';
+import { analyticsToken } from '../lib/analytics';
+import { PAGE_CACHE_SECONDS } from '../lib/cache';
+import '../styles/doc.css';
+
+// Story 2.5: what the site does and does not collect. It only says what is true today: the visit count is described only while
+// an analytics token is set, and this page is updated before any ad network is switched on (NFR8).
+Astro.response.headers.set('Cache-Control', `public, max-age=${PAGE_CACHE_SECONDS}`);
+const countsVisits = analyticsToken(env.CF_WEB_ANALYTICS_TOKEN) !== null;
+const showsAds = isAdsEnabled(env.ADS_ENABLED);
+---
+
+<BaseLayout title="Privacy" description="What Saleaway collects: no accounts, no cookies and no personal information that it keeps." path="/privacy">
+  <main id="main" tabindex="-1" class="doc">
+    <h1>Privacy</h1>
+
+    <h2>The short version</h2>
+    <p>Saleaway has no accounts, sets no cookies and does not keep any personal information about you.</p>
+
+    <h2>What is counted</h2>
+    <ul>
+      {
+        countsVisits ? (
+          <li>
+            Visits to the site are counted with Cloudflare Web Analytics. It does not use cookies and does not identify people; it counts page views, countries,
+            devices and how fast pages load.
+          </li>
+        ) : null
+      }
+      <li>
+        When you follow a store link we add one to that store's count for the day. We keep the number only: nothing about you, your device or where you came from.
+      </li>
+    </ul>
+
+    <h2>Our hosting</h2>
+    <p>
+      Saleaway runs on Cloudflare. To deliver and protect the site, Cloudflare handles each request, including your IP address, under its own privacy
+      policy.
+    </p>
+
+    <h2>Other websites</h2>
+    <p>Store links lead to other websites. They have their own privacy policies and we do not control them.</p>
+
+    <h2>Ads</h2>
+    {
+      showsAds ? (
+        <p>This site has space for ads. When an ad network shows an ad there, it may set cookies on your device.</p>
+      ) : (
+        <p>There are no ads today. If ads are added, the ad network may set cookies, and we will update this page first.</p>
+      )
+    }
+  </main>
+</BaseLayout>

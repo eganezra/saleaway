@@ -1,0 +1,63 @@
+---
+// The site header (Story 2.5): the wordmark and two links. Not sticky: the category chip row is the only sticky element.
+---
+
+<header class="site-header">
+  <div class="bar">
+    <a class="wordmark" href="/">Saleaway</a>
+    <nav aria-label="Site">
+      <a href="/#categories">Categories</a>
+      <a href="/about">How it works</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    background: var(--color-surface);
+    border-bottom: 3px solid var(--color-ink);
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 8px;
+    color: var(--color-ink);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .wordmark {
+    padding-left: 0;
+    font-size: 1.375rem;
+    font-weight: 800;
+  }
+
+  @media (hover: hover) {
+    a:hover {
+      text-decoration: underline;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .bar {
+      padding: 0 24px;
+    }
+  }
+</style>

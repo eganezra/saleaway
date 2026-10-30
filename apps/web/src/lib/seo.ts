@@ -2,8 +2,8 @@
 
 const DEFAULT_SITE_URL = 'https://saleaway.online';
 
-/** The pages the sitemap lists. One place: Story 2.5 adds About, Privacy and Contact here. */
-export const SITEMAP_PATHS: readonly string[] = ['/'];
+/** The pages the sitemap lists. One place (Story 2.5 added About and Privacy; there is no Contact page). */
+export const SITEMAP_PATHS: readonly string[] = ['/', '/about', '/privacy'];
 
 export const HOME_TITLE = 'Saleaway: current sales from South African online stores';
 // Plain facts, no store count and no time: a cached copy would make them wrong.

@@ -1,0 +1,56 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { BOT_USER_AGENT } from '../lib/bot';
+import { PAGE_CACHE_SECONDS } from '../lib/cache';
+import '../styles/doc.css';
+
+// Story 2.5: how Saleaway works, and (in "Our bot") what its bot is. No database query. The old `/contact` address, which the
+// bot's user-agent carries, forwards to the "Our bot" part.
+Astro.response.headers.set('Cache-Control', `public, max-age=${PAGE_CACHE_SECONDS}`);
+---
+
+<BaseLayout
+  title="How Saleaway works"
+  description="How Saleaway finds South African online store sales, what the discount figures mean, what we keep and how our bot behaves."
+  path="/about"
+>
+  <main id="main" tabindex="-1" class="doc">
+    <h1>How Saleaway works</h1>
+
+    <h2>What it is</h2>
+    <p>
+      Saleaway lists South African online stores that have a sale on, with the biggest discount we found and when we last checked the store. It is an
+      independent site: it is not run by, affiliated with or endorsed by any store listed. Every store link opens that store's own page in a new tab.
+    </p>
+
+    <h2>How the discounts are read</h2>
+    <ul>
+      <li>Once a day, a program reads each store's sale page. It does this automatically, so nobody checks the figures by hand.</li>
+      <li>"Up to 40% off" is the biggest discount we found on that page. "On sale" means the page shows a sale but we found no figure.</li>
+      <li>"Checked today" or "Checked 2 days ago" says how fresh the information is. A store whose sale looks over, or whose check is too old, is not shown.</li>
+      <li>A figure can be wrong or out of date. Check the store's page before you buy.</li>
+    </ul>
+
+    <h2>What we keep</h2>
+    <p>
+      Only the store's name, the address of its sale page, the discount figure and the times we checked. We do not copy pictures, logos or product details
+      from any store.
+    </p>
+
+    <h2 id="our-bot">Our bot</h2>
+    <p>
+      The program that reads the sale pages is a bot. It identifies itself as <code>{BOT_USER_AGENT}</code>.
+    </p>
+    <ul>
+      <li>
+        It asks each store for a few requests a day at most: its sale page, its <code>robots.txt</code> and, for some Shopify stores, their public product
+        list.
+      </li>
+      <li>It obeys <code>robots.txt</code>.</li>
+      <li>It does not try to hide who it is or to get round a store's protection.</li>
+    </ul>
+    <p>A store that does not want to be read can say so in its <code>robots.txt</code>, and the bot will leave it alone. For example:</p>
+    <pre>User-agent: SaleawayBot
+Disallow: /</pre>
+  </main>
+</BaseLayout>

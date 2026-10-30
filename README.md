@@ -137,6 +137,28 @@ pnpm ops:override --remote --slug zara-sa --bring-back --percent 30 --expires 20
 
 D1 Time Travel is always on and keeps 7 days of history on the Free plan. `wrangler d1 time-travel info saleaway` shows the current bookmark, and `wrangler d1 time-travel restore saleaway --bookmark=<id>` (or `--timestamp=<unix time>`) rolls the database back. **A restore overwrites the database in place**, so note the current bookmark first. Applying a migration also captures a backup. The store list can always be rebuilt with `pnpm ops:seed --remote`. Only overrides (Story 4.1) are hand-entered data.
 
+### Settings that change the site (`apps/web/wrangler.jsonc`)
+
+| Setting | Default | What it does |
+|---|---|---|
+| `ALLOW_INDEXING` | `"false"` | `"true"` lets search engines in (the launch step above) |
+| `ADS_ENABLED` | `"false"` | `"true"` shows the three ad frames (top, between the cards, footer); they are empty until an ad network is chosen. Update the Privacy page and the cookie question first |
+| `CLICK_SAMPLE_RATE` | `"1"` | The share of store clicks to count, above 0 and at most 1. Lower it if the daily database writes get near the limit |
+| `CF_WEB_ANALYTICS_TOKEN` | `""` | The Cloudflare Web Analytics token (public). Empty means no analytics tag. Set it when the real domain is connected (Story 4.4) |
+
+A change to any of them takes effect with the next `pnpm deploy:web`.
+
+### Look at the clicks
+
+The site counts a click on a store link per store per day (a number only, nothing about the visitor), in `click_counts`:
+
+```bash
+pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --remote --command \
+  "SELECT r.slug, c.clicks FROM click_counts c JOIN retailers r ON r.id = c.retailer_id WHERE c.day = '2026-11-01' ORDER BY c.clicks DESC"
+```
+
+The numbers are an approximation: automated visits can add clicks, and a `CLICK_SAMPLE_RATE` below 1 makes them an estimate.
+
 ### Search engines and the page cache
 
 **Indexing is off until launch.** While `ALLOW_INDEXING` in `apps/web/wrangler.jsonc` is `"false"` (the default), every page sends `X-Robots-Tag: noindex, nofollow` and `robots.txt` says `Disallow: /`, so the `workers.dev` page does not end up in a search engine. At launch (the launch checklist, Story 4.5) set it to `"true"` and deploy the web app. The home page is kept in Cloudflare's cache for about 10 minutes (`x-cache: HIT` in the response headers shows it), so a change in the data shows within 10 minutes. A deploy starts a new cache: the pages of the previous build are never served.
@@ -168,7 +190,9 @@ nvm use
 pnpm deploy:all         # builds and deploys the web Worker, then deploys the pipeline Worker
 ```
 
-Or one at a time: `pnpm deploy:web` (builds first) and `pnpm deploy:pipeline`. Wrangler prints each Worker's address and its bindings (`env.DB` must be listed).
+Or one at a time: `pnpm deploy:web` (builds first) and `pnpm deploy:pipeline`.
+
+**Order for the web app: migrate, then deploy.** Story 2.5 added a database migration (`0003_click_counts.sql`, a new empty table). Run `pnpm db:migrate:remote` **before** `pnpm deploy:web`, so the new page's click counter has its table. The migration is additive: the old page does not use it, and rolling the code back needs no database rollback. Wrangler prints each Worker's address and its bindings (`env.DB` must be listed).
 
 Check it worked:
 

@@ -1,0 +1,72 @@
+---
+// An ad slot (Story 2.5, FR18): renders nothing at all until `ADS_ENABLED` is "true" (no element, no space). When on it is
+// a dashed frame labelled "Advertisement" that reserves its height, so nothing moves when it is switched on. No ad network is
+// chosen yet, so the area is empty; the network's own snippet goes there later.
+interface Props {
+  slot: 'top' | 'grid' | 'footer';
+  enabled: boolean;
+}
+const { slot, enabled } = Astro.props;
+---
+
+{
+  enabled ? (
+    <aside class={`ad ad--${slot}`} data-ad-slot={slot} aria-label="Advertisement">
+      <span class="label" aria-hidden="true">
+        Advertisement
+      </span>
+      <div class="area" />
+    </aside>
+  ) : null
+}
+
+<style>
+  .ad {
+    background: var(--color-surface);
+    border: 2px dashed var(--color-ink);
+    padding: 8px 12px 12px;
+  }
+
+  .label {
+    color: var(--color-muted);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* The reserved height: fixed, so the page does not shift when the slot is switched on or an ad loads into it. */
+  .area {
+    min-height: var(--ad-height);
+    margin-top: 8px;
+  }
+
+  /* No ad above the first card on a phone (the spec): the top slot is for tablets and up. */
+  .ad--top {
+    --ad-height: 90px;
+    display: none;
+    margin: 0 0 24px;
+  }
+
+  @media (min-width: 640px) {
+    .ad--top {
+      display: block;
+    }
+  }
+
+  /* A card-sized cell between the category cards (300 x 250). */
+  .ad--grid {
+    --ad-height: 250px;
+  }
+
+  .ad--footer {
+    --ad-height: 60px;
+    margin: 0 0 16px;
+  }
+
+  @media (min-width: 640px) {
+    .ad--footer {
+      --ad-height: 90px;
+    }
+  }
+</style>
