@@ -14,6 +14,8 @@ export function hostilePages(): Record<string, string> {
     'many open tags and no text': '<a'.repeat(Math.floor((3 * MIB) / 2)),
     'a long run of digits and spaces after R': `R${'1 '.repeat(Math.floor((3 * MIB) / 2))}`,
     'many R characters': 'R'.repeat(3 * MIB),
+    'a long run of digits after R that ends in a letter': `R${'1'.repeat(3 * MIB)}x`,
+    'many prices with no thousands separator': 'R1299999 '.repeat(Math.floor((3 * MIB) / 9)),
     'many percent signs': '<span>9%</span>'.repeat(Math.floor((3 * MIB) / 15)),
     'a long attribute that never closes': `<div class="${'old-price '.repeat(Math.floor((3 * MIB) / 10))}`,
     'a long title that never closes': `<title>${'a'.repeat(3 * MIB)}`,

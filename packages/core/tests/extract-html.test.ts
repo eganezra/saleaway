@@ -158,6 +158,25 @@ describe('the range (AC4) and nothing readable (AC5)', () => {
   });
 });
 
+describe('prices written without a thousands separator (found in QA review)', () => {
+  // Before the fix a price such as R1299 was not seen at all, so the next product's amount was taken as the was amount
+  // of the marker and the page gave 75 instead of 23.
+  const wasFirst = (was: string, now: string): string => `<li><span class="old-price">${was}</span><span class="price">${now}</span></li>`;
+  it('reads R1299 and R1299.00 as amounts, in both orders', () => {
+    expect(extractHtmlDiscount(html(`<ol>${pair('R1299', 'R999')}</ol>`))).toBe(23);
+    expect(extractHtmlDiscount(html(`<ol>${pair('R1299.00', 'R999.00')}</ol>`))).toBe(23);
+    expect(extractHtmlDiscount(html(`<ol>${wasFirst('R1299', 'R999')}</ol>`))).toBe(23);
+  });
+  it('does not pair a product whose was price has no separator with the next product', () => {
+    expect(extractHtmlDiscount(html(`<ol>${wasFirst('R1299', 'R999')}${wasFirst('R250', 'R200')}</ol>`))).toBe(23);
+    expect(extractHtmlDiscount(html(`<ol>${wasFirst('R12999.00', 'R9999.00')}${wasFirst('R250.00', 'R200.00')}</ol>`))).toBe(23);
+  });
+  it('still reads the separated forms', () => {
+    expect(extractHtmlDiscount(html(`<ol>${pair('R1 299', 'R999')}</ol>`))).toBe(23);
+    expect(extractHtmlDiscount(html(`<ol>${pair('R1,299.00', 'R999.00')}</ol>`))).toBe(23);
+  });
+});
+
 describe('size and safety', () => {
   for (const [name, text] of Object.entries(hostilePages())) {
     it(`handles ${name} (3 MiB) in under a second`, () => {

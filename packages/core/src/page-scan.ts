@@ -6,6 +6,10 @@ export const MAX_COUNT = 100_000;
 
 // Amounts as South African stores write them: "R199", "R 1 299.00", "R1,299". Not a letter or a digit on either side.
 export const AMOUNT = /(?<![A-Za-z0-9])R[ ]?\d{1,3}(?:[ ,]\d{3})*(?:\.\d{2})?(?![A-Za-z0-9])/g;
+// The same amounts for the extractors, which also take a price with no thousands separator ("R1299.00"). The validator's
+// `AMOUNT` stays as it was (it only counts), but an extractor that skipped "R1299" would pair the neighbouring product's
+// price with a marker and report a wrong percentage.
+export const PRICE = /(?<![A-Za-z0-9])R[ ]?(?:\d{1,3}(?:[ ,]\d{3})+|\d+)(?:\.\d{2})?(?![A-Za-z0-9])/g;
 // A text element that is only a percentage-off badge: "30% off", "-50%", "save 25%", "up to 40% off".
 export const PERCENT_NODE = /^(?:(?:save|up to|extra)\s+)*[-\u2212]?\s?\d{1,2}\s?%(?:\s*(?:off|discount))?$/i;
 // A class, a data attribute or a label that marks an old (was) price.
@@ -150,7 +154,7 @@ export interface AmountAt {
 /** Every amount in a text, with its number and its position (at most `MAX_COUNT`). */
 export function amountsWithPositions(text: string): AmountAt[] {
   const out: AmountAt[] = [];
-  const matches = text.matchAll(AMOUNT);
+  const matches = text.matchAll(PRICE);
   for (let next = matches.next(); next.done !== true && out.length < MAX_COUNT; next = matches.next()) {
     const value = Number(next.value[0].replace(/[R ,]/g, ''));
     if (Number.isFinite(value)) out.push({ value, index: next.value.index ?? 0 });
