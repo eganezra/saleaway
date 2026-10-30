@@ -1,9 +1,10 @@
 import type { Logger } from '@saleaway/core';
 import { getVisibleStores } from './db';
-import type { StoreLink } from './db';
+import { toRowData } from './storeRow';
+import type { StoreRowData } from './storeRow';
 
 export type HomeViewModel =
-  | { kind: 'ok'; stores: StoreLink[] }
+  | { kind: 'ok'; stores: StoreRowData[] }
   | { kind: 'empty' }
   | { kind: 'error' };
 
@@ -20,7 +21,7 @@ export async function loadHomeViewModel(
 ): Promise<HomeViewModel> {
   try {
     const stores = await getVisibleStores(db, now);
-    return stores.length === 0 ? { kind: 'empty' } : { kind: 'ok', stores };
+    return stores.length === 0 ? { kind: 'empty' } : { kind: 'ok', stores: stores.map((store) => toRowData(store, now)) };
   } catch (err) {
     log.error('home_failed', { err });
     return { kind: 'error' };

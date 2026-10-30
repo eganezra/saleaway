@@ -1,0 +1,62 @@
+---
+// The discount on a store row (Story 2.1): "Up to 50% off" or "On sale". The number is always in the text, so colour is
+// never the only signal. Not a link: it sits inside the row's link.
+import type { PillTier } from '../lib/storeRow';
+
+interface Props {
+  percent: number | null;
+  tier: PillTier;
+}
+const { percent, tier } = Astro.props;
+---
+
+<span class={`pill pill--${tier}`}>
+  {
+    percent === null ? (
+      'On sale'
+    ) : (
+      <>
+        <small>Up to</small> <strong>{percent}% off</strong>
+      </>
+    )
+  }
+</span>
+
+<style>
+  .pill {
+    flex: none;
+    padding: 6px 10px;
+    border: 2px solid var(--color-ink);
+    color: var(--color-ink);
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .pill small {
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .pill strong {
+    font-size: 1.125rem;
+    font-weight: 800;
+  }
+
+  /* 50% or more */
+  .pill--hot {
+    background: var(--color-pink);
+  }
+
+  /* below 50% */
+  .pill--warm {
+    background: var(--color-yellow);
+  }
+
+  /* no figure: white and dashed, to show it is less specific */
+  .pill--plain {
+    background: var(--color-surface);
+    border-style: dashed;
+  }
+</style>

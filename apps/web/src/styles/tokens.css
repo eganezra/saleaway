@@ -4,6 +4,7 @@
   --color-page: #faf6ec;
   --color-surface: #ffffff;
   --color-muted: #4a4a4a;
+  --color-subtle: #6b6b6b; /* chevrons and the "Not checked yet" text: 5.3:1 on white, 4.9:1 on the cream page */
   --color-yellow: #ffd23f;
   --color-pink: #ff4f8b;
   --color-sky: #7cc4ff;

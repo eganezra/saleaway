@@ -18,8 +18,8 @@ if (vm.kind === 'error') Astro.response.status = 503;
     {
       vm.kind === 'ok' ? (
         <ol class="stores" role="list">
-          {vm.stores.map((store) => (
-            <StoreRow name={store.name} url={store.saleUrl} slug={store.slug} />
+          {vm.stores.map((row) => (
+            <StoreRow row={row} />
           ))}
         </ol>
       ) : (
@@ -35,13 +35,31 @@ if (vm.kind === 'error') Astro.response.status = 503;
     color: var(--color-muted);
   }
 
-  /* One column on a phone, more as the screen widens. No breakpoints needed. */
+  /* One column on a phone, then 2, 3 and 4 as the screen widens (the spec's breakpoints). */
   .stores {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    grid-template-columns: 1fr;
     gap: 16px;
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  @media (min-width: 640px) {
+    .stores {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .stores {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .stores {
+      grid-template-columns: repeat(4, 1fr);
+    }
   }
 </style>

@@ -10,8 +10,10 @@ export interface StoreLink {
   slug: string;
   name: string;
   saleUrl: string;
-  /** The percentage to show, or null for "On sale" (shown by Story 2.1, not yet). */
+  /** The percentage to show, or null for "On sale". */
   discountPercent: number | null;
+  /** When the store was last really checked (UTC), or null when it never was (Story 2.1). */
+  checkedAt: string | null;
 }
 
 // One query for the whole page (one round trip). Stores the operator has hidden (`is_visible = 0`) are not
@@ -73,6 +75,6 @@ export async function getVisibleStores(db: Database, now: Date = new Date()): Pr
     const view = resolveStore(toStoreInput(row), now);
     // Second line of defence: only https links ever reach an href, whatever the database holds.
     if (!view.visible || typeof view.saleUrl !== 'string' || !view.saleUrl.startsWith('https://')) return [];
-    return [{ slug: row.slug, name: row.name, saleUrl: view.saleUrl, discountPercent: view.discountPercent }];
+    return [{ slug: row.slug, name: row.name, saleUrl: view.saleUrl, discountPercent: view.discountPercent, checkedAt: view.checkedAt }];
   });
 }

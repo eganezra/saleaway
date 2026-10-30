@@ -48,6 +48,12 @@ export interface StoreView {
   saleUrl: string | null;
   /** The freshness time used for the 72 hour rule (UTC, `YYYY-MM-DDTHH:MM:SSZ`), or null when there is none. */
   freshAt: string | null;
+  /**
+   * When the store was last really checked (UTC, `YYYY-MM-DDTHH:MM:SSZ`): now while an override is active (the
+   * operator vouches for the store), else the record's `lastValidatedAt`, else null. Unlike `freshAt` it never falls
+   * back to the time the store was added, so a store never checked says so (Story 2.1).
+   */
+  checkedAt: string | null;
 }
 
 /** Milliseconds for a valid date text, or null for a missing or invalid one. */
@@ -90,6 +96,10 @@ export function resolveStore(input: StoreInput, now: Date): StoreView {
   const freshMs = override !== null ? nowMs : lastCheckMs;
   const freshAt = freshMs === null ? null : toIsoUtc(new Date(freshMs));
 
+  const validatedMs = time(record?.lastValidatedAt);
+  const checkedMs = override !== null ? nowMs : validatedMs;
+  const checkedAt = checkedMs === null ? null : toIsoUtc(new Date(checkedMs));
+
   let hiddenBecause: HiddenBecause | null = null;
   if (!input.isVisible) hiddenBecause = 'flag';
   else if (typeof saleUrl !== 'string' || !saleUrl.startsWith('https://')) hiddenBecause = 'no_sale_url';
@@ -97,7 +107,7 @@ export function resolveStore(input: StoreInput, now: Date): StoreView {
   else if (record?.state === 'ended' && !(override !== null && override.discountPercent !== null)) hiddenBecause = 'ended';
   else if (freshMs === null || nowMs - freshMs > STALE_AFTER_MS) hiddenBecause = 'stale';
 
-  return { visible: hiddenBecause === null, hiddenBecause, discountPercent, saleUrl, freshAt };
+  return { visible: hiddenBecause === null, hiddenBecause, discountPercent, saleUrl, freshAt, checkedAt };
 }
 
 /** True when the page should show the store. */

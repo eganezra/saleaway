@@ -42,7 +42,7 @@ describe('STALE_AFTER_HOURS', () => {
 describe('a store that is shown', () => {
   it('is visible, with its stored URL and percentage', () => {
     const view = resolveStore(store({ record: record({ discountPercent: 40 }) }), NOW);
-    expect(view).toEqual({ visible: true, hiddenBecause: null, discountPercent: 40, saleUrl: 'https://shop.example/sale', freshAt: ago(1) });
+    expect(view).toEqual({ visible: true, hiddenBecause: null, discountPercent: 40, saleUrl: 'https://shop.example/sale', freshAt: ago(1), checkedAt: ago(1) });
   });
   it('has a null percentage ("On sale") when nothing gives one', () => {
     expect(resolveStore(store(), NOW).discountPercent).toBeNull();
@@ -162,7 +162,7 @@ describe('AC4: override precedence', () => {
   it('ignores an expired override: percentage, hide and URL', () => {
     const expired = override({ discountPercent: 70, hide: true, saleUrl: 'https://shop.example/other', expiresAt: ago(1) });
     const view = resolveStore(store({ record: record({ discountPercent: 20 }), override: expired }), NOW);
-    expect(view).toEqual({ visible: true, hiddenBecause: null, discountPercent: 20, saleUrl: 'https://shop.example/sale', freshAt: ago(1) });
+    expect(view).toEqual({ visible: true, hiddenBecause: null, discountPercent: 20, saleUrl: 'https://shop.example/sale', freshAt: ago(1), checkedAt: ago(1) });
   });
   it('treats an expiry exactly at now as expired, and one second later as active', () => {
     expect(resolveStore(store({ override: override({ hide: true, expiresAt: ago(0) }) }), NOW).visible).toBe(true);
@@ -268,5 +268,33 @@ describe('isOverrideActive', () => {
   });
   it('treats an expiry that is not a date as not expired, as the site does', () => {
     expect(isOverrideActive(override({ expiresAt: 'soon' }), NOW)).toBe(true);
+  });
+});
+
+describe('checkedAt: when the store was last really checked (Story 2.1)', () => {
+  it('is the record\'s last validation, as UTC text', () => {
+    expect(resolveStore(store({ record: record({ lastValidatedAt: ago(5) }) }), NOW).checkedAt).toBe(ago(5));
+  });
+  it('is now while an override is active, even with no record', () => {
+    expect(resolveStore(store({ record: null, override: override({ discountPercent: 35 }) }), NOW).checkedAt).toBe(ago(0));
+    expect(resolveStore(store({ record: record({ lastValidatedAt: ago(50) }), override: override({}) }), NOW).checkedAt).toBe(ago(0));
+  });
+  it('ignores an expired override', () => {
+    const expired = override({ discountPercent: 35, expiresAt: ago(1) });
+    expect(resolveStore(store({ record: record({ lastValidatedAt: ago(30) }), override: expired }), NOW).checkedAt).toBe(ago(30));
+    expect(resolveStore(store({ record: null, createdAt: ago(1), override: expired }), NOW).checkedAt).toBeNull();
+  });
+  it('is null for a store never checked, even when it is shown because it was added recently', () => {
+    const noRecord = resolveStore(store({ record: null, createdAt: ago(10) }), NOW);
+    expect(noRecord).toMatchObject({ visible: true, freshAt: ago(10), checkedAt: null });
+    const neverValidated = resolveStore(store({ createdAt: ago(10), record: record({ lastValidatedAt: null }) }), NOW);
+    expect(neverValidated).toMatchObject({ visible: true, freshAt: ago(10), checkedAt: null });
+  });
+  it('is null when the validation date does not parse, while freshAt falls back to the added time', () => {
+    expect(resolveStore(store({ createdAt: ago(10), record: record({ lastValidatedAt: 'not a date' }) }), NOW)).toMatchObject({ visible: true, freshAt: ago(10), checkedAt: null });
+  });
+  it('is still given for a hidden store', () => {
+    expect(resolveStore(store({ record: record({ state: 'ended', lastValidatedAt: ago(2) }) }), NOW)).toMatchObject({ visible: false, hiddenBecause: 'ended', checkedAt: ago(2) });
+    expect(resolveStore(store({ record: record({ lastValidatedAt: ago(100) }) }), NOW)).toMatchObject({ visible: false, hiddenBecause: 'stale', checkedAt: ago(100) });
   });
 });

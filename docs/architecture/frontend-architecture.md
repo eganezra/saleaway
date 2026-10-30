@@ -27,6 +27,8 @@ apps/web/src/
     └── global.css
 ```
 
+**Built in Story 2.1 (2026-10-30):** the store row. `lib/storeRow.ts` (`toRowData`, pure: the figure, the pill tier, the "Checked" words and the link's accessible name), `components/DiscountPill.astro`, a changed `StoreRow.astro` (one link: name, a "Checked" line, the pill, a chevron; text only) and `pages/index.astro` (the grid has 1 column below 640px, then 2, 3 and 4 from 640, 1024 and 1440px). The pill shows a whole number from 1 to 99 (an extracted percentage is 5 to 90, an override's is 1 to 99), pink from 50 and yellow below, else a dashed "On sale". The "Checked" words use rolling 24 hour periods since `StoreView.checkedAt`: "Checked today" under 24 hours, "Checked N days ago" after, "Not checked yet" when the store was never checked. `--color-subtle` (`#6b6b6b`) is a new token. No web font, no rank number and no category cards yet (Story 2.2). `homeViewModel.ts` now returns the rows.
+
 ## Component Template
 
 ```astro

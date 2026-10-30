@@ -68,8 +68,8 @@ describe('getVisibleStores', () => {
   it('maps sale_url to saleUrl and keeps the order the database returned', async () => {
     const { db } = fakeDb([temu, takealot]);
     expect(await getVisibleStores(db, NOW)).toEqual([
-      { slug: 'temu-sa-storefront', name: 'Temu (SA storefront)', saleUrl: 'https://www.temu.com/za/channel/lightning-deals.html', discountPercent: null },
-      { slug: 'takealot', name: 'Takealot', saleUrl: 'https://www.takealot.com/deals', discountPercent: null },
+      { slug: 'temu-sa-storefront', name: 'Temu (SA storefront)', saleUrl: 'https://www.temu.com/za/channel/lightning-deals.html', discountPercent: null, checkedAt: null },
+      { slug: 'takealot', name: 'Takealot', saleUrl: 'https://www.takealot.com/deals', discountPercent: null, checkedAt: null },
     ]);
   });
 
@@ -146,6 +146,17 @@ describe('getVisibleStores', () => {
       );
       expect(stores.map((s) => s.discountPercent)).toEqual([50, 30, null]);
     });
+    it('gives checkedAt: the last validation, now for an active override, null for a store never checked', async () => {
+      const stores = await getVisibleStores(
+        fakeDb([
+          row('a', 'A', 'https://a.example/s', { record_state: 'active', last_validated_at: ago(30) }),
+          row('b', 'B', 'https://b.example/s', { override_percent: 35, override_created_at: ago(1) }),
+          row('c', 'C', 'https://c.example/s'),
+        ]).db,
+        NOW,
+      );
+      expect(stores.map((s) => s.checkedAt)).toEqual([ago(30), ago(0), null]);
+    });
     it('judges a store with no record by its own created_at, not by the time an override was made', async () => {
       // Added an hour ago, with an old override that does not hide it: fresh, so shown.
       const r = { ...takealot, created_at: ago(1), override_created_at: ago(100) };
@@ -173,6 +184,29 @@ describe('loadHomeViewModel', () => {
     expect(vm.kind).toBe('ok');
     if (vm.kind === 'ok') expect(vm.stores.map((s) => s.slug)).toEqual(['takealot', 'temu-sa-storefront']);
     expect(errors).toEqual([]);
+  });
+
+  it('turns each store into a row: the figure, the pill tier and the "Checked" words, judged at the same time as the rules', async () => {
+    const { log } = fakeLog();
+    const vm = await loadHomeViewModel(
+      fakeDb([
+        row('a', 'A', 'https://a.example/s', { record_state: 'active', record_percent: 60, last_validated_at: ago(1) }),
+        row('b', 'B', 'https://b.example/s', { record_state: 'active', record_percent: 20, last_validated_at: ago(50) }),
+        row('c', 'C', 'https://c.example/s', { record_state: 'active', last_validated_at: ago(2) }),
+        row('d', 'D', 'https://d.example/s'),
+        row('e', 'E', 'https://e.example/s', { override_percent: 35, override_created_at: ago(1) }),
+      ]).db,
+      log,
+      NOW,
+    );
+    if (vm.kind !== 'ok') throw new Error('expected ok');
+    expect(vm.stores.map((s) => [s.slug, s.percent, s.tier, s.checkedText])).toEqual([
+      ['a', 60, 'hot', 'Checked today'],
+      ['b', 20, 'warm', 'Checked 2 days ago'],
+      ['c', null, 'plain', 'Checked today'],
+      ['d', null, 'plain', 'Not checked yet'],
+      ['e', 35, 'warm', 'Checked today'],
+    ]);
   });
 
   it('returns empty, not error, when the database works but has nothing to show', async () => {
