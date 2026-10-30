@@ -188,6 +188,11 @@ describe('readLimited', () => {
     expect(await readLimited(body(300).response, 300)).toMatchObject({ bytes: 300, truncated: false });
     expect(await readLimited(body(301).response, 300)).toMatchObject({ bytes: 300, truncated: true });
   });
+  it('is truncated when one single chunk is longer than the limit and the body then ends', async () => {
+    const result = await readLimited(new Response('a'.repeat(400)), 300);
+    expect(result).toMatchObject({ bytes: 300, truncated: true });
+    expect(result?.text).toHaveLength(300);
+  });
   it('cuts a body that is longer than the limit in the middle of a chunk', async () => {
     const result = await readLimited(body(1000, 400).response, 450);
     expect(result).toMatchObject({ bytes: 450, truncated: true });

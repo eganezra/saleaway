@@ -212,6 +212,22 @@ describe('processStore: page validation (Story 3.3)', () => {
     expect(named('page_validated')[0]?.fields).toMatchObject({ verdict: 'unverifiable', reason: 'unreadable' });
   });
 
+  it('judges a cut page as unreadable, not as "no discounts": the truncated flag reaches the validator', async () => {
+    // Priced products and no discount, longer than 3 MiB: whole, it would be no_discounts; cut, it cannot be judged.
+    const text = `<html><body>${'<p>R10</p>'.repeat(Math.ceil((3 * 1024 * 1024 + 100) / 9))}</body></html>`;
+    const { named } = await runStore({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: text } });
+    expect(named('page_validated')[0]?.fields).toMatchObject({ truncated: true, verdict: 'unverifiable', reason: 'unreadable' });
+    const whole = await runStore2(`<html><body>${'<p>R10</p>'.repeat(10)}</body></html>`);
+    expect(whole.named('page_validated')[0]?.fields).toMatchObject({ truncated: false, verdict: 'ended', reason: 'no_discounts' });
+  });
+
+  /** A second ok store run, after clearing the database. */
+  async function runStore2(body: string) {
+    await resetData(t.db);
+    await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+    return runStore({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body } });
+  }
+
   it('never reads the body of a js_only, blocked, not found, redirected away or error answer', async () => {
     const cases: Array<[string, Partial<RetailerSeed>, number]> = [
       ['js_only', { seedStatus: 'verified_js_shell' }, 200],

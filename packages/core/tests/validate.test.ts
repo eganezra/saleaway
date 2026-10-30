@@ -79,6 +79,15 @@ describe('rule 2: challenge pages are blocks, not missing sales', () => {
   it('finds the marker in the first part of the text, case-insensitively', () => {
     expect(judge(html('<p>CHECKING YOUR BROWSER before accessing the site</p>')).reason).toBe('challenge_page');
   });
+  it('ignores a body marker on a page that lists priced products: a real sale page can mention reCAPTCHA or "access denied"', () => {
+    for (const notice of ['This site is protected by reCAPTCHA', 'Access denied to unregistered users? Register', 'Complete the captcha to subscribe']) {
+      const page = html(`<p>${notice}</p>${listing(8, WAS)}`);
+      expect(judge(page).verdict, notice).toBe('valid');
+    }
+  });
+  it('still treats a marker in the title as a challenge even on a page with prices', () => {
+    expect(judge(html(listing(8, WAS), 'Access Denied')).reason).toBe('challenge_page');
+  });
   it('ignores a marker that is far down a long page', () => {
     const page = html(`${listing(6, WAS)}<p>${'x '.repeat(3000)} just a moment</p>`);
     expect(judge(page).verdict).toBe('valid');
@@ -278,6 +287,11 @@ describe('what the function returns', () => {
 describe('size and safety', () => {
   const MIB = 1024 * 1024;
   const hostile: Record<string, string> = {
+    'many closed script tags and no style tag': '<script></script>'.repeat(Math.floor((3 * MIB) / 17)),
+    'many closed style tags and no script tag': '<style></style>'.repeat(Math.floor((3 * MIB) / 15)),
+    'many closed script and style tags together': '<script></script><style></style>'.repeat(Math.floor((3 * MIB) / 32)),
+    'many comments': '<!-- x -->'.repeat(Math.floor((3 * MIB) / 10)),
+    'many small tags with text': '<b>word</b> '.repeat(Math.floor((3 * MIB) / 12)),
     'many unclosed script tags': '<script '.repeat(Math.floor((3 * MIB) / 8)),
     'many unclosed style tags': '<style>'.repeat(Math.floor((3 * MIB) / 7)),
     'many open angle brackets and no close': '<'.repeat(3 * MIB),
@@ -296,6 +310,10 @@ describe('size and safety', () => {
       expect(['valid', 'ended', 'blocked', 'unverifiable']).toContain(result.verdict);
     });
   }
+  it('stops counting at 100,000 so a hostile page cannot make a huge number', () => {
+    const page = html('<p>R1</p>'.repeat(120_000));
+    expect(judge(page).signals.amounts).toBe(100_000);
+  });
   it('handles a real-sized sale page (3 MiB of products) in under a second, and counts are capped', () => {
     const page = html(listing(30_000, WAS));
     expect(page.length).toBeGreaterThan(2 * MIB);

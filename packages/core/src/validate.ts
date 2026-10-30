@@ -100,9 +100,14 @@ function removeBlocks(page: string): Parsed {
   const scriptParts: string[] = [];
   let scripts = 0;
   let pos = 0;
+  // The next opening of each kind is remembered and looked up again only once `pos` has passed it. Searching
+  // for both from `pos` every time would rescan the whole rest of the page for a tag that is not there, once per
+  // block of the other kind: quadratic on a page of many `<script>` blocks and no `<style>`.
+  let nextScript = lower.indexOf('<script');
+  let nextStyle = lower.indexOf('<style');
   while (pos < page.length) {
-    const nextScript = lower.indexOf('<script', pos);
-    const nextStyle = lower.indexOf('<style', pos);
+    if (nextScript !== -1 && nextScript < pos) nextScript = lower.indexOf('<script', pos);
+    if (nextStyle !== -1 && nextStyle < pos) nextStyle = lower.indexOf('<style', pos);
     const useScript = nextScript !== -1 && (nextStyle === -1 || nextScript < nextStyle);
     const start = useScript ? nextScript : nextStyle;
     if (start === -1) {
@@ -184,8 +189,11 @@ export function validateSalePage(page: PageInput): ValidationResult {
   if (redirectedAway(page.expectedUrl, page.finalUrl)) return result('ended', 'redirected_away');
 
   // 2. A bot challenge is a block, not a missing sale.
-  const head = `${title.toLowerCase()} ${lowerVisible.slice(0, CHALLENGE_WINDOW)}`;
-  if (includesAny(head, CHALLENGE)) return result('blocked', 'challenge_page');
+  // A marker in the title is always a challenge. A marker in the body counts only on a page that lists no priced
+  // products: a real sale page can mention "reCAPTCHA" or "access denied" in a banner or a help line near its top.
+  const challengeTitle = includesAny(title.toLowerCase(), CHALLENGE);
+  const challengeBody = amounts < MIN_AMOUNTS_FOR_LISTING && includesAny(lowerVisible.slice(0, CHALLENGE_WINDOW), CHALLENGE);
+  if (challengeTitle || challengeBody) return result('blocked', 'challenge_page');
 
   // 3. A login wall: a sign-in title, a password field and (almost) no prices.
   if (LOGIN_TITLE.test(title) && lowerMarkup.includes('type="password"') && amounts < MIN_AMOUNTS_FOR_LISTING) {
