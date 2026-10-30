@@ -21,7 +21,7 @@
 - **FR17:** The site has page titles, meta descriptions, Open Graph tags, a sitemap and robots.txt, so search engines can index it.
 - **FR18:** The layout includes ad slots that can be switched on once an ad network approves the site.
 - **FR19:** The site counts visits and click-outs per store with cookie-free analytics.
-- **FR20:** The site has About / How it works, Privacy, and Contact pages. The contact page explains how a retailer can ask to be removed.
+- **FR20:** The site has About / How it works and Privacy pages. There is no Contact page and no retailer removal route (decided 2026-10-30): a store that does not want to be read says so in its `robots.txt`, which the pipeline obeys (FR5), and the operator can hide any store at once. The About page has a short "Our bot" part (what the bot is and how it behaves), and the old `/contact` address, which the bot's user-agent carries, forwards to it.
 - **FR21:** An operator can see a health report: per-store last result, how many stores show a percentage vs "On sale" vs blocked, and the last run's status.
 - **FR22:** For a store with no known sale URL, the job can try common paths (`/sale`, `/outlet`, `/specials`) as a fallback. **[Post-launch]**
 - **FR23:** The home page shows a "Biggest discounts today" sticker card at the top of the grid, listing the 8 stores with the deepest known discounts across all categories, each with its category name. The card is hidden when fewer than 3 stores have a known percentage.
@@ -33,7 +33,7 @@
 - **NFR3:** Data freshness: every visible store is re-checked at least every 24 hours, and no record older than 72 hours is shown.
 - **NFR4:** The pipeline is resilient: one store's failure, block or timeout never stops the rest of the run. Runs can be safely repeated (idempotent).
 - **NFR5:** Pipeline success rate of 95% or higher of scheduled runs completing.
-- **NFR6:** Politeness: no more than one page fetch per store per day on the normal path (plus one robots.txt check), a clear user-agent with a contact address, robots.txt respected, and no attempt to evade bot protection.
+- **NFR6:** Politeness: no more than one page fetch per store per day on the normal path (plus one robots.txt check), a clear user-agent that links to a page about the bot, robots.txt respected, and no attempt to evade bot protection.
 - **NFR7:** Legal safety: store only facts (name, URL, discount percentage, timestamps). Do not copy or display retailer images, descriptions, logos or page layouts. All cards link out to the retailer.
 - **NFR8:** Privacy: no cookies or personal data collected at launch, so no cookie banner is needed. POPIA obligations must be revisited when an ad network adds cookies.
 - **NFR9:** Accessibility: meets WCAG AA basics (contrast, keyboard use, labels, semantic headings).

@@ -13,9 +13,8 @@ A fast, clean, deal-focused page where a shopper sees who is running a sale in s
 ## Core Screens and Views
 
 - **Home page:** hero line, category sections of store cards, ad slots, footer links.
-- **About / How it works:** one short page explaining what Saleaway does and that discounts are read automatically and may change.
+- **About / How it works:** one short page explaining what Saleaway does, that discounts are read automatically and may change, and (in a short "Our bot" part) what the bot is and how it behaves. `/contact` forwards to that part.
 - **Privacy page.**
-- **Contact / retailer removal page.**
 - **Operator health report** (not public).
 
 ## Accessibility: WCAG AA

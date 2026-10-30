@@ -70,8 +70,8 @@ so that the site is ready to earn and to be trusted.
 
 1. The layout includes clearly marked ad slots (top, between categories, footer) that render nothing until switched on by a configuration flag (FR18).
 2. Cookie-free analytics counts visits and click-outs per store (FR19, NFR8). The Web Analytics part is confirmed after the domain is connected (Story 4.4).
-3. About / How it works, Privacy and Contact pages exist. The Contact page explains how a retailer can request removal (FR20).
-4. A footer links to all three pages.
+3. About / How it works and Privacy pages exist (FR20). The About page has a short "Our bot" part: what the bot is, that it reads each store's sale page about once a day and that it obeys robots.txt. There is no Contact page and no retailer removal route (decided 2026-10-30); `/contact` forwards to that part of the About page, because the bot's user-agent carries that address.
+4. A footer links to both pages.
 5. The layout does not shift when ad slots turn on (no large layout jump).
 
 ## Story 2.6 Black Friday Badge (Stretch)

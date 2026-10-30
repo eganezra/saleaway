@@ -7,7 +7,7 @@ apps/web/src/
 ├── layouts/BaseLayout.astro        # head, SEO tags, skip link, header, footer
 ├── pages/
 │   ├── index.astro                 # home
-│   ├── about.astro  privacy.astro  contact.astro
+│   ├── about.astro  privacy.astro  contact.ts   # /contact redirects to /about#our-bot
 │   ├── health.ts                   # GET /health
 │   └── api/click.ts                # POST /api/click
 ├── components/
@@ -82,7 +82,7 @@ export interface HomeViewModel {
 /                 home (SSR, cached)
 /about            static
 /privacy          static
-/contact          static
+/contact          redirect to /about#our-bot
 /health           canary
 /api/click        POST beacon
 /sitemap.xml      generated from the fixed page list

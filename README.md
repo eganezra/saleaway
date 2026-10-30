@@ -218,7 +218,7 @@ A manual run starts a **new** run and fetches **every store again**, which break
 ### How the fetcher behaves (and what it will never do)
 
 - It asks the site's `robots.txt` first and obeys it. A page that `robots.txt` forbids is recorded as `blocked` (reason `robots_disallow`) and is not requested. A `robots.txt` that cannot be reached (a 5xx answer or a timeout) is recorded as an `error` (`robots_unreachable`) and the page is not requested. A missing `robots.txt` (a 4xx answer) means everything is allowed.
-- Every request says who it is: `SaleawayBot/1.0 (+https://saleaway.online/contact)`. It waits at most 10 seconds, follows at most 3 redirects, and only ever requests `https` addresses (a redirect to `http` or to an IP address is not followed).
+- Every request says who it is: `SaleawayBot/1.0 (+https://saleaway.online/contact)` (that address will forward to the "Our bot" part of the About page). It waits at most 10 seconds, follows at most 3 redirects, and only ever requests `https` addresses (a redirect to `http` or to an IP address is not followed).
 - **It does not try to get past bot protection.** No disguised user-agent, no cookies, no solving of challenge pages, and no second attempt after a `blocked` answer. A blocked store is recorded and an operator decides: usually the `manual` method (Story 4.1).
 - A store with the `manual` method is never contacted, not even for `robots.txt`. It never saves any page content (a page is read only to be judged, and only counts and a verdict are logged).
 - Each store makes one `robots.txt` request and one page request per run, spaced out by the stagger.

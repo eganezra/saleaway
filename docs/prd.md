@@ -59,7 +59,7 @@ A spreadsheet of 106 SA stores (`docs/data/`) provides primary sale URLs for 92 
 - **FR17:** The site has page titles, meta descriptions, Open Graph tags, a sitemap and robots.txt, so search engines can index it.
 - **FR18:** The layout includes ad slots that can be switched on once an ad network approves the site.
 - **FR19:** The site counts visits and click-outs per store with cookie-free analytics.
-- **FR20:** The site has About / How it works, Privacy, and Contact pages. The contact page explains how a retailer can ask to be removed.
+- **FR20:** The site has About / How it works and Privacy pages. There is no Contact page and no retailer removal route (decided 2026-10-30): a store that does not want to be read says so in its `robots.txt`, which the pipeline obeys (FR5), and the operator can hide any store at once. The About page has a short "Our bot" part (what the bot is and how it behaves), and the old `/contact` address, which the bot's user-agent carries, forwards to it.
 - **FR21:** An operator can see a health report: per-store last result, how many stores show a percentage vs "On sale" vs blocked, and the last run's status.
 - **FR22:** For a store with no known sale URL, the job can try common paths (`/sale`, `/outlet`, `/specials`) as a fallback. **[Post-launch]**
 - **FR23:** The home page shows a "Biggest discounts today" sticker card at the top of the grid, listing the 8 stores with the deepest known discounts across all categories, each with its category name. The card is hidden when fewer than 3 stores have a known percentage.
@@ -71,7 +71,7 @@ A spreadsheet of 106 SA stores (`docs/data/`) provides primary sale URLs for 92 
 - **NFR3:** Data freshness: every visible store is re-checked at least every 24 hours, and no record older than 72 hours is shown.
 - **NFR4:** The pipeline is resilient: one store's failure, block or timeout never stops the rest of the run. Runs can be safely repeated (idempotent).
 - **NFR5:** Pipeline success rate of 95% or higher of scheduled runs completing.
-- **NFR6:** Politeness: no more than one page fetch per store per day on the normal path (plus one robots.txt check), a clear user-agent with a contact address, robots.txt respected, and no attempt to evade bot protection.
+- **NFR6:** Politeness: no more than one page fetch per store per day on the normal path (plus one robots.txt check), a clear user-agent that links to a page about the bot, robots.txt respected, and no attempt to evade bot protection.
 - **NFR7:** Legal safety: store only facts (name, URL, discount percentage, timestamps). Do not copy or display retailer images, descriptions, logos or page layouts. All cards link out to the retailer.
 - **NFR8:** Privacy: no cookies or personal data collected at launch, so no cookie banner is needed. POPIA obligations must be revisited when an ad network adds cookies.
 - **NFR9:** Accessibility: meets WCAG AA basics (contrast, keyboard use, labels, semantic headings).
@@ -94,9 +94,8 @@ A fast, clean, deal-focused page where a shopper sees who is running a sale in s
 ### Core Screens and Views
 
 - **Home page:** hero line, category sections of store cards, ad slots, footer links.
-- **About / How it works:** one short page explaining what Saleaway does and that discounts are read automatically and may change.
+- **About / How it works:** one short page explaining what Saleaway does, that discounts are read automatically and may change, and (in a short "Our bot" part) what the bot is and how it behaves. `/contact` forwards to that part.
 - **Privacy page.**
-- **Contact / retailer removal page.**
 - **Operator health report** (not public).
 
 ### Accessibility: WCAG AA
@@ -167,7 +166,7 @@ _Added by the PO on 2026-10-29 after validating all documents._
 | 1 | A Cloudflare account, with `wrangler login` working on your computer (**done 2026-10-29**; use Node 22) | Story 1.2 |
 | 2 | A GitHub repository for the project, with repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (a repository is also a good place for backups before then) | Story 4.4 |
 | 3 | The domain `saleaway.online`, registered in Cloudflare (**done 2026-10-30**), so its DNS is already on Cloudflare. Story 4.4 attaches it to the web Worker | Story 4.4 |
-| 4 | A monitored email address for retailer removal requests (Cloudflare Email Routing can forward it to your inbox once the domain is on Cloudflare) | Story 4.5 |
+| 4 | ~~A monitored email address for retailer removal requests~~ **Dropped 2026-10-30:** there is no Contact page and no removal route | - |
 | 5 | A webhook URL for failure alerts (for example a Discord or Slack channel) | Story 4.6 |
 | 6 | A Cloudflare Web Analytics site token (only usable once the domain is connected) | Story 4.4 |
 | 7 | Check the 21 search-only URLs in a browser, and find Crocs SA's sale URL (the agent prepares the list) | Story 4.3 |
@@ -309,8 +308,8 @@ so that the site is ready to earn and to be trusted.
 
 1. The layout includes clearly marked ad slots (top, between categories, footer) that render nothing until switched on by a configuration flag (FR18).
 2. Cookie-free analytics counts visits and click-outs per store (FR19, NFR8). The Web Analytics part is confirmed after the domain is connected (Story 4.4).
-3. About / How it works, Privacy and Contact pages exist. The Contact page explains how a retailer can request removal (FR20).
-4. A footer links to all three pages.
+3. About / How it works and Privacy pages exist (FR20). The About page has a short "Our bot" part: what the bot is, that it reads each store's sale page about once a day and that it obeys robots.txt. There is no Contact page and no retailer removal route (decided 2026-10-30); `/contact` forwards to that part of the About page, because the bot's user-agent carries that address.
+4. A footer links to both pages.
 5. The layout does not shift when ad slots turn on (no large layout jump).
 
 ### Story 2.6 Black Friday Badge (Stretch)
@@ -354,7 +353,7 @@ so that I know what happened with each store.
 
 #### Acceptance Criteria
 
-1. Requests use a clear user-agent with a contact address, a timeout, and a limited number of redirects (FR5, NFR6).
+1. Requests use a clear user-agent that links to a page about the bot, a timeout, and a limited number of redirects (FR5, NFR6).
 2. robots.txt is checked and respected.
 3. Each result is classified as OK, blocked, not found, redirected away, JavaScript-only, or error (FR6).
 4. The fetcher is tested from a deployed Worker, not only from a laptop, and the per-store results are saved to `docs/fetch-spike.md` as a follow-up table.
@@ -548,7 +547,7 @@ so that we launch with confidence.
 1. The site is live on saleaway.online over HTTPS with the daily job enabled.
 2. At least one complete scheduled run has succeeded.
 3. The home page, legal pages, sitemap and robots.txt all load correctly on a phone.
-4. The retailer contact route works (a monitored email address).
+4. `/contact` forwards to the "Our bot" part of the About page (the bot's user-agent carries that address).
 5. A short rollback and "pause the pipeline" note exists in the README.
 6. The remaining known issues are listed, including the stores hidden by Story 3.9 and why.
 7. Indexing is switched on: `ALLOW_INDEXING` is set to `"true"` in `apps/web/wrangler.jsonc` and deployed (Story 2.4 ships it off, so the site is not indexed before launch), and `robots.txt` then allows crawling and lists the sitemap.
@@ -664,7 +663,7 @@ _PM checklist (`.bmad-core/checklists/pm-checklist.md`) run on 2026-10-28 in com
 
 **LOW**
 - Story 1.3 says "106 stores" but Crocs SA is not in the spreadsheet (fixed below).
-- No user feedback mechanism beyond the Contact page.
+- No user feedback mechanism.
 
 ### MVP Scope Assessment
 

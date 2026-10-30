@@ -351,7 +351,7 @@ Saleaway has no public API. The only HTTP endpoints are internal, so no OpenAPI 
 **Responsibility:** render and serve the public site.
 
 **Key Interfaces:**
-- Pages: home, About, Privacy, Contact, plus `/health`.
+- Pages: home, About, Privacy, plus `/health`; `/contact` forwards to the About page's "Our bot" part (the bot's user-agent carries it).
 - `getHomeViewModel(db)` returns category cards, the "Biggest discounts today" card and the status strip data.
 - `POST /api/click`.
 
@@ -431,7 +431,7 @@ graph LR
 - `GET {origin}/robots.txt` - checked before the page fetch.
 - For Shopify stores: `GET {origin}/collections/{handle}/products.json?limit=250` - read was/now prices. **Asked only when the store's sale address is exactly `/collections/<handle>`** (Story 3.4), after the page has been judged `valid` and only if `robots.txt` (already read) allows the path: once a night, never retried, and a 403, 429 or 404 means the discount is read from the page instead. A store whose sale address is a hub page or a product page, and a store with no feed (Under Armour SA), make no feed request. Measured from a home connection on 2026-10-30: `beauty-on-tapp` answered 429 and `toy-kingdom` 404, so neither feed is known to work yet; the first nightly run shows whether the Worker is treated differently (`discount_extracted`, `feed`).
 
-**Integration Notes:** the user-agent is `SaleawayBot/1.0 (+https://saleaway.online/contact)`, on every request including `robots.txt`, with an `Accept` header and no other header. Each request times out after 10 seconds **[Assumption]**. Only `https` URLs are fetched, redirects are followed by hand and limited to 3, each target is checked first, and a redirect to `http://`, to an IP address or to a local name (`localhost.`, `x.internal`) is never requested. `robots.txt` is asked first and obeyed (RFC 9309): a refusal is recorded as `blocked`, an unreachable file (5xx, timeout) as an error with the page not fetched, and a missing file (4xx) means everything is allowed. A page of a store whose spreadsheet status is `verified_js_shell` is classified `js_only` on a 2xx answer without reading it. No attempt is made to get around bot protection (NFR6): a blocked store is recorded and never retried. Three stores (Amazon.co.za, Game, Checkers) blocked even a home connection, so they default to `manual`. **Measured from a deployed Worker (Story 3.2):** 34 of the 89 other stores also blocked it (see `docs/fetch-spike.md`).
+**Integration Notes:** the user-agent is `SaleawayBot/1.0 (+https://saleaway.online/contact)` (`/contact` forwards to the "Our bot" part of the About page), on every request including `robots.txt`, with an `Accept` header and no other header. Each request times out after 10 seconds **[Assumption]**. Only `https` URLs are fetched, redirects are followed by hand and limited to 3, each target is checked first, and a redirect to `http://`, to an IP address or to a local name (`localhost.`, `x.internal`) is never requested. `robots.txt` is asked first and obeyed (RFC 9309): a refusal is recorded as `blocked`, an unreachable file (5xx, timeout) as an error with the page not fetched, and a missing file (4xx) means everything is allowed. A page of a store whose spreadsheet status is `verified_js_shell` is classified `js_only` on a 2xx answer without reading it. No attempt is made to get around bot protection (NFR6): a blocked store is recorded and never retried. Three stores (Amazon.co.za, Game, Checkers) blocked even a home connection, so they default to `manual`. **Measured from a deployed Worker (Story 3.2):** 34 of the 89 other stores also blocked it (see `docs/fetch-spike.md`).
 
 ### Cloudflare Web Analytics
 
@@ -655,7 +655,7 @@ apps/web/src/
 ├── layouts/BaseLayout.astro        # head, SEO tags, skip link, header, footer
 ├── pages/
 │   ├── index.astro                 # home
-│   ├── about.astro  privacy.astro  contact.astro
+│   ├── about.astro  privacy.astro  contact.ts   # /contact redirects to /about#our-bot
 │   ├── health.ts                   # GET /health
 │   └── api/click.ts                # POST /api/click
 ├── components/
@@ -730,7 +730,7 @@ export interface HomeViewModel {
 /                 home (SSR, cached)
 /about            static
 /privacy          static
-/contact          static
+/contact          redirect to /about#our-bot
 /health           canary
 /api/click        POST beacon
 /sitemap.xml      generated from the fixed page list

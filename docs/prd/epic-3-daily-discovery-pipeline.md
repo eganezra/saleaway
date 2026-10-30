@@ -27,7 +27,7 @@ so that I know what happened with each store.
 
 ### Acceptance Criteria
 
-1. Requests use a clear user-agent with a contact address, a timeout, and a limited number of redirects (FR5, NFR6).
+1. Requests use a clear user-agent that links to a page about the bot, a timeout, and a limited number of redirects (FR5, NFR6).
 2. robots.txt is checked and respected.
 3. Each result is classified as OK, blocked, not found, redirected away, JavaScript-only, or error (FR6).
 4. The fetcher is tested from a deployed Worker, not only from a laptop, and the per-store results are saved to `docs/fetch-spike.md` as a follow-up table.

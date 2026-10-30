@@ -76,7 +76,7 @@ so that we launch with confidence.
 1. The site is live on saleaway.online over HTTPS with the daily job enabled.
 2. At least one complete scheduled run has succeeded.
 3. The home page, legal pages, sitemap and robots.txt all load correctly on a phone.
-4. The retailer contact route works (a monitored email address).
+4. `/contact` forwards to the "Our bot" part of the About page (the bot's user-agent carries that address).
 5. A short rollback and "pause the pipeline" note exists in the README.
 6. The remaining known issues are listed, including the stores hidden by Story 3.9 and why.
 7. Indexing is switched on: `ALLOW_INDEXING` is set to `"true"` in `apps/web/wrangler.jsonc` and deployed (Story 2.4 ships it off, so the site is not indexed before launch), and `robots.txt` then allows crawling and lists the sitemap.

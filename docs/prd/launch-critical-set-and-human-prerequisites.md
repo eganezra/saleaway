@@ -17,7 +17,7 @@ _Added by the PO on 2026-10-29 after validating all documents._
 | 1 | A Cloudflare account, with `wrangler login` working on your computer (**done 2026-10-29**; use Node 22) | Story 1.2 |
 | 2 | A GitHub repository for the project, with repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (a repository is also a good place for backups before then) | Story 4.4 |
 | 3 | The domain `saleaway.online`, registered in Cloudflare (**done 2026-10-30**), so its DNS is already on Cloudflare. Story 4.4 attaches it to the web Worker | Story 4.4 |
-| 4 | A monitored email address for retailer removal requests (Cloudflare Email Routing can forward it to your inbox once the domain is on Cloudflare) | Story 4.5 |
+| 4 | ~~A monitored email address for retailer removal requests~~ **Dropped 2026-10-30:** there is no Contact page and no removal route | - |
 | 5 | A webhook URL for failure alerts (for example a Discord or Slack channel) | Story 4.6 |
 | 6 | A Cloudflare Web Analytics site token (only usable once the domain is connected) | Story 4.4 |
 | 7 | Check the 21 search-only URLs in a browser, and find Crocs SA's sale URL (the agent prepares the list) | Story 4.3 |

@@ -59,7 +59,6 @@ graph TD
     B1 --> X[Retailer sale page - external, new tab]
     A --> C[About / How it works]
     A --> D[Privacy]
-    A --> E[Contact / retailer removal]
     A -.later.-> F[Search and filters - Epic 5]
 ```
 
@@ -67,9 +66,9 @@ The operator health report is a private page and is not part of the public site 
 
 ### Navigation Structure
 
-**Primary Navigation:** a slim header with the Saleaway wordmark on the left and three links: Categories (jumps to the category chips), How it works, and Contact.
+**Primary Navigation:** a slim header with the Saleaway wordmark on the left and two links: Categories (jumps to the category chips) and How it works.
 
-**Secondary Navigation:** a row of category chips directly under the header, one per category, each jumping to that category's card. On mobile the row scrolls sideways and sticks below the header. The footer repeats About, Privacy and Contact.
+**Secondary Navigation:** a row of category chips directly under the header, one per category, each jumping to that category's card. On mobile the row scrolls sideways and sticks below the header. The footer repeats About and Privacy.
 
 **Breadcrumb Strategy:** none. The site is one page plus three small pages, so a Home link in the header is enough.
 
@@ -109,25 +108,9 @@ graph TD
 
 **Notes:** the new-tab behaviour keeps Saleaway open so the visitor can compare stores.
 
-### Retailer asks to be removed
+### Retailer asks to be removed (dropped 2026-10-30)
 
-**User Goal:** a retailer wants its store taken off Saleaway.
-
-**Entry Points:** footer Contact link.
-
-**Success Criteria:** the retailer finds an email address and a clear statement of what Saleaway stores, within one page.
-
-```mermaid
-graph TD
-    A[Footer: Contact] --> B[Contact page]
-    B --> C[Reads what we store and how we fetch]
-    C --> D[Emails removal request]
-```
-
-**Edge Cases & Error Handling:**
-
-- The email address must be monitored (PRD Story 4.5).
-- The page explains that Saleaway stores only the store name, sale URL, discount figure and timestamps.
+There is no Contact page and no removal route. A store that does not want to be read says so in its `robots.txt`, which the pipeline obeys, and the operator can hide any store at once. The old `/contact` address, which the bot's user-agent carries, forwards to the "Our bot" part of the About page, which says what the bot is and how it behaves.
 
 ## Wireframes & Mockups
 
@@ -143,7 +126,7 @@ graph TD
 
 ```
 +--------------------------------------------------------------------+
-| SALEAWAY   Categories  How it works  Contact           [ search* ] |  header
+| SALEAWAY   Categories  How it works                        [ search* ] |  header
 +--------------------------------------------------------------------+
 | ** 63 stores on sale today   *   Updated today 06:10          [x] |  status strip (static)
 +--------------------------------------------------------------------+
@@ -167,7 +150,7 @@ graph TD
 +------------------------+------------------------+-------------------+
 | (next row of cards, in a masonry grid; one ad card in the grid)    |
 +--------------------------------------------------------------------+
-| Footer: About - Privacy - Contact - (c) Saleaway                   |
+| Footer: About - Privacy - (c) Saleaway                             |
 +--------------------------------------------------------------------+
 ```
 
@@ -296,7 +279,7 @@ graph TD
 
 **States:** default, menu open.
 
-**Usage Guidelines:** a 3px black bottom border. The footer holds About, Privacy, Contact and a one-line disclaimer ("Discounts are read automatically and may change. Check the store's page before you buy.").
+**Usage Guidelines:** a 3px black bottom border. The footer holds About, Privacy and a one-line disclaimer ("Discounts are read automatically and may change. Check the store's page before you buy.").
 
 #### Empty / Error Message
 

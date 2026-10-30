@@ -41,7 +41,7 @@ _PM checklist (`.bmad-core/checklists/pm-checklist.md`) run on 2026-10-28 in com
 
 **LOW**
 - Story 1.3 says "106 stores" but Crocs SA is not in the spreadsheet (fixed below).
-- No user feedback mechanism beyond the Contact page.
+- No user feedback mechanism.
 
 ## MVP Scope Assessment
 

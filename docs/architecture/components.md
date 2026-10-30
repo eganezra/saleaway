@@ -5,7 +5,7 @@
 **Responsibility:** render and serve the public site.
 
 **Key Interfaces:**
-- Pages: home, About, Privacy, Contact, plus `/health`.
+- Pages: home, About, Privacy, plus `/health`; `/contact` forwards to the About page's "Our bot" part (the bot's user-agent carries it).
 - `getHomeViewModel(db)` returns category cards, the "Biggest discounts today" card and the status strip data.
 - `POST /api/click`.
 
