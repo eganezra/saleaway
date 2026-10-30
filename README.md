@@ -23,6 +23,12 @@ Then open http://localhost:4321 for the store list: one card per visible store (
 
 If the database cannot be read, the page answers **503** with "Sales are loading, check back soon." and logs one `home_failed` line with the real error. If the database works but has no visible stores, it shows the same message with a normal 200. The message never contains technical detail.
 
+### Which stores the page shows
+
+A store is shown unless one of these hides it (rules in `packages/core/src/visibility.ts`, tested): the operator has hidden it (`is_visible` 0, see [Hidden stores](#hidden-stores)); it has no `https://` sale address; an active override hides it; its sale record is `ended` (unless an active override sets a percentage); or it has not been checked for **more than 72 hours** (a store that has never been checked counts from the time it was added, and an active override counts as a check). An override's percentage and sale address replace the stored ones, and an expired override is ignored. **Nothing is ever deleted when a store disappears**: it is only hidden, and it comes back when it is checked again. The rules take the current time as an input, so they can be tested.
+
+> **Not deployed yet.** This code is in the repository but the live web app does not use it: every store was added on 2026-10-29, nothing records checks until Story 3.5, and the 72 hour rule would empty the live page from 2026-11-01 12:58 UTC. Deploy it together with Story 3.5, or decide otherwise with the project owner.
+
 Stop the dev server with `pnpm --filter @saleaway/web exec astro dev stop`.
 
 ## Test and check
