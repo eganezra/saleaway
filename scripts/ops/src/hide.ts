@@ -7,6 +7,8 @@ import { parseHiddenStores } from '@saleaway/core';
 import type { HiddenStores } from '@saleaway/core';
 import { parseHideArgs } from './args';
 import type { SeedTarget } from './args';
+import { isApplied, selectSlugs } from './hide-plan';
+import type { VisibilityCounts } from './hide-plan';
 import { log } from './log';
 import { buildVisibilitySql, sqlString } from './sql';
 
@@ -26,18 +28,12 @@ function wrangler(args: string[], capture: boolean) {
   );
 }
 
-interface Counts {
-  selected: number;
-  visibleSelected: number;
-  visibleTotal: number;
-}
-
 /**
  * Asks the database what it holds now. Wrangler exits 0 when the operator answers "no" at its
  * confirmation prompt, so the exit code alone cannot tell us the change was made. Slugs are validated
  * (`parseHiddenStores`, `parseHideArgs`) and quoted by `sqlString`.
  */
-function countSelected(target: SeedTarget, slugs: string[]): Counts | null {
+function countSelected(target: SeedTarget, slugs: string[]): VisibilityCounts | null {
   const list = slugs.map(sqlString).join(', ');
   const sql =
     `SELECT (SELECT COUNT(*) FROM retailers WHERE slug IN (${list})) AS selected, ` +
@@ -46,7 +42,7 @@ function countSelected(target: SeedTarget, slugs: string[]): Counts | null {
   const result = wrangler(['--command', sql, '--json', `--${target}`], true);
   if (result.status !== 0) return null;
   try {
-    const parsed = JSON.parse(result.stdout) as Array<{ results: Counts[] }>;
+    const parsed = JSON.parse(result.stdout) as Array<{ results: VisibilityCounts[] }>;
     return parsed[0]?.results[0] ?? null;
   } catch {
     return null;
@@ -69,13 +65,12 @@ function main(argv: string[]): number {
     log.error('hide_invalid', { error });
     return 1;
   }
-  const listed = new Set(list.stores.map((store) => store.slug));
-  const notListed = args.slugs.filter((slug) => !listed.has(slug));
-  if (notListed.length > 0) {
-    log.error('hide_usage', { reason: `Not on the list in docs/data/hidden-stores.json: ${notListed.join(', ')}` });
+  const selection = selectSlugs(list.stores.map((store) => store.slug), args.slugs);
+  if (!selection.ok) {
+    log.error('hide_usage', { reason: selection.message });
     return 1;
   }
-  const slugs = args.slugs.length > 0 ? args.slugs : list.stores.map((store) => store.slug);
+  const { slugs } = selection;
   const action = undo ? 'show' : 'hide';
   const sql = buildVisibilitySql(slugs, undo ? 1 : 0);
 
@@ -98,13 +93,12 @@ function main(argv: string[]): number {
   }
 
   const after = countSelected(target, slugs);
-  const expectedVisible = undo ? slugs.length : 0;
-  if (after === null || after.selected !== slugs.length || after.visibleSelected !== expectedVisible) {
+  if (after === null || !isApplied(after, slugs.length, undo)) {
     log.error('hide_not_applied', {
       target,
       action,
       reason: 'The database does not hold the expected state (was the confirmation answered "no", or is a store missing?)',
-      expected: { selected: slugs.length, visibleSelected: expectedVisible },
+      expected: { selected: slugs.length, visibleSelected: undo ? slugs.length : 0 },
       found: after,
     });
     return 1;
