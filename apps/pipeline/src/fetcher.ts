@@ -8,6 +8,7 @@ export const USER_AGENT = 'SaleawayBot/1.0 (+https://saleaway.online/contact)';
 export const ACCEPT = 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8';
 export const FETCH_TIMEOUT_MS = 10_000; // [Assumption] no document sets a timeout
 export const MAX_REDIRECTS = 3;
+export const MAX_PAGE_BYTES = 3 * 1024 * 1024; // [Assumption] the largest sale page seen was 1.6 MB (Woolworths)
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
@@ -71,4 +72,50 @@ export async function fetchPage(url: string, fetchFn: FetchFn): Promise<FetchPag
     if (next === null) return { ok: false, reason: 'unsafe_redirect' };
     current = next;
   }
+}
+
+export interface BodyText {
+  text: string;
+  /** How many bytes of the body the text holds (at most the limit). */
+  bytes: number;
+  /** The body was longer than the limit, so the rest was not read. */
+  truncated: boolean;
+}
+
+/**
+ * Reads at most `maxBytes` of a body as text and frees the rest. Returns null when the read fails (for example
+ * a timeout while streaming). The reader is always cancelled, so an endless body cannot hold the connection.
+ */
+export async function readLimited(response: Response, maxBytes: number): Promise<BodyText | null> {
+  const reader = response.body?.getReader();
+  if (!reader) return { text: '', bytes: 0, truncated: false };
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let truncated = false;
+  try {
+    for (;;) {
+      if (total >= maxBytes) {
+        // At the limit: one more look tells whether the body ended exactly here or carries on.
+        truncated = !(await reader.read()).done;
+        break;
+      }
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      total += value.byteLength;
+    }
+  } catch {
+    return null;
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  if (total > maxBytes) truncated = true;
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const kept = bytes.subarray(0, maxBytes);
+  return { text: new TextDecoder().decode(kept), bytes: kept.byteLength, truncated };
 }

@@ -24,3 +24,5 @@ export { parseHiddenStores } from './hidden-stores';
 export type { HiddenStore, HiddenStores } from './hidden-stores';
 export { STALE_AFTER_HOURS, isVisible, resolveStore } from './visibility';
 export type { HiddenBecause, StoreInput, StoreView, VisibilityOverride, VisibilityRecord } from './visibility';
+export { recordEffect, validateSalePage } from './validate';
+export type { PageInput, ValidationReason, ValidationResult, ValidationSignals, ValidationVerdict } from './validate';

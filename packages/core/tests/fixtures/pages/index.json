@@ -1,0 +1,175 @@
+[
+  {
+    "file": "bash-tfg.html",
+    "store": "bash-tfg",
+    "savedOn": "2026-10-30",
+    "synthetic": false,
+    "expectedUrl": "https://bash.com/sale",
+    "finalUrl": "https://bash.com/sale",
+    "expect": {
+      "verdict": "valid",
+      "reason": "discounts_found"
+    }
+  },
+  {
+    "file": "cotton-on-sa.html",
+    "store": "cotton-on-sa",
+    "savedOn": "2026-10-30",
+    "synthetic": false,
+    "expectedUrl": "https://cottonon.com/ZA/co/co-sale/",
+    "finalUrl": "https://cottonon.com/ZA/co/co-sale/",
+    "expect": {
+      "verdict": "valid",
+      "reason": "discounts_found"
+    }
+  },
+  {
+    "file": "hirschs.html",
+    "store": "hirschs",
+    "savedOn": "2026-10-30",
+    "synthetic": false,
+    "expectedUrl": "https://www.hirschs.co.za/specials-and-promotions",
+    "finalUrl": "https://www.hirschs.co.za/specials-and-promotions",
+    "expect": {
+      "verdict": "valid",
+      "reason": "discounts_found"
+    }
+  },
+  {
+    "file": "no-discounts-listing.html",
+    "store": "hirschs",
+    "savedOn": "2026-10-30",
+    "synthetic": true,
+    "expectedUrl": "https://www.hirschs.co.za/specials-and-promotions",
+    "finalUrl": "https://www.hirschs.co.za/specials-and-promotions",
+    "expect": {
+      "verdict": "ended",
+      "reason": "no_discounts"
+    },
+    "note": "Made from the hirschs sample by removing every was price and label"
+  },
+  {
+    "file": "makro.html",
+    "store": "makro",
+    "savedOn": "2026-10-30",
+    "synthetic": false,
+    "expectedUrl": "https://www.makro.co.za/promotions-store",
+    "finalUrl": "https://www.makro.co.za/promotions-store",
+    "expect": {
+      "verdict": "valid",
+      "reason": "discounts_found"
+    }
+  },
+  {
+    "file": "loot.html",
+    "store": "loot",
+    "savedOn": "2026-10-30",
+    "synthetic": false,
+    "expectedUrl": "https://www.loot.co.za/deals",
+    "finalUrl": "https://www.loot.co.za/struckgold",
+    "expect": {
+      "verdict": "valid",
+      "reason": "discounts_found"
+    },
+    "note": "The page answered on /struckgold, another path on the same site: not a redirect away"
+  },
+  {
+    "file": "woolworths-fashion.html",
+    "store": "woolworths-fashion",
+    "savedOn": "2026-10-30",
+    "synthetic": false,
+    "expectedUrl": "https://www.woolworths.co.za/browse/quality-sale-specials",
+    "finalUrl": "https://www.woolworths.co.za/browse/quality-sale-specials",
+    "expect": {
+      "verdict": "unverifiable",
+      "reason": "javascript_shell"
+    },
+    "note": "Reduced to the page shell: its products are not in the HTML"
+  },
+  {
+    "file": "takealot.html",
+    "store": "takealot",
+    "savedOn": "2026-10-30",
+    "synthetic": false,
+    "expectedUrl": "https://www.takealot.com/deals",
+    "finalUrl": "https://www.takealot.com/deals",
+    "expect": {
+      "verdict": "unverifiable",
+      "reason": "javascript_shell"
+    },
+    "note": "Reduced to the page shell: its products are not in the HTML"
+  },
+  {
+    "file": "synthetic-404.html",
+    "store": "synthetic",
+    "savedOn": "2026-10-30",
+    "synthetic": true,
+    "expectedUrl": "https://shop.example/sale",
+    "finalUrl": "https://shop.example/sale",
+    "expect": {
+      "verdict": "ended",
+      "reason": "error_page"
+    }
+  },
+  {
+    "file": "synthetic-challenge.html",
+    "store": "synthetic",
+    "savedOn": "2026-10-30",
+    "synthetic": true,
+    "expectedUrl": "https://shop.example/sale",
+    "finalUrl": "https://shop.example/sale",
+    "expect": {
+      "verdict": "blocked",
+      "reason": "challenge_page"
+    }
+  },
+  {
+    "file": "synthetic-login.html",
+    "store": "synthetic",
+    "savedOn": "2026-10-30",
+    "synthetic": true,
+    "expectedUrl": "https://shop.example/sale",
+    "finalUrl": "https://shop.example/sale",
+    "expect": {
+      "verdict": "blocked",
+      "reason": "login_page"
+    }
+  },
+  {
+    "file": "synthetic-empty-listing.html",
+    "store": "synthetic",
+    "savedOn": "2026-10-30",
+    "synthetic": true,
+    "expectedUrl": "https://shop.example/sale",
+    "finalUrl": "https://shop.example/sale",
+    "expect": {
+      "verdict": "ended",
+      "reason": "empty_listing"
+    }
+  },
+  {
+    "file": "synthetic-javascript-shell.html",
+    "store": "synthetic",
+    "savedOn": "2026-10-30",
+    "synthetic": true,
+    "expectedUrl": "https://shop.example/sale",
+    "finalUrl": "https://shop.example/sale",
+    "expect": {
+      "verdict": "unverifiable",
+      "reason": "javascript_shell"
+    }
+  },
+  {
+    "file": "hirschs.html",
+    "store": "hirschs",
+    "savedOn": "2026-10-30",
+    "synthetic": false,
+    "expectedUrl": "https://www.hirschs.co.za/specials-and-promotions",
+    "finalUrl": "https://www.hirschs.co.za/",
+    "expect": {
+      "verdict": "ended",
+      "reason": "redirected_away"
+    },
+    "note": "The same page, but the fetch ended on the home page"
+  }
+]

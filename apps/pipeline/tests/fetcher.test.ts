@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACCEPT, FETCH_TIMEOUT_MS, MAX_REDIRECTS, USER_AGENT, discard, fetchPage } from '../src/fetcher';
+import { ACCEPT, FETCH_TIMEOUT_MS, MAX_PAGE_BYTES, MAX_REDIRECTS, USER_AGENT, discard, fetchPage, readLimited } from '../src/fetcher';
 import { fakeFetch } from './helpers/fakes';
 
 const SALE = 'https://shop.example/sale';
@@ -154,5 +154,61 @@ describe('fetchPage', () => {
     const broken = { body: { cancel: () => Promise.reject(new Error('already closed')) } } as unknown as Response;
     await expect(discard(broken)).resolves.toBeUndefined();
     await expect(discard(new Response(null))).resolves.toBeUndefined();
+  });
+});
+
+describe('readLimited', () => {
+  /** A body that gives `size` bytes in chunks of `chunkSize`, and records whether it was cancelled. */
+  function body(size: number, chunkSize = 100) {
+    const state = { sent: 0, cancelled: false };
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          const n = Math.min(chunkSize, size - state.sent);
+          if (n <= 0) return controller.close();
+          controller.enqueue(new Uint8Array(n).fill(97)); // "a"
+          state.sent += n;
+        },
+        cancel() {
+          state.cancelled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    return { response: new Response(stream), state };
+  }
+
+  it('has a page limit of 3 MiB', () => {
+    expect(MAX_PAGE_BYTES).toBe(3 * 1024 * 1024);
+  });
+  it('returns the text, the byte count and truncated false for a body under the limit', async () => {
+    expect(await readLimited(new Response('héllo'), 1000)).toEqual({ text: 'héllo', bytes: 6, truncated: false });
+  });
+  it('is not truncated when the body is exactly the limit, and is when it is one byte more', async () => {
+    expect(await readLimited(body(300).response, 300)).toMatchObject({ bytes: 300, truncated: false });
+    expect(await readLimited(body(301).response, 300)).toMatchObject({ bytes: 300, truncated: true });
+  });
+  it('cuts a body that is longer than the limit in the middle of a chunk', async () => {
+    const result = await readLimited(body(1000, 400).response, 450);
+    expect(result).toMatchObject({ bytes: 450, truncated: true });
+    expect(result?.text).toHaveLength(450);
+  });
+  it('stops reading an endless body at the limit and frees it', async () => {
+    const { response, state } = body(Number.MAX_SAFE_INTEGER, 1000);
+    const result = await readLimited(response, 5000);
+    expect(result).toMatchObject({ bytes: 5000, truncated: true });
+    expect(state.sent).toBeLessThanOrEqual(7000);
+    expect(state.cancelled).toBe(true);
+  });
+  it('returns an empty, untruncated text when there is no body', async () => {
+    expect(await readLimited(new Response(null), 100)).toEqual({ text: '', bytes: 0, truncated: false });
+  });
+  it('returns null when the read fails', async () => {
+    const failing = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.error(new Error('timeout'));
+      },
+    });
+    expect(await readLimited(new Response(failing), 100)).toBeNull();
   });
 });

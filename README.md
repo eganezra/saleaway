@@ -185,8 +185,19 @@ A manual run starts a **new** run and fetches **every store again**, which break
 - It asks the site's `robots.txt` first and obeys it. A page that `robots.txt` forbids is recorded as `blocked` (reason `robots_disallow`) and is not requested. A `robots.txt` that cannot be reached (a 5xx answer or a timeout) is recorded as an `error` (`robots_unreachable`) and the page is not requested. A missing `robots.txt` (a 4xx answer) means everything is allowed.
 - Every request says who it is: `SaleawayBot/1.0 (+https://saleaway.online/contact)`. It waits at most 10 seconds, follows at most 3 redirects, and only ever requests `https` addresses (a redirect to `http` or to an IP address is not followed).
 - **It does not try to get past bot protection.** No disguised user-agent, no cookies, no solving of challenge pages, and no second attempt after a `blocked` answer. A blocked store is recorded and an operator decides: usually the `manual` method (Story 4.1).
-- A store with the `manual` method is never contacted, not even for `robots.txt`. It never saves any page content.
+- A store with the `manual` method is never contacted, not even for `robots.txt`. It never saves any page content (a page is read only to be judged, and only counts and a verdict are logged).
 - Each store makes one `robots.txt` request and one page request per run, spaced out by the stagger.
+
+### How a page is judged
+
+Since Story 3.3 the pipeline reads each sale page it fetched (an ordinary `ok` answer, at most 3 MiB) and decides what it is. The rules are in `packages/core/src/validate.ts` and are tested on small trimmed samples of real pages (`packages/core/tests/fixtures/pages/`, with a manifest `index.json`). There are four answers:
+
+- **valid**: the page shows discounted products (percentage-off labels, old and new prices, or price fields in its data, and at least two prices);
+- **ended**: the page is up but there is no sale on it (an error page, an empty listing, products with no discount, or it sent us to the home page);
+- **blocked**: the page is a robot check or a login page, which is treated like a blocked request (the last good record is kept);
+- **unverifiable**: the page cannot be judged, for example a JavaScript application whose products are not in the HTML, or a page that was cut at the size limit. Such a store is shown as "On sale", checked by its address only.
+
+A page is called "not a sale" only when something on it says so. For now the answer is only **written to the log** (one `page_validated` line per store, with counts and the answer, never page text); saving it is Story 3.5, and the live site does not change.
 
 ### Pause and resume
 

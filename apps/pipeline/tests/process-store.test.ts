@@ -67,14 +67,6 @@ describe('processStore: each class of result', () => {
     expect(network.stats).toEqual({ pulls: 0, cancelled: true });
   });
 
-  it('an ordinary ok page is not read either (reading is for the measurement probe only)', async () => {
-    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
-    const network = fakeFetchWithTrackedBody(SALE, { [ROBOTS]: OK_ROBOTS });
-    await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, fakeDeps({ fetch: network.fetch }).deps);
-    expect(await rows(t.db, 'SELECT result FROM run_results')).toEqual([{ result: 'ok' }]);
-    expect(network.stats).toEqual({ pulls: 0, cancelled: true });
-  });
-
   it('401, 403, 429 and 503 are blocked with the status in the error text', async () => {
     for (const status of [401, 403, 429, 503]) {
       await resetData(t.db);
@@ -144,6 +136,139 @@ describe('processStore: each class of result', () => {
       expect(saved, String(saleUrl)).toMatchObject([{ result: 'error', error: 'unsafe_url' }]);
       expect(network.requests, String(saleUrl)).toEqual([]);
     }
+  });
+});
+
+describe('processStore: page validation (Story 3.3)', () => {
+  const SALE_PAGE = '<html><head><title>Sale</title></head><body><ol><li><span class="old-price">R999</span><span class="price">R499</span></li><li><span class="old-price">R599</span><span class="price">R299</span></li></ol></body></html>';
+
+  /** A fetch that answers robots.txt and serves `body` as the page, counting how many reads the page body gets. */
+  function streamFetch(body: ReadableStream<Uint8Array>) {
+    const requests: string[] = [];
+    const fetchFn = async (input: string) => {
+      requests.push(input);
+      if (input === ROBOTS) return new Response('User-agent: *\nDisallow: /cart\n', { status: 200 });
+      if (input === SALE) return new Response(body, { status: 200 });
+      throw new TypeError(`no route for ${input}`);
+    };
+    return { fetch: fetchFn, requests };
+  }
+
+  it('reads an ok page once, judges it and logs one page_validated line with counts only', async () => {
+    await seedRetailers(t.db, [{ id: 1, slug: 'shop', saleUrl: SALE }]);
+    const network = fakeFetchWithTrackedBody(SALE, { [ROBOTS]: OK_ROBOTS }, 200, SALE_PAGE);
+    const { deps, named, entries } = fakeDeps({ fetch: network.fetch });
+    const result = await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, deps);
+    expect(result).toBe('ok');
+    expect(network.stats.pulls).toBeGreaterThan(0);
+    const lines = named('page_validated');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.level).toBe('info');
+    expect(lines[0]?.fields).toMatchObject({ slug: 'shop', verdict: 'valid', reason: 'discounts_found', bytes: SALE_PAGE.length, truncated: false, amounts: 4, wasPrices: 2, percentLabels: 0, structured: 0, scripts: 0 });
+    expect(Object.keys(lines[0]?.fields ?? {}).sort()).toEqual(
+      ['amounts', 'bytes', 'percentLabels', 'reason', 'scripts', 'slug', 'structured', 'textLength', 'truncated', 'verdict', 'wasPrices'].sort(),
+    );
+    // no field holds page text, and no field uses a name the logger would drop
+    expect(JSON.stringify(entries)).not.toContain('old-price');
+    expect(JSON.stringify(entries)).not.toContain('Sale');
+    for (const reserved of ['level', 'message', 'time']) expect(Object.keys(lines[0]?.fields ?? {})).not.toContain(reserved);
+  });
+
+  it('does not change what is saved: the same result row as before, and no sale record', async () => {
+    const { saved } = await runStore({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: SALE_PAGE } });
+    expect(saved).toMatchObject([{ result: 'ok', http_status: 200, error: null, discount_percent: null }]);
+    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM sale_records')).toEqual([{ n: 0 }]);
+  });
+
+  it('a page that says no sale is only logged: the class stays ok and the row is unchanged', async () => {
+    const { saved, named } = await runStore({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: '<html><title>Page not found</title></html>' } });
+    expect(saved).toMatchObject([{ result: 'ok', error: null }]);
+    expect(named('page_validated')[0]?.fields).toMatchObject({ verdict: 'ended', reason: 'error_page' });
+  });
+
+  it('reads at most 3 MiB: a longer page is cut, logged as truncated, and the rest is never read', async () => {
+    await seedRetailers(t.db, [{ id: 1, slug: 'big', saleUrl: SALE }]);
+    const chunk = new TextEncoder().encode(`${'x'.repeat(1023)}\n`); // 1 KiB
+    let pulls = 0;
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          pulls += 1;
+          controller.enqueue(chunk); // endless
+        },
+        cancel() {
+          cancelled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const network = streamFetch(stream);
+    const { deps, named } = fakeDeps({ fetch: network.fetch });
+    await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, deps);
+    expect(named('page_validated')[0]?.fields).toMatchObject({ slug: 'big', truncated: true, bytes: 3 * 1024 * 1024 });
+    expect(pulls).toBeLessThanOrEqual(3 * 1024 + 2);
+    expect(cancelled).toBe(true);
+    expect(named('page_validated')[0]?.fields).toMatchObject({ verdict: 'unverifiable', reason: 'unreadable' });
+  });
+
+  it('never reads the body of a js_only, blocked, not found, redirected away or error answer', async () => {
+    const cases: Array<[string, Partial<RetailerSeed>, number]> = [
+      ['js_only', { seedStatus: 'verified_js_shell' }, 200],
+      ['blocked', {}, 403],
+      ['not_found', {}, 404],
+      ['error', {}, 500],
+    ];
+    for (const [name, seed, status] of cases) {
+      await resetData(t.db);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      await seedRetailers(t.db, [{ id: 1, saleUrl: SALE, ...seed }]);
+      const network = fakeFetchWithTrackedBody(SALE, { [ROBOTS]: OK_ROBOTS }, status);
+      const { deps, named } = fakeDeps({ fetch: network.fetch });
+      await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, deps);
+      expect(network.stats, name).toEqual({ pulls: 0, cancelled: true });
+      expect(named('page_validated'), name).toEqual([]);
+    }
+    // redirected away: the final page is on another site
+    await resetData(t.db);
+    await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+    const { named, network } = await runStore({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 301, headers: { Location: 'https://other.example/' } }, 'https://other.example/': { status: 200, body: SALE_PAGE } });
+    expect(named('page_validated')).toEqual([]);
+    expect(network.urls()).toContain('https://other.example/');
+  });
+
+  it('a page whose body fails mid-read is logged as page_read_failed, the result is unchanged and nothing is thrown', async () => {
+    await seedRetailers(t.db, [{ id: 1, slug: 'shop', saleUrl: SALE }]);
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.error(new Error('timeout'));
+      },
+    });
+    const { deps, named } = fakeDeps({ fetch: streamFetch(stream).fetch });
+    const result = await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, deps);
+    expect(result).toBe('ok');
+    expect(named('page_read_failed')[0]?.fields).toEqual({ slug: 'shop' });
+    expect(named('page_validated')).toEqual([]);
+    expect(await rows(t.db, 'SELECT result FROM run_results')).toEqual([{ result: 'ok' }]);
+  });
+
+  it('a validator that throws is logged as validation_failed and the store is still recorded', async () => {
+    await seedRetailers(t.db, [{ id: 1, slug: 'shop', saleUrl: SALE }]);
+    const network = fakeFetch({ [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: SALE_PAGE } });
+    const { deps, named } = fakeDeps({ fetch: network.fetch });
+    deps.validate = () => {
+      throw new Error('boom');
+    };
+    const result = await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, deps);
+    expect(result).toBe('ok');
+    expect(named('validation_failed')[0]?.fields).toMatchObject({ slug: 'shop' });
+    expect(named('validation_failed')[0]?.level).toBe('warn');
+    expect(await rows(t.db, 'SELECT result FROM run_results')).toEqual([{ result: 'ok' }]);
+  });
+
+  it('with MEASURE_CPU on the probe runs and the page is not judged', async () => {
+    const { named } = await runStore({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: SALE_PAGE } }, { MEASURE_CPU: 'true' });
+    expect(named('page_validated')).toEqual([]);
   });
 });
 

@@ -19,7 +19,7 @@ saleaway/
 │       │   ├── classify.ts  validate.ts
 │       │   ├── extract/ shopify-json.ts  html.ts  structured-data.ts  index.ts
 │       │   └── rank.ts  visibility.ts  biggest-discounts.ts  hidden-stores.ts
-│       ├── tests/fixtures/         # small trimmed page samples, not whole pages
+│       ├── tests/fixtures/         # small trimmed page samples, not whole pages (pages/ with index.json, robots/)
 │       └── package.json
 ├── db/
 │   ├── migrations/                 # 0001_init.sql, then one file per later story

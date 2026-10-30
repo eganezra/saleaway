@@ -1,4 +1,4 @@
-import type { Logger } from '@saleaway/core';
+import type { Logger, PageInput, ValidationResult } from '@saleaway/core';
 
 /** The queue message: process one store inside one run. */
 export interface StoreJob {
@@ -27,4 +27,6 @@ export interface Deps {
   fetch: FetchFn;
   /** Only the CPU probe needs it; production passes `() => new HTMLRewriter()`. */
   createRewriter?: () => RewriterLike;
+  /** Judges a fetched sale page. Production leaves it unset (the real `validateSalePage` runs); tests set a stub. */
+  validate?: (page: PageInput) => ValidationResult;
 }

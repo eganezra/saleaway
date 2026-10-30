@@ -31,13 +31,13 @@ describe('productsJsonUrl', () => {
 });
 
 describe('the probe switch (MEASURE_CPU)', () => {
-  it('off by default: the page body is never read and nothing is logged', async () => {
+  it('off by default: no cpu_probe is logged, and the page is read only to be judged (Story 3.3)', async () => {
     await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
     const network = fakeFetchWithTrackedBody(SALE, { [ROBOTS]: OK_ROBOTS });
-    const { deps, entries } = fakeDeps({ fetch: network.fetch, createRewriter: fakeRewriter({ a: 3 }) });
+    const { deps, entries, named } = fakeDeps({ fetch: network.fetch, createRewriter: fakeRewriter({ a: 3 }) });
     await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, deps);
-    expect(network.stats).toEqual({ pulls: 0, cancelled: true });
-    expect(entries).toEqual([]);
+    expect(named('cpu_probe')).toEqual([]);
+    expect(entries.map((e) => e.message)).toEqual(['page_validated']);
   });
 
   it('any value other than the exact text "true" leaves it off', async () => {
@@ -46,8 +46,10 @@ describe('the probe switch (MEASURE_CPU)', () => {
       await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
       await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
       const network = fakeFetchWithTrackedBody(SALE, { [ROBOTS]: OK_ROBOTS });
-      await processStore(makeEnv(t.db, fakeQueue().queue, { MEASURE_CPU: value }), { runId: 1, retailerId: 1 }, fakeDeps({ fetch: network.fetch, createRewriter: fakeRewriter() }).deps);
-      expect(network.stats.pulls, value).toBe(0);
+      const { deps, named } = fakeDeps({ fetch: network.fetch, createRewriter: fakeRewriter() });
+      await processStore(makeEnv(t.db, fakeQueue().queue, { MEASURE_CPU: value }), { runId: 1, retailerId: 1 }, deps);
+      expect(named('cpu_probe'), value).toEqual([]);
+      expect(named('page_validated'), value).toHaveLength(1);
     }
   });
 
@@ -63,7 +65,7 @@ describe('the probe switch (MEASURE_CPU)', () => {
     expect(named('cpu_probe')).toEqual([
       { level: 'info', message: 'cpu_probe', fields: { slug: 'bash-tfg', bytes: 1234, anchors: 3, scripts: 2, spans: 5, priceElements: 4, jsonLd: 1, products: 0, comparePriced: 0 } },
     ]);
-    // only the one line, and no field holds page text
+    // only the one line (the page is not also judged), and no field holds page text
     expect(entries).toHaveLength(1);
     expect(JSON.stringify(entries)).not.toContain('xxxx');
   });

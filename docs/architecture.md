@@ -497,6 +497,8 @@ A record is hidden when it is `ended`, when its freshness time is older than 72 
 
 **Fetch results (Story 3.2):** the status mapping is `401`, `403`, `429` and `503` blocked; `404` and `410` not found; any other status outside 2xx an error; a 2xx on another site or the home page `redirected_away`; a 2xx on a store whose spreadsheet status is `verified_js_shell` `js_only`; any other 2xx `ok`. A `robots.txt` refusal is recorded as `blocked` (text `robots_disallow`) and an unreachable `robots.txt` as an error (`robots_unreachable`); in both cases the page is not requested. The text saved in `run_results.error` is one of `robots_disallow`, `robots_unreachable`, `unsafe_url`, `timeout`, `network`, `too_many_redirects`, `unsafe_redirect`, `bad_redirect`, `http_<status>` or `redirected_to_<host>`.
 
+**Validation (Story 3.3, 2026-10-30).** A page classified `ok` is read (at most 3 MiB) and judged by `validateSalePage` in `packages/core`, which returns a verdict, a reason and counts, never page text. The four verdicts: `valid` (discounted products: at least two discount signals, that is percentage-off labels, was prices or structured price fields, and at least two prices), `ended` (the page is up but there is no sale: redirected away, an error page, an empty listing, or priced products with no discount signal), `blocked` (a bot challenge or a login page: the same as a blocked fetch) and `unverifiable` (the page cannot be judged: a JavaScript application whose products are not in the HTML, a page cut at the size limit, or nothing recognisable). The rules apply in this order and the first match decides: redirected away, challenge, login, error page, discounts found, JavaScript shell, empty listing, no discounts, unreadable; the last two ended verdicts are never given to a truncated page. A page is called "not a sale" only on positive evidence. `recordEffect(verdict)` says what the sale record becomes (applied by Story 3.5): `valid` is `active` and `content_verified`; `ended` is `ended`; `blocked` keeps the last good record, as for a blocked fetch; `unverifiable` is `active` and `url_verified`, shown as "On sale". Until Story 3.5 the verdict is only logged (`page_validated`: the slug, verdict, reason, bytes, truncated and six counts).
+
 ### Page view
 
 ```mermaid
@@ -759,6 +761,8 @@ apps/pipeline/src/
 
 **Built in Story 3.1 (2026-10-29):** `index.ts` (wiring only), `handlers.ts` (the three entry points), `start-run.ts` (no purge: retention is Story 4.6), `finalize-run.ts` (closes every open run), `repo.ts` (all pipeline SQL), `auth.ts` (`isAuthorized`), `admin-run.ts` (`POST /admin/run`), `config.ts` (`isPaused`), `log.ts`, `types.ts` and `env.d.ts`. `process-store.ts` is a **placeholder** that records `skipped_manual` for manual stores and `error` with `fetcher_not_built_yet` for the others, until Stories 3.2 to 3.5 build the fetch, classify, validate, extract and save steps. **Built in Story 3.2 (2026-10-30):** `fetcher.ts` (`fetchPage`: manual redirects, timeout, user-agent, https only), `robots.ts` (`checkRobots`), `probe.ts` (a CPU measurement stand-in, switched on only by `MEASURE_CPU=true`) and the real `process-store.ts` (robots, fetch, classify, record; it reads no page content and writes no sale records). `Deps` gained `fetch` (always passed as a wrapper, because the bare global fails with "Illegal invocation" in Workers) and an optional `createRewriter` (`HTMLRewriter` does not exist in Node). The pure rules are in `packages/core` (`url-safety.ts`, `classify.ts`, `robots.ts`). `POST /admin/run?store=<slug>` runs one store. `alert.ts` does not exist yet.
 
+**Built in Story 3.3 (2026-10-30):** `validate.ts` in `packages/core` (`validateSalePage`, `recordEffect`, the verdict and signal types) and its samples in `packages/core/tests/fixtures/pages/` (a manifest `index.json` and 13 trimmed pages, each at most 16 KiB). In the pipeline `readLimited(response, maxBytes)` moved from `robots.ts` to `fetcher.ts` and returns `{ text, bytes, truncated }` (or null if the read fails); `MAX_PAGE_BYTES` is 3 MiB. `process-store.ts` reads the body of a plain `ok` page (not a `js_only`, blocked, not found, redirected or error answer, and not when `MEASURE_CPU` is on), judges it with `deps.validate ?? validateSalePage`, and logs one `page_validated` line; a failed read (`page_read_failed`) or a failing validator (`validation_failed`) is logged and never stops the store. Nothing about the verdict is saved yet: the `run_results` row is unchanged and `sale_records` is not written (Story 3.5).
+
 #### Function Template
 
 ```typescript
@@ -904,7 +908,7 @@ saleaway/
 │       │   ├── classify.ts  validate.ts
 │       │   ├── extract/ shopify-json.ts  html.ts  structured-data.ts  index.ts
 │       │   └── rank.ts  visibility.ts  biggest-discounts.ts  hidden-stores.ts
-│       ├── tests/fixtures/         # small trimmed page samples, not whole pages
+│       ├── tests/fixtures/         # small trimmed page samples, not whole pages (pages/ with index.json, robots/)
 │       └── package.json
 ├── db/
 │   ├── migrations/                 # 0001_init.sql, then one file per later story
