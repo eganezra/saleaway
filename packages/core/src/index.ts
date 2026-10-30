@@ -20,3 +20,5 @@ export { isSafeFetchUrl, resolveRedirect } from './url-safety';
 export { classifyResponse, redirectedAway } from './classify';
 export type { FetchOutcome } from './classify';
 export { isAllowedByRobots } from './robots';
+export { parseHiddenStores } from './hidden-stores';
+export type { HiddenStore, HiddenStores } from './hidden-stores';

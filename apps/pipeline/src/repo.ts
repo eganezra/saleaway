@@ -47,12 +47,16 @@ export async function getRetailerForJob(db: D1Database, retailerId: number): Pro
     : null;
 }
 
-/** The id of a store that a normal run would process (visible, https sale URL), or null. */
+/**
+ * The id of a store that has an https sale URL, or null. Visibility is **not** checked: a store hidden for
+ * launch (Story 3.9) can still be fetched by hand with `POST /admin/run?store=<slug>`, so it can be tested
+ * again. A normal run uses `getVisibleRetailerIds` and skips hidden stores.
+ */
 export async function findRunnableRetailerIdBySlug(db: D1Database, slug: string): Promise<number | null> {
   const row = await db
     .prepare(
       `SELECT id FROM retailers
-       WHERE slug = ?1 AND is_visible = 1 AND substr(sale_url, 1, 8) = 'https://'`,
+       WHERE slug = ?1 AND substr(sale_url, 1, 8) = 'https://'`,
     )
     .bind(slug)
     .first<{ id: number }>();

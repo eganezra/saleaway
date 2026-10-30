@@ -73,3 +73,14 @@ ON CONFLICT(slug) DO UPDATE SET
 
   return `${statements.join('\n\n')}\n`;
 }
+
+/**
+ * Sets `is_visible` for the named stores (Story 3.9): one statement that changes only `is_visible` and
+ * `updated_at`, and only the rows with these slugs. Running it twice gives the same result.
+ */
+export function buildVisibilitySql(slugs: readonly string[], visible: 0 | 1): string {
+  if (slugs.length === 0) throw new Error('buildVisibilitySql needs at least one slug');
+  if (visible !== 0 && visible !== 1) throw new Error('visible must be 0 or 1');
+  const list = slugs.map(sqlString).join(', ');
+  return `UPDATE retailers SET is_visible = ${sqlInt(visible)}, updated_at = ${UPDATED_AT_NOW} WHERE slug IN (${list});`;
+}

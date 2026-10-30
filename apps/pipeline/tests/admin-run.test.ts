@@ -106,6 +106,17 @@ describe('POST /admin/run?store=<slug>', () => {
     expect(queue.allMessages()).toEqual([{ body: { runId: 1, retailerId: 2 }, delaySeconds: 0 }]);
   });
 
+  it('runs a store that is hidden for launch (Story 3.9), so it can be tested again; a full run still skips it', async () => {
+    await seedRetailers(t.db, [{ id: 4, isVisible: 0 }]);
+    const one = await call(post(TOKEN, '/admin/run?store=store-4'));
+    expect(one.response.status).toBe(200);
+    expect(await one.response.json()).toEqual({ ok: true, runId: 1, storesTotal: 1 });
+    expect(one.queue.allMessages()).toEqual([{ body: { runId: 1, retailerId: 4 }, delaySeconds: 0 }]);
+    const full = await call(post(TOKEN));
+    expect(await full.response.json()).toEqual({ ok: true, runId: 2, storesTotal: 3 });
+    expect(full.queue.allMessages().map((m) => (m.body as { retailerId: number }).retailerId)).not.toContain(4);
+  });
+
   it('rejects a store that is not a slug with 400 bad_store, and starts nothing', async () => {
     for (const store of ['', 'Store-2', 'store_2', 'store 2', "store-2';DROP", '../x', 'a'.repeat(5) + '%00']) {
       const { response, queue } = await call(post(TOKEN, `/admin/run?store=${encodeURIComponent(store)}`));
@@ -116,9 +127,9 @@ describe('POST /admin/run?store=<slug>', () => {
     expect(await runs()).toEqual([]);
   });
 
-  it('answers 404 store_not_found for a store that is unknown, hidden, or has no https URL', async () => {
-    await seedRetailers(t.db, [{ id: 4, isVisible: 0 }, { id: 5, saleUrl: null }, { id: 6, saleUrl: 'http://insecure.example/sale' }]);
-    for (const store of ['no-such-store', 'store-4', 'store-5', 'store-6']) {
+  it('answers 404 store_not_found for a store that is unknown or has no https URL', async () => {
+    await seedRetailers(t.db, [{ id: 5, saleUrl: null }, { id: 6, saleUrl: 'http://insecure.example/sale' }]);
+    for (const store of ['no-such-store', 'store-5', 'store-6']) {
       const { response, queue } = await call(post(TOKEN, `/admin/run?store=${store}`));
       expect(response.status, store).toBe(404);
       expect(((await response.json()) as { error: { code: string } }).error.code, store).toBe('store_not_found');

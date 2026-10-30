@@ -35,7 +35,7 @@ export async function handleAdminRun(
     if (slug !== null) {
       if (!/^[a-z0-9-]+$/.test(slug)) return apiError(400, 'bad_store', 'The store must be a slug such as bash-tfg.', deps);
       const found = await findRunnableRetailerIdBySlug(env.DB, slug);
-      if (found === null) return apiError(404, 'store_not_found', 'No visible store has that slug.', deps);
+      if (found === null) return apiError(404, 'store_not_found', 'No store with an https sale page has that slug.', deps);
       retailerId = found;
     }
     const { runId, storesTotal } = await startRun(env, 'manual', deps, retailerId === undefined ? {} : { retailerId });

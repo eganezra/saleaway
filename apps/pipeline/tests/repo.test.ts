@@ -90,7 +90,7 @@ describe('insertRun and getRetailerForJob', () => {
 });
 
 describe('findRunnableRetailerIdBySlug', () => {
-  it('finds a visible store with an https sale URL by its slug, and nothing else', async () => {
+  it('finds a store with an https sale URL by its slug, hidden or not, and nothing else', async () => {
     await seedRetailers(t.db, [
       { id: 1 },
       { id: 2, isVisible: 0 },
@@ -99,9 +99,15 @@ describe('findRunnableRetailerIdBySlug', () => {
       { id: 5, saleUrl: 'HTTPS://UPPER.example/sale' },
     ]);
     expect(await findRunnableRetailerIdBySlug(t.db, 'store-1')).toBe(1);
-    for (const slug of ['store-2', 'store-3', 'store-4', 'store-5', 'store-999', '']) {
+    expect(await findRunnableRetailerIdBySlug(t.db, 'store-2')).toBe(2); // hidden for launch (Story 3.9): still found
+    for (const slug of ['store-3', 'store-4', 'store-5', 'store-999', '']) {
       expect(await findRunnableRetailerIdBySlug(t.db, slug), slug).toBeNull();
     }
+  });
+
+  it('does not change what a normal run processes: hidden stores are still skipped there', async () => {
+    await seedRetailers(t.db, [{ id: 1 }, { id: 2, isVisible: 0 }]);
+    expect(await getVisibleRetailerIds(t.db)).toEqual([1]);
   });
 });
 

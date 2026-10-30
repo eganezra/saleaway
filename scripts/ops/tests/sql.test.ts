@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SeedData } from '@saleaway/core';
-import { buildSeedSql, sqlInt, sqlNullable, sqlString } from '../src/sql';
+import { buildSeedSql, buildVisibilitySql, sqlInt, sqlNullable, sqlString } from '../src/sql';
 
 describe('sqlString', () => {
   it('wraps text in single quotes', () => {
@@ -104,5 +104,27 @@ describe('buildSeedSql', () => {
   it('refuses a value with a control character', () => {
     const bad: SeedData = { ...seed, retailers: [{ ...seed.retailers[0]!, name: 'Bad\nName' }] };
     expect(() => buildSeedSql(bad)).toThrow(/control character/);
+  });
+});
+
+describe('buildVisibilitySql', () => {
+  it('hides the named stores with one statement that touches only is_visible and updated_at', () => {
+    expect(buildVisibilitySql(['dis-chem', 'edgars'], 0)).toBe(
+      "UPDATE retailers SET is_visible = 0, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE slug IN ('dis-chem', 'edgars');",
+    );
+  });
+  it('shows them again with 1', () => {
+    expect(buildVisibilitySql(['edgars'], 1)).toBe(
+      "UPDATE retailers SET is_visible = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE slug IN ('edgars');",
+    );
+  });
+  it('doubles quotes in a slug and rejects a control character', () => {
+    expect(buildVisibilitySql(["a'b"], 0)).toContain("IN ('a''b')");
+    expect(() => buildVisibilitySql(['a\nb'], 0)).toThrow(/control character/);
+  });
+  it('rejects an empty list and a value other than 0 or 1', () => {
+    expect(() => buildVisibilitySql([], 0)).toThrow(/at least one slug/);
+    expect(() => buildVisibilitySql(['edgars'], 2 as unknown as 0)).toThrow(/0 or 1/);
+    expect(() => buildVisibilitySql(['edgars'], true as unknown as 0)).toThrow(/0 or 1/);
   });
 });

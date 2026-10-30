@@ -72,6 +72,8 @@ A queue consumer invocation that checked `robots.txt`, fetched the page and stre
 
 **What the operator should decide** (these are decisions, not done yet): how to treat the 34 blocked stores. Options: give them the `manual` method and enter percentages by hand (Story 4.1); try the fallback runner on GitHub Actions to see whether its addresses are treated differently (Story 3.8, a test is needed first); ask the biggest retailers to allow the user-agent; or hide them at launch. This list feeds Story 3.6 and Story 4.3.
 
+**Decision (2026-10-30, Story 3.9):** the user ruled out contacting retailers and chose to **hide the blocked stores for launch**. The 34 blocked stores and one more listing on the same website (`ackermans-baby-kids-toys`, which answered 500 from the site that blocks `ackermans`) are listed in [`hidden-stores.json`](data/hidden-stores.json) and hidden with `pnpm ops:hide`. The site and the daily run now use 57 stores (53 that answer, 3 `manual`, and `benji-moon`, an error that is a data fix). The hidden stores come back one by one in Story 5.4; Story 4.3's script, run from a home connection, gives a free test of another network.
+
 ### All 92 stores in this run
 
 | # | Store | Site | Method | Result | HTTP | Reason | ms |

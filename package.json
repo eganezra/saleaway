@@ -16,7 +16,8 @@
     "deploy:all": "pnpm deploy:web && pnpm deploy:pipeline",
     "db:migrate:local": "pnpm --filter @saleaway/web exec wrangler d1 migrations apply saleaway --local",
     "db:migrate:remote": "pnpm --filter @saleaway/web exec wrangler d1 migrations apply saleaway --remote",
-    "ops:seed": "pnpm --filter @saleaway/ops exec tsx src/seed.ts"
+    "ops:seed": "pnpm --filter @saleaway/ops exec tsx src/seed.ts",
+    "ops:hide": "pnpm --filter @saleaway/ops exec tsx src/hide.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

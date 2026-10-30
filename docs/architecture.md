@@ -340,7 +340,7 @@ Saleaway has no public API. The only HTTP endpoints are internal, so no OpenAPI 
 | `GET /` and static pages | web | none | Server-rendered pages, edge-cached |
 | `POST /api/click` | web | none, rate-limited by a sampling switch | Records a click-out for a store slug (FR19) |
 | `GET /health` | web | none | Canary: returns `ok` (Story 1.1) |
-| `POST /admin/run` | pipeline | `Authorization: Bearer <ADMIN_TOKEN>`, compared in constant time | Start a manual pipeline run (Story 3.1, AC6). `?store=<slug>` runs one store only (Story 3.2): 400 `bad_store` for a bad slug, 404 `store_not_found` for an unknown, hidden or non-https store |
+| `POST /admin/run` | pipeline | `Authorization: Bearer <ADMIN_TOKEN>`, compared in constant time | Start a manual pipeline run (Story 3.1, AC6). `?store=<slug>` runs one store only (Story 3.2): 400 `bad_store` for a bad slug, 404 `store_not_found` for an unknown or non-https store. A store hidden for launch is accepted, so it can be tested again (Story 3.9) |
 
 `/api/click` validates that the slug exists and increments the day's counter. A `CLICK_SAMPLE_RATE` setting (default 1.0) can reduce writes if D1's 100,000 rows-written-per-day limit is at risk.
 
@@ -384,9 +384,9 @@ Saleaway has no public API. The only HTTP endpoints are internal, so no OpenAPI 
 
 ### Operator CLI (`scripts/ops`)
 
-**Responsibility:** the commands in Stories 1.3, 4.1, 4.2 and 4.3.
+**Responsibility:** the commands in Stories 1.3, 3.9, 4.1, 4.2 and 4.3.
 
-**Key Interfaces:** `pnpm ops:seed`, `pnpm ops:override`, `pnpm ops:health`, `pnpm ops:check-urls`, `pnpm ops:run` (calls `/admin/run`).
+**Key Interfaces:** `pnpm ops:seed`, `pnpm ops:hide` (hides or shows the stores in `docs/data/hidden-stores.json`), `pnpm ops:override`, `pnpm ops:health`, `pnpm ops:check-urls`, `pnpm ops:run` (calls `/admin/run`).
 
 **Dependencies:** Wrangler (`wrangler d1 execute --remote`), authenticated by your Cloudflare login.
 
@@ -632,7 +632,7 @@ The seed script (Story 1.3) must handle these facts about the spreadsheet:
 - **Store slugs.** `slugify(Store)`: lowercase, accents and apostrophes removed, any other run of non-alphanumeric characters becomes one `-` (`Hirsch's` gives `hirschs`, `Estée Lauder SA` gives `estee-lauder-sa`). The first row keeps the plain slug, a later row with the same slug gets `-<category-slug>`, and a slug still taken is an error.
 - **`Alt` rank** becomes 100 plus the row's 1-based position within its category (Side Step is the 11th Sport row, so 111).
 - **URLs, platform and visibility.** A cell that does not start with `https://` (for example `— (not found)`) becomes `NULL` for `sale_url` and `black_friday_url`. `is_visible` is 1 exactly when `sale_url` is set, so Cielo and Builders are hidden although their status is `search_only`. `platform` keeps the spreadsheet text unchanged. `black_friday_verified` is not set by the seed (it stays 0). The manual stores are matched by homepage host: `amazon.co.za`, `game.co.za`, `checkers.co.za`.
-- **Columns the seed only sets on first insert:** `is_visible`, `extraction_method` and `black_friday_verified`. A re-seed never changes them, so a hidden store whose sale URL is found later stays hidden until the operator updates `is_visible`.
+- **Columns the seed only sets on first insert:** `is_visible`, `extraction_method` and `black_friday_verified`. A re-seed never changes them, so a hidden store whose sale URL is found later stays hidden until the operator updates `is_visible`. Hidden stores are not fetched by the daily run. The stores hidden because the pipeline is blocked (Story 3.9, 35 stores on 2026-10-30), with the reason for each, are listed in `docs/data/hidden-stores.json`; `pnpm ops:hide` hides or shows them (`--undo`), and `POST /admin/run?store=<slug>` can still fetch one.
 - **First seed result (Story 1.3, 2026-10-29, local and live):** 10 categories and 106 retailers, 92 visible and 14 hidden; 84 `html`, 19 `shopify_json`, 3 `manual`; 68 Black Friday URLs. The first run writes 338 rows (index rows included) and a re-run about 222, far below the 100,000 rows a day Free limit.
 
 ## Frontend Architecture
@@ -899,14 +899,14 @@ saleaway/
 │       │   ├── types.ts  logger.ts  url-safety.ts
 │       │   ├── classify.ts  validate.ts
 │       │   ├── extract/ shopify-json.ts  html.ts  structured-data.ts  index.ts
-│       │   └── rank.ts  visibility.ts  biggest-discounts.ts
+│       │   └── rank.ts  visibility.ts  biggest-discounts.ts  hidden-stores.ts
 │       ├── tests/fixtures/         # small trimmed page samples, not whole pages
 │       └── package.json
 ├── db/
 │   ├── migrations/                 # 0001_init.sql, then one file per later story
 │   └── seed/                       # seed script reads docs/data/retailers-seed.tsv
-├── scripts/ops/                    # seed, override, health, check-urls, run
-├── docs/                           # brief, prd, front-end-spec, architecture, data
+├── scripts/ops/                    # seed, hide (Story 3.9), override, health, check-urls, run
+├── docs/                           # brief, prd, front-end-spec, architecture, data (incl. hidden-stores.json)
 ├── .env.example                    # variable names only, no values
 ├── pnpm-workspace.yaml  package.json  tsconfig.base.json
 └── README.md                       # run, test, deploy, pause the pipeline, rollback

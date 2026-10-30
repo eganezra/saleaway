@@ -19,7 +19,7 @@ pnpm ops:seed --local   # first time only: load the stores (see "Database" below
 pnpm dev                # starts the web app at http://localhost:4321
 ```
 
-Then open http://localhost:4321 for the store list: one card per visible store (92 after seeding), each opening the store's sale page in a new tab. The page is deliberately plain for now. Epic 2 adds categories, discounts and the real design. Also try http://localhost:4321/health, which returns `ok` and writes one structured JSON log line.
+Then open http://localhost:4321 for the store list: one card per visible store (92 after seeding, 57 once the stores that block the pipeline are hidden, see [Hidden stores](#hidden-stores)), each opening the store's sale page in a new tab. The page is deliberately plain for now. Epic 2 adds categories, discounts and the real design. Also try http://localhost:4321/health, which returns `ok` and writes one structured JSON log line.
 
 If the database cannot be read, the page answers **503** with "Sales are loading, check back soon." and logs one `home_failed` line with the real error. If the database works but has no visible stores, it shows the same message with a normal 200. The message never contains technical detail.
 
@@ -78,6 +78,23 @@ pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --local --command 
 Required: `slug`, `name`, `homepage_url`, `category_id`. The rest has defaults (rank 999, `extraction_method` `html`, visible). Category slugs are in `db/seed/categories.json`. Other changes are plain updates, for example `UPDATE retailers SET is_visible = 0 WHERE slug = 'example-store'` hides a store, and `DELETE FROM retailers WHERE slug = 'example-store'` removes a test row.
 
 `wrangler d1 execute --command` takes plain SQL with no bound parameters, so **check every value before you paste it in**: the slug against `^[a-z0-9-]+$`, URLs starting with `https://` and without quotes or spaces, numbers as plain integers in range, and any single quote inside text written twice (`Hirsch''s`). A store added by hand with a slug that is not in the seed file is never touched by the seed.
+
+### Hidden stores
+
+On 2026-10-30 the first fetch from the deployed Worker found that 34 of the 89 stores fetched answer it with 403 or 429 (`docs/fetch-spike.md`). Contacting retailers is ruled out and the pipeline never tries to hide who it is, so those stores, and one more listing on the same website, are **hidden for launch**: not fetched by the daily run and not shown on the site. The decision is a recorded list, [`docs/data/hidden-stores.json`](docs/data/hidden-stores.json) (the slug of each store, a reason code and the date), and **not a rule**: blocking can change from day to day, so nothing hides or shows a store by itself.
+
+```bash
+pnpm ops:hide --local                  # hide every store on the list in the local database
+pnpm ops:hide --remote                 # the same in the live database (Wrangler asks before it writes, when it can)
+pnpm ops:hide --undo --remote          # show them all again
+pnpm ops:hide --undo --remote --slug dis-chem   # show one store only (it must be on the list)
+```
+
+- **It changes nothing else.** One `UPDATE` sets `is_visible` (and `updated_at`) for the listed stores. Running it twice gives the same result, and re-running the seed never undoes it. The command reads the list, checks it, makes the change, then asks the database whether it really happened and exits with an error if not. The result is 92 visible stores before and **57 after**, with at least 3 stores in every category.
+- **To test a hidden store again:** `POST /admin/run?store=<slug>` (see "Run it by hand"). If the result is `ok`, show it with `pnpm ops:hide --undo --remote --slug <slug>` and delete its entry from the list in the same commit.
+- **Showing a store is not fixing it.** `--undo` only makes the store visible. It keeps its extraction method, so the nightly run fetches it again, and a store that still blocks would be blocked again. Use `--undo` only for a store that has just answered. To show a store that still blocks with hand-entered values, it has to be set to the `manual` method with an override (Story 4.1, criterion 8, and Story 5.4).
+- **`--undo` shows every store you name**, including one an operator had hidden for another reason.
+- **Caching:** the home page is not cached yet, so a change shows at once. Once Story 2.4 adds caching, allow about 10 minutes.
 
 ### Recovery
 
@@ -143,9 +160,9 @@ The pipeline Worker (`saleaway-pipeline`) runs the daily job. **Today it fetches
 | Start a run | every day at **03:00 UTC** (05:00 South African time) |
 | Close the run (record the totals) | every day at **03:45 UTC** (05:45 South African time) |
 
-- **How a run works:** the start cron records a run and puts one message per visible store on the queue `saleaway-fetch`, each delayed a bit more than the one before (`STAGGER_SECONDS`, 15 by default, so about 23 minutes for 92 stores). **Keep (number of stores - 1) x `STAGGER_SECONDS` under about 40 minutes** (26 seconds or less for 92 stores): the close cron runs 45 minutes after the start, and a run that is still going then is closed with the missing stores counted as a gap. A queue consumer handles one store per message and records one result in `run_results`. A store that fails is retried once and then recorded as an `error`, so one store never stops the others. The close cron writes the finish time and the totals (`stores_ok`, `stores_failed`) into `pipeline_runs`. Each store's result is one of `ok`, `js_only` (the page is known to load its products with JavaScript, so it can only be checked by address), `blocked`, `not_found`, `redirected_away`, `error`, or `skipped_manual` (a manual store is never fetched).
+- **How a run works:** the start cron records a run and puts one message per visible store on the queue `saleaway-fetch`, each delayed a bit more than the one before (`STAGGER_SECONDS`, 15 by default, so about 23 minutes for 92 stores and about 14 for the 57 visible at launch). **Keep (number of stores - 1) x `STAGGER_SECONDS` under about 40 minutes** (26 seconds or less for 92 stores): the close cron runs 45 minutes after the start, and a run that is still going then is closed with the missing stores counted as a gap. A queue consumer handles one store per message and records one result in `run_results`. A store that fails is retried once and then recorded as an `error`, so one store never stops the others. The close cron writes the finish time and the totals (`stores_ok`, `stores_failed`) into `pipeline_runs`. Each store's result is one of `ok`, `js_only` (the page is known to load its products with JavaScript, so it can only be checked by address), `blocked`, `not_found`, `redirected_away`, `error`, or `skipped_manual` (a manual store is never fetched).
 - **Settings:** the variables `FINALIZE_CRON`, `STAGGER_SECONDS`, `PIPELINE_ENABLED` and `MEASURE_CPU` (leave it `false`: it is a measurement switch, see below) are in `apps/pipeline/wrangler.jsonc`. The only secret is `ADMIN_TOKEN` (set with `wrangler secret put ADMIN_TOKEN`, never in the repository, kept in your password manager).
-- **Queue allowance:** the Free plan includes 10,000 queue operations a day. A delivered message costs about 3, so a run of 92 stores uses about 280, plus one more for each retry.
+- **Queue allowance:** the Free plan includes 10,000 queue operations a day. A delivered message costs about 3, so a run of 92 stores uses about 280 (about 175 for the 57 visible at launch), plus one more for each retry.
 
 ### Run it by hand
 
@@ -155,7 +172,7 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" https://saleaway-pipeline.<
 # 200 {"ok":true,"runId":12,"storesTotal":92}   401 wrong or missing token   409 the pipeline is paused
 ```
 
-A manual run starts a **new** run and fetches **every store again**, which breaks the "one page fetch per store per day" politeness rule, so do it rarely. To test one store, add `?store=<slug>` (for example `.../admin/run?store=bash-tfg`): that runs only that store. The slug must be the store's slug from the `retailers` table; a bad slug gives 400 and an unknown, hidden or non-https store gives 404. A manual run is closed by the next 03:45 UTC close cron.
+A manual run starts a **new** run and fetches **every store again**, which breaks the "one page fetch per store per day" politeness rule, so do it rarely. To test one store, add `?store=<slug>` (for example `.../admin/run?store=bash-tfg`): that runs only that store. The slug must be the store's slug from the `retailers` table; a bad slug gives 400 and an unknown or non-https store gives 404. A **hidden** store is accepted, so it can be tested again before it is shown (see [Hidden stores](#hidden-stores)). A manual run is closed by the next 03:45 UTC close cron.
 
 ### How the fetcher behaves (and what it will never do)
 

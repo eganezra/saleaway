@@ -38,9 +38,9 @@
 
 ## Operator CLI (`scripts/ops`)
 
-**Responsibility:** the commands in Stories 1.3, 4.1, 4.2 and 4.3.
+**Responsibility:** the commands in Stories 1.3, 3.9, 4.1, 4.2 and 4.3.
 
-**Key Interfaces:** `pnpm ops:seed`, `pnpm ops:override`, `pnpm ops:health`, `pnpm ops:check-urls`, `pnpm ops:run` (calls `/admin/run`).
+**Key Interfaces:** `pnpm ops:seed`, `pnpm ops:hide` (hides or shows the stores in `docs/data/hidden-stores.json`), `pnpm ops:override`, `pnpm ops:health`, `pnpm ops:check-urls`, `pnpm ops:run` (calls `/admin/run`).
 
 **Dependencies:** Wrangler (`wrangler d1 execute --remote`), authenticated by your Cloudflare login.
 

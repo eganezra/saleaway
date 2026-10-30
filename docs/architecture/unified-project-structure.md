@@ -18,14 +18,14 @@ saleaway/
 │       │   ├── types.ts  logger.ts  url-safety.ts
 │       │   ├── classify.ts  validate.ts
 │       │   ├── extract/ shopify-json.ts  html.ts  structured-data.ts  index.ts
-│       │   └── rank.ts  visibility.ts  biggest-discounts.ts
+│       │   └── rank.ts  visibility.ts  biggest-discounts.ts  hidden-stores.ts
 │       ├── tests/fixtures/         # small trimmed page samples, not whole pages
 │       └── package.json
 ├── db/
 │   ├── migrations/                 # 0001_init.sql, then one file per later story
 │   └── seed/                       # seed script reads docs/data/retailers-seed.tsv
-├── scripts/ops/                    # seed, override, health, check-urls, run
-├── docs/                           # brief, prd, front-end-spec, architecture, data
+├── scripts/ops/                    # seed, hide (Story 3.9), override, health, check-urls, run
+├── docs/                           # brief, prd, front-end-spec, architecture, data (incl. hidden-stores.json)
 ├── .env.example                    # variable names only, no values
 ├── pnpm-workspace.yaml  package.json  tsconfig.base.json
 └── README.md                       # run, test, deploy, pause the pipeline, rollback
