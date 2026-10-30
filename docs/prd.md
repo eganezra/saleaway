@@ -252,7 +252,7 @@ so that I can decide which sale to visit.
 #### Acceptance Criteria
 
 1. A store row shows the store name, a bold "Up to X% off" when a percentage is known, or "On sale" when not (FR13).
-2. A row shows "Checked today" or "Checked N days ago" (FR15).
+2. A row shows "Checked today" or "Checked N days ago" (FR15), or "Not checked yet" when the store has never been checked.
 3. Rows and cards are text-only. No retailer images, logos or product content (NFR7).
 4. Rows meet WCAG AA contrast, are keyboard-focusable, and have a clear tap target of at least 44px (NFR9).
 5. Layout is a single column on small phones and a grid on larger screens.
