@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STALE_AFTER_HOURS, isVisible, resolveStore } from '../src/visibility';
+import { STALE_AFTER_HOURS, isOverrideActive, isVisible, resolveStore } from '../src/visibility';
 import type { StoreInput, VisibilityOverride, VisibilityRecord } from '../src/visibility';
 
 const NOW = new Date('2026-10-30T12:00:00Z');
@@ -88,24 +88,43 @@ describe('AC2: staleness', () => {
     const view = resolveStore(store({ createdAt: ago(1), record: record({ lastValidatedAt: ago(100) }) }), NOW);
     expect(view).toMatchObject({ visible: false, hiddenBecause: 'stale', freshAt: ago(100) });
   });
-  it('counts an active override as a fresh check, whether it sets a percentage or only a URL', () => {
+  it('keeps a store fresh while an override is active, whether it sets a percentage or only a URL', () => {
     const old = record({ lastValidatedAt: ago(5 * 24) });
     const withPercent = resolveStore(store({ record: old, override: override({ discountPercent: 30, createdAt: ago(1) }) }), NOW);
-    expect(withPercent).toMatchObject({ visible: true, freshAt: ago(1) });
+    expect(withPercent).toMatchObject({ visible: true, freshAt: ago(0) });
     const urlOnly = resolveStore(
       store({ record: old, override: override({ saleUrl: 'https://shop.example/outlet', createdAt: ago(1) }) }),
       NOW,
     );
-    expect(urlOnly).toMatchObject({ visible: true, freshAt: ago(1) });
+    expect(urlOnly).toMatchObject({ visible: true, freshAt: ago(0) });
+  });
+  it('keeps a never-validated store shown for as long as its override is active, however old the override is (Story 4.1)', () => {
+    const created = ago(24 * 20); // a manual store: no record, added 20 days ago
+    const oldOverride = override({ discountPercent: 30, createdAt: ago(24 * 10) });
+    expect(resolveStore(store({ record: null, createdAt: created, override: oldOverride }), NOW).visible).toBe(true);
+    // an override with no expiry, and one that expires in the future, both keep it shown
+    expect(resolveStore(store({ record: null, createdAt: created, override: { ...oldOverride, expiresAt: null } }), NOW).visible).toBe(true);
+    expect(resolveStore(store({ record: null, createdAt: created, override: { ...oldOverride, expiresAt: inFuture(48) } }), NOW).visible).toBe(true);
+    // once it has expired the store is judged as before: stale
+    expect(resolveStore(store({ record: null, createdAt: created, override: { ...oldOverride, expiresAt: ago(1) } }), NOW)).toMatchObject({ visible: false, hiddenBecause: 'stale' });
+    // and the same store without an override is stale
+    expect(resolveStore(store({ record: null, createdAt: created, override: null }), NOW)).toMatchObject({ visible: false, hiddenBecause: 'stale' });
+  });
+  it('an active override does not undo the other rules: an override hide, a missing address and the flag still hide, and ended still hides without a percentage', () => {
+    const old = record({ lastValidatedAt: ago(5 * 24) });
+    expect(resolveStore(store({ record: old, override: override({ hide: true }) }), NOW).hiddenBecause).toBe('override_hide');
+    expect(resolveStore(store({ saleUrl: null, record: old, override: override({ discountPercent: 30 }) }), NOW).hiddenBecause).toBe('no_sale_url');
+    expect(resolveStore(store({ isVisible: false, record: old, override: override({ discountPercent: 30 }) }), NOW).hiddenBecause).toBe('flag');
+    expect(resolveStore(store({ record: record({ state: 'ended' }), override: override({ saleUrl: 'https://shop.example/x' }) }), NOW).hiddenBecause).toBe('ended');
   });
   it('does not count an expired override as a fresh check', () => {
     const old = record({ lastValidatedAt: ago(5 * 24) });
     const expired = override({ discountPercent: 30, createdAt: ago(1), expiresAt: ago(0.5) });
     expect(resolveStore(store({ record: old, override: expired }), NOW)).toMatchObject({ visible: false, hiddenBecause: 'stale' });
   });
-  it('keeps a stale store hidden when the override is older than 72 hours too', () => {
+  it('shows a stale store while its override is active, even when the override is older than 72 hours', () => {
     const view = resolveStore(store({ record: null, createdAt: ago(100), override: override({ createdAt: ago(80) }) }), NOW);
-    expect(view).toMatchObject({ visible: false, hiddenBecause: 'stale' });
+    expect(view).toMatchObject({ visible: true, freshAt: ago(0) });
   });
 });
 
@@ -211,9 +230,9 @@ describe('bad data fails closed', () => {
   it('falls back to the time it was added when the validation date does not parse', () => {
     expect(resolveStore(store({ createdAt: ago(10), record: record({ lastValidatedAt: 'not a date' }) }), NOW)).toMatchObject({ visible: true, freshAt: ago(10) });
   });
-  it('ignores an override whose creation time does not parse when judging freshness', () => {
+  it('does not need the override creation time to be valid: an active override keeps the store fresh whatever it says', () => {
     const view = resolveStore(store({ record: record({ lastValidatedAt: ago(100) }), override: override({ createdAt: 'nope', discountPercent: 30 }) }), NOW);
-    expect(view).toMatchObject({ visible: false, hiddenBecause: 'stale' });
+    expect(view).toMatchObject({ visible: true, freshAt: ago(0) });
   });
 });
 
@@ -234,5 +253,20 @@ describe('purity', () => {
     const input = store({ record: record({ lastValidatedAt: ago(71) }) });
     expect(isVisible(input, NOW)).toBe(true);
     expect(isVisible(input, new Date(NOW.getTime() + 2 * HOUR))).toBe(false);
+  });
+});
+
+describe('isOverrideActive', () => {
+  it('is false for no override and true for one with no expiry', () => {
+    expect(isOverrideActive(null, NOW)).toBe(false);
+    expect(isOverrideActive(override(), NOW)).toBe(true);
+  });
+  it('is active before the expiry, expired at it, and expired after it', () => {
+    expect(isOverrideActive(override({ expiresAt: inFuture(1) }), NOW)).toBe(true);
+    expect(isOverrideActive(override({ expiresAt: ago(0) }), NOW)).toBe(false);
+    expect(isOverrideActive(override({ expiresAt: ago(1) }), NOW)).toBe(false);
+  });
+  it('treats an expiry that is not a date as not expired, as the site does', () => {
+    expect(isOverrideActive(override({ expiresAt: 'soon' }), NOW)).toBe(true);
   });
 });

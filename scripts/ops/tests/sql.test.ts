@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SeedData } from '@saleaway/core';
-import { buildSeedSql, buildVisibilitySql, sqlInt, sqlNullable, sqlString } from '../src/sql';
+import { buildBringBackSql, buildClearOverrideSql, buildImportSql, buildOverrideSql, buildSeedSql, buildVisibilitySql, sqlInt, sqlNullable, sqlString } from '../src/sql';
 
 describe('sqlString', () => {
   it('wraps text in single quotes', () => {
@@ -126,5 +126,74 @@ describe('buildVisibilitySql', () => {
     expect(() => buildVisibilitySql([], 0)).toThrow(/at least one slug/);
     expect(() => buildVisibilitySql(['edgars'], 2 as unknown as 0)).toThrow(/0 or 1/);
     expect(() => buildVisibilitySql(['edgars'], true as unknown as 0)).toThrow(/0 or 1/);
+  });
+});
+
+describe('buildOverrideSql (Story 4.1)', () => {
+  const NOW = "strftime('%Y-%m-%dT%H:%M:%SZ','now')";
+  it('creates an override with only the named columns, and on a conflict changes only those, plus created_at', () => {
+    expect(buildOverrideSql(7, { percent: 40, expiresAt: '2026-11-30T23:59:59Z' })).toBe(
+      `INSERT INTO overrides (retailer_id, discount_percent, expires_at) VALUES (7, 40, '2026-11-30T23:59:59Z') ON CONFLICT(retailer_id) DO UPDATE SET discount_percent = excluded.discount_percent, expires_at = excluded.expires_at, created_at = ${NOW};`,
+    );
+  });
+  it('a change with no column still renews created_at (a bring back with no option)', () => {
+    expect(buildOverrideSql(7, {})).toBe(`INSERT INTO overrides (retailer_id) VALUES (7) ON CONFLICT(retailer_id) DO UPDATE SET created_at = ${NOW};`);
+  });
+  it('writes null to clear a column, and the hide flag as 1 or 0', () => {
+    const sql = buildOverrideSql(1, { percent: null, saleUrl: null, expiresAt: null, hide: true });
+    expect(sql).toContain('(retailer_id, discount_percent, hide, sale_url, expires_at) VALUES (1, NULL, 1, NULL, NULL)');
+    expect(buildOverrideSql(1, { hide: false })).toContain('VALUES (1, 0)');
+  });
+  it('doubles quotes in a note and an address, and rejects a control character', () => {
+    expect(buildOverrideSql(1, { note: "Hirsch's sale" })).toContain("'Hirsch''s sale'");
+    expect(buildOverrideSql(1, { saleUrl: "https://shop.example/it's" })).toContain("'https://shop.example/it''s'");
+    expect(() => buildOverrideSql(1, { note: 'a\nb' })).toThrow(/control character/);
+    expect(buildOverrideSql(1, { note: "'; DROP TABLE overrides; --" })).toContain("'''; DROP TABLE overrides; --'");
+  });
+  it('names the store by a whole number only', () => {
+    for (const id of [1.5, Number.NaN, '7' as unknown as number, Infinity]) expect(() => buildOverrideSql(id, { hide: true }), String(id)).toThrow(/integer/);
+  });
+  it('does not name a column that was not given', () => {
+    const sql = buildOverrideSql(3, { note: 'x' });
+    for (const column of ['discount_percent', 'hide', 'sale_url', 'expires_at']) expect(sql).not.toContain(column);
+  });
+});
+
+describe('buildClearOverrideSql', () => {
+  it('deletes the one store, by its number', () => {
+    expect(buildClearOverrideSql(7)).toBe('DELETE FROM overrides WHERE retailer_id = 7;');
+    expect(() => buildClearOverrideSql(1.5)).toThrow(/integer/);
+  });
+});
+
+describe('buildBringBackSql', () => {
+  it('writes the override first, with the hide flag cleared, and the store update second, in one text', () => {
+    const sql = buildBringBackSql(7, { percent: 30, hide: true });
+    const lines = sql.split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/^INSERT INTO overrides \(retailer_id, discount_percent, hide\) VALUES \(7, 30, 0\)/);
+    expect(lines[1]).toBe("UPDATE retailers SET extraction_method = 'manual', is_visible = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id = 7;");
+  });
+  it('works with no change at all', () => {
+    const lines = buildBringBackSql(7, {}).split('\n');
+    expect(lines[0]).toMatch(/\(retailer_id, hide\) VALUES \(7, 0\)/);
+    expect(lines[1]).toContain('WHERE id = 7');
+  });
+});
+
+describe('buildImportSql', () => {
+  const row = { id: 3, discountPercent: 40, hide: false, saleUrl: 'https://shop.example/a', expiresAt: '2026-11-30T23:59:59Z', note: "it's", createdAt: '2026-10-30T10:00:00Z' };
+  it('writes every column, with the saved created_at, one statement per row', () => {
+    const sql = buildImportSql([row, { ...row, id: 4, discountPercent: null, saleUrl: null, expiresAt: null, hide: true }]);
+    const lines = sql.split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain("VALUES (3, 40, 0, 'https://shop.example/a', '2026-11-30T23:59:59Z', 'it''s', '2026-10-30T10:00:00Z')");
+    expect(lines[1]).toContain("VALUES (4, NULL, 1, NULL, NULL, 'it''s', '2026-10-30T10:00:00Z')");
+    expect(lines[0]).toContain('created_at = excluded.created_at');
+  });
+  it('refuses an empty list, a control character and a bad number', () => {
+    expect(() => buildImportSql([])).toThrow(/at least one row/);
+    expect(() => buildImportSql([{ ...row, note: 'a\tb' }])).toThrow(/control character/);
+    expect(() => buildImportSql([{ ...row, id: 1.2 }])).toThrow(/integer/);
   });
 });

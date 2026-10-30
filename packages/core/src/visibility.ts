@@ -2,7 +2,8 @@ import { toIsoUtc } from './time';
 
 // Which stores the site shows, and with what (Story 2.3). Pure: no I/O, no clock, no SQL. The caller passes `now`.
 // Rules (architecture/core-workflows.md): a store is hidden when the operator flag hides it, it has no https
-// sale URL, an active override hides it, its record is ended, or it has not been validated for more than 72 hours.
+// sale URL, an active override hides it, its record is ended, or it has not been validated for more than 72 hours
+// (a store with an active override is not judged stale while the override is active).
 // An active override's percentage and sale URL replace the stored ones, and an expired override is ignored.
 
 export const STALE_AFTER_HOURS = 72;
@@ -68,6 +69,11 @@ function isActive(override: VisibilityOverride | null, now: number): override is
   return expires === null || expires > now;
 }
 
+/** Is this override in force at `now`? The same rule the site uses (an expiry equal to `now` is expired). */
+export function isOverrideActive(override: VisibilityOverride | null, now: Date): boolean {
+  return isActive(override, now.getTime());
+}
+
 /** What the page needs to know about one store: whether to show it, and the percentage and URL to show. */
 export function resolveStore(input: StoreInput, now: Date): StoreView {
   const nowMs = now.getTime();
@@ -77,11 +83,11 @@ export function resolveStore(input: StoreInput, now: Date): StoreView {
   const discountPercent = override !== null && override.discountPercent !== null ? override.discountPercent : (record?.discountPercent ?? null);
   const saleUrl = override !== null && override.saleUrl !== null ? override.saleUrl : input.saleUrl;
 
-  // The freshness time: the last validation, or (never validated) the time the store was added, or the
-  // time an active override was made, whichever is latest. A date that does not parse counts as missing.
-  const candidates = [time(record?.lastValidatedAt) ?? time(input.createdAt), override === null ? null : time(override.createdAt)];
-  const known = candidates.filter((value): value is number => value !== null);
-  const freshMs = known.length > 0 ? Math.max(...known) : null;
+  // The freshness time: the last validation, or (never validated) the time the store was added. A date that
+  // does not parse counts as missing. A store with an active override is fresh for as long as the override is
+  // active (Story 4.1): the operator who set it is vouching for the store, and its expiry date ends that.
+  const lastCheckMs = time(record?.lastValidatedAt) ?? time(input.createdAt);
+  const freshMs = override !== null ? nowMs : lastCheckMs;
   const freshAt = freshMs === null ? null : toIsoUtc(new Date(freshMs));
 
   let hiddenBecause: HiddenBecause | null = null;

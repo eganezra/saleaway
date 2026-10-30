@@ -25,7 +25,7 @@ If the database cannot be read, the page answers **503** with "Sales are loading
 
 ### Which stores the page shows
 
-A store is shown unless one of these hides it (rules in `packages/core/src/visibility.ts`, tested): the operator has hidden it (`is_visible` 0, see [Hidden stores](#hidden-stores)); it has no `https://` sale address; an active override hides it; its sale record is `ended` (unless an active override sets a percentage); or it has not been checked for **more than 72 hours** (a store that has never been checked counts from the time it was added, and an active override counts as a check). An override's percentage and sale address replace the stored ones, and an expired override is ignored. **Nothing is ever deleted when a store disappears**: it is only hidden, and it comes back when it is checked again. The rules take the current time as an input, so they can be tested.
+A store is shown unless one of these hides it (rules in `packages/core/src/visibility.ts`, tested): the operator has hidden it (`is_visible` 0, see [Hidden stores](#hidden-stores)); it has no `https://` sale address; an active override hides it; its sale record is `ended` (unless an active override sets a percentage); or it has not been checked for **more than 72 hours** (a store that has never been checked counts from the time it was added). **A store with an active override is not judged stale while the override is active** (see [Overrides](#overrides)). An override's percentage and sale address replace the stored ones, and an expired override is ignored. **Nothing is ever deleted when a store disappears**: it is only hidden, and it comes back when it is checked again. The rules take the current time as an input, so they can be tested.
 
 > **Not deployed yet.** This code is in the repository but the live web app does not use it: every store was added on 2026-10-29, nothing records checks until Story 3.5, and the 72 hour rule would empty the live page from 2026-11-01 12:58 UTC. Deploy it together with Story 3.5, or decide otherwise with the project owner.
 
@@ -101,6 +101,34 @@ pnpm ops:hide --undo --remote --slug dis-chem   # show one store only (it must b
 - **Showing a store is not fixing it.** `--undo` only makes the store visible. It keeps its extraction method, so the nightly run fetches it again, and a store that still blocks would be blocked again. Use `--undo` only for a store that has just answered. To show a store that still blocks with hand-entered values, it has to be set to the `manual` method with an override (Story 4.1, criterion 8, and Story 5.4).
 - **`--undo` shows every store you name**, including one an operator had hidden for another reason.
 - **Caching:** the home page is not cached yet, so a change shows at once. Once Story 2.4 adds caching, allow about 10 minutes.
+
+### Overrides
+
+An override is the operator's own answer for one store: a percentage, a sale address, a hide flag and an expiry date. It beats what the pipeline found (a percentage also beats an `ended` record, so it is the quick fix for a store that was wrongly ended), and **the pipeline never changes or deletes it**. A store has at most one. The command is `pnpm ops:override`, with `--local` (the database `pnpm dev` reads) or `--remote` (the live one) and one mode. Every value is checked before anything is written, and afterwards the database is read back to be sure.
+
+```bash
+# set a percentage and an expiry (a store with no override gets one; with one, only the named fields change)
+pnpm ops:override --remote --slug amazon-co-za --percent 35 --expires 2026-11-30 --note "checked by hand 2026-10-31"
+pnpm ops:override --remote --slug amazon-co-za --url https://www.amazon.co.za/deals   # change only the address
+pnpm ops:override --remote --slug makro --hide                  # remove a store from the site (the pipeline still fetches it)
+pnpm ops:override --remote --slug makro --unhide
+pnpm ops:override --remote --slug amazon-co-za --percent none   # clear one field (also --url none, --expires none)
+pnpm ops:override --remote --slug amazon-co-za --clear          # delete the override
+pnpm ops:override --remote --list                               # every override, active or expired
+pnpm ops:override --remote --export                             # write them to docs/data/overrides.json (commit it)
+pnpm ops:override --remote --import                             # restore them from that file
+# show a store that Story 3.9 hid, with manual values (see "Hidden stores")
+pnpm ops:override --remote --slug zara-sa --bring-back --percent 30 --expires 2026-11-30
+```
+
+- **What is accepted.** A percentage is a whole number from 1 to 99. An address must be `https://` to a public website (no IP address, no port, no login in it). An expiry is a date `YYYY-MM-DD` that is today or later; the override applies **through the end of that day (UTC)**, which is two hours into the next morning in South Africa. A note is at most 200 characters. Anything else is refused and nothing is written.
+- **`created_at` is the time of the last change.** Running the command again on a store updates it.
+- **While an override is active, the store is not judged stale** (the 72 hour rule), because you are vouching for it. **Always give an `--expires`** (a month at most): an override with no expiry keeps the store on the site until you clear it, and the command warns when you leave it out. After the expiry the override is ignored and the store is judged by the pipeline's records again; the row stays until you clear it.
+- **`--hide` hides only on the site.** It is not the hide of Story 3.9: the pipeline still fetches the store. To stop fetching a store that blocks the pipeline use `pnpm ops:hide`.
+- **`--bring-back` is the way to show a store that blocks the pipeline.** `pnpm ops:hide --undo` only makes it visible, and the nightly run would ask it again. `--bring-back` writes the override (hide flag cleared) and then makes the store `manual` (never fetched) and visible, and, with `--remote`, takes it off `docs/data/hidden-stores.json`; commit that file. It refuses a store that has no `https://` sale address unless you give one with `--url`. If it is the last store on the list the file keeps it: delete the file by hand.
+- **The three manual stores** (Amazon.co.za, Game, Checkers Sixty60) are never fetched and have no record, so they appear on the site only while they have an active override. Give each one.
+- **Backup.** `--export` writes `docs/data/overrides.json` (the slug, the fields, the note and the time of every override). Commit it after you change overrides. `--import` puts them back with their saved times and leaves other overrides alone.
+- **When the site sees it.** The web app reads overrides on every page view today (no page cache yet), but the live web app does not use overrides until it is deployed (Story 2.3 and Story 3.5: after the morning check).
 
 ### Recovery
 

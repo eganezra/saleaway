@@ -84,3 +84,86 @@ export function buildVisibilitySql(slugs: readonly string[], visible: 0 | 1): st
   const list = slugs.map(sqlString).join(', ');
   return `UPDATE retailers SET is_visible = ${sqlInt(visible)}, updated_at = ${UPDATED_AT_NOW} WHERE slug IN (${list});`;
 }
+
+// ---- Overrides (Story 4.1). Every value has been checked by `parseOverrideChange` or `parseOverridesFile` in core;
+// `sqlString` and `sqlInt` are the second line of defence. The store is always named by its numeric id.
+
+export interface OverrideColumns {
+  percent?: number | null;
+  hide?: boolean;
+  saleUrl?: string | null;
+  expiresAt?: string | null;
+  note?: string;
+}
+
+/** The columns that were named, in a fixed order, as `[column, SQL literal]`. */
+function namedColumns(change: OverrideColumns): Array<[string, string]> {
+  const columns: Array<[string, string]> = [];
+  if (change.percent !== undefined) columns.push(['discount_percent', change.percent === null ? 'NULL' : sqlInt(change.percent)]);
+  if (change.hide !== undefined) columns.push(['hide', change.hide ? '1' : '0']);
+  if (change.saleUrl !== undefined) columns.push(['sale_url', sqlNullable(change.saleUrl)]);
+  if (change.expiresAt !== undefined) columns.push(['expires_at', sqlNullable(change.expiresAt)]);
+  if (change.note !== undefined) columns.push(['note', sqlString(change.note)]);
+  return columns;
+}
+
+/**
+ * Creates the store's override, or changes **only the named columns** of the one it has, and sets `created_at` to
+ * now (the time the operator last looked). Columns that are not named keep their value, or the table's default
+ * on a new row. One statement.
+ */
+export function buildOverrideSql(retailerId: number, change: OverrideColumns): string {
+  const id = sqlInt(retailerId);
+  const columns = namedColumns(change);
+  const names = ['retailer_id', ...columns.map(([name]) => name)].join(', ');
+  const values = [id, ...columns.map(([, value]) => value)].join(', ');
+  const updates = [...columns.map(([name]) => `${name} = excluded.${name}`), `created_at = ${UPDATED_AT_NOW}`].join(', ');
+  return `INSERT INTO overrides (${names}) VALUES (${values}) ON CONFLICT(retailer_id) DO UPDATE SET ${updates};`;
+}
+
+/** Deletes the store's override (the pipeline never does). */
+export function buildClearOverrideSql(retailerId: number): string {
+  return `DELETE FROM overrides WHERE retailer_id = ${sqlInt(retailerId)};`;
+}
+
+/**
+ * Brings a store back with manual values (Story 4.1, criterion 8): the override first (with the hide flag
+ * cleared), then the store made `manual` and visible, so a run that stops half way never shows a store without
+ * its override. Wrangler does not promise that a file runs as one transaction.
+ */
+export function buildBringBackSql(retailerId: number, change: OverrideColumns): string {
+  const id = sqlInt(retailerId);
+  return [
+    buildOverrideSql(retailerId, { ...change, hide: false }),
+    `UPDATE retailers SET extraction_method = 'manual', is_visible = 1, updated_at = ${UPDATED_AT_NOW} WHERE id = ${id};`,
+  ].join('\n');
+}
+
+export interface ImportRow {
+  id: number;
+  discountPercent: number | null;
+  hide: boolean;
+  saleUrl: string | null;
+  expiresAt: string | null;
+  note: string;
+  createdAt: string;
+}
+
+/** Restores overrides from the export file: every column, with the saved `created_at`. Other overrides stay. */
+export function buildImportSql(rows: readonly ImportRow[]): string {
+  if (rows.length === 0) throw new Error('buildImportSql needs at least one row');
+  return rows
+    .map((r) => {
+      const values = [
+        sqlInt(r.id),
+        r.discountPercent === null ? 'NULL' : sqlInt(r.discountPercent),
+        r.hide ? '1' : '0',
+        sqlNullable(r.saleUrl),
+        sqlNullable(r.expiresAt),
+        sqlString(r.note),
+        sqlString(r.createdAt),
+      ].join(', ');
+      return `INSERT INTO overrides (retailer_id, discount_percent, hide, sale_url, expires_at, note, created_at) VALUES (${values}) ON CONFLICT(retailer_id) DO UPDATE SET discount_percent = excluded.discount_percent, hide = excluded.hide, sale_url = excluded.sale_url, expires_at = excluded.expires_at, note = excluded.note, created_at = excluded.created_at;`;
+    })
+    .join('\n');
+}
