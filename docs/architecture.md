@@ -27,7 +27,7 @@ These numbers shape the design. They come from the official Cloudflare docs page
 | Subrequests per invocation | 50 | One cron run cannot fetch ~95 stores. Work is fanned out so each invocation handles one store. |
 | CPU time per invocation | **10 ms** (HTTP requests and Cron Triggers) | The tightest limit. Parsing large pages may exceed it (see Risk R1). Waiting for a network response does not count as CPU time. |
 | Cron Triggers | 5 per account, 15 minutes wall time | Two are used. |
-| Queue consumer wall time | 15 minutes | Fine. A free-plan CPU limit for consumers was not stated on the page, so it is assumed to be 10 ms. |
+| Queue consumer wall time | 15 minutes | Fine. **CPU for consumers (measured in Story 3.2, 2026-10-30):** the 10 ms limit was not enforced: 12 of 12 invocations that used 5 to 108 ms ended `ok`. Cloudflare's Queues page gives 30 seconds by default for both plans. |
 | Queues | Available on Free: 10,000 operations per day, 24 hour retention | About 3 operations per store per day, so roughly 300 a day. |
 | D1 | 500 MB per database, 5 GB per account, 10 databases, **5 million rows read per day, 100,000 rows written per day**, 50 queries per invocation, 100 bound parameters | Pipeline writes about 500 rows a day. Reads must be cached, so the home page cannot query D1 on every view. |
 | Browser Rendering | 10 minutes of browser time per day, 3 concurrent browsers | Enough for only a handful of JavaScript-only stores a day (Epic 5). |
@@ -340,7 +340,7 @@ Saleaway has no public API. The only HTTP endpoints are internal, so no OpenAPI 
 | `GET /` and static pages | web | none | Server-rendered pages, edge-cached |
 | `POST /api/click` | web | none, rate-limited by a sampling switch | Records a click-out for a store slug (FR19) |
 | `GET /health` | web | none | Canary: returns `ok` (Story 1.1) |
-| `POST /admin/run` | pipeline | `Authorization: Bearer <ADMIN_TOKEN>`, compared in constant time | Start a manual pipeline run (Story 3.1, AC6) |
+| `POST /admin/run` | pipeline | `Authorization: Bearer <ADMIN_TOKEN>`, compared in constant time | Start a manual pipeline run (Story 3.1, AC6). `?store=<slug>` runs one store only (Story 3.2): 400 `bad_store` for a bad slug, 404 `store_not_found` for an unknown, hidden or non-https store |
 
 `/api/click` validates that the slug exists and increments the day's counter. A `CLICK_SAMPLE_RATE` setting (default 1.0) can reduce writes if D1's 100,000 rows-written-per-day limit is at risk.
 
@@ -431,7 +431,7 @@ graph LR
 - `GET {origin}/robots.txt` - checked before the page fetch.
 - For Shopify stores: `GET {origin}/collections/{handle}/products.json?limit=...` - read was/now prices.
 
-**Integration Notes:** the user-agent is `SaleawayBot/1.0 (+https://saleaway.co.za/contact)`. Only `https` URLs are fetched, redirects are limited to 3, and private or local addresses are rejected. No attempt is made to get around bot protection (NFR6). Three stores (Amazon.co.za, Game, Checkers) blocked even a home connection, so they default to `manual`.
+**Integration Notes:** the user-agent is `SaleawayBot/1.0 (+https://saleaway.online/contact)`, on every request including `robots.txt`, with an `Accept` header and no other header. Each request times out after 10 seconds **[Assumption]**. Only `https` URLs are fetched, redirects are followed by hand and limited to 3, each target is checked first, and a redirect to `http://`, to an IP address or to a local name (`localhost.`, `x.internal`) is never requested. `robots.txt` is asked first and obeyed (RFC 9309): a refusal is recorded as `blocked`, an unreachable file (5xx, timeout) as an error with the page not fetched, and a missing file (4xx) means everything is allowed. A page of a store whose spreadsheet status is `verified_js_shell` is classified `js_only` on a 2xx answer without reading it. No attempt is made to get around bot protection (NFR6): a blocked store is recorded and never retried. Three stores (Amazon.co.za, Game, Checkers) blocked even a home connection, so they default to `manual`. **Measured from a deployed Worker (Story 3.2):** 34 of the 89 other stores also blocked it (see `docs/fetch-spike.md`).
 
 ### Cloudflare Web Analytics
 
@@ -490,6 +490,8 @@ sequenceDiagram
 A record is hidden when it is `ended`, when its freshness time is older than 72 hours, or when an active override hides it. The **freshness time** is the latest of `last_validated_at`, the time an active override that sets a percentage was created, and, only for a store that has never been validated, the time the retailer row was created. Without that last part the site would be empty until the first pipeline run. These rules live in `isVisible` in `packages/core` and are built in Story 2.3, together with override precedence (an active override's percentage and sale URL replace the extracted ones).
 
 **Run totals (Story 3.1):** when a run is closed, `stores_ok` counts the results `ok`, `js_only` and `skipped_manual`, and `stores_failed` counts every other result (`blocked`, `not_found`, `redirected_away`, `error`, or any value that is not a known class). The rule is `summariseRun` in `packages/core`.
+
+**Fetch results (Story 3.2):** the status mapping is `401`, `403`, `429` and `503` blocked; `404` and `410` not found; any other status outside 2xx an error; a 2xx on another site or the home page `redirected_away`; a 2xx on a store whose spreadsheet status is `verified_js_shell` `js_only`; any other 2xx `ok`. A `robots.txt` refusal is recorded as `blocked` (text `robots_disallow`) and an unreachable `robots.txt` as an error (`robots_unreachable`); in both cases the page is not requested. The text saved in `run_results.error` is one of `robots_disallow`, `robots_unreachable`, `unsafe_url`, `timeout`, `network`, `too_many_redirects`, `unsafe_redirect`, `bad_redirect`, `http_<status>` or `redirected_to_<host>`.
 
 ### Page view
 
@@ -751,7 +753,7 @@ apps/pipeline/src/
 └── alert.ts          # POST to ALERT_WEBHOOK_URL
 ```
 
-**Built in Story 3.1 (2026-10-29):** `index.ts` (wiring only), `handlers.ts` (the three entry points), `start-run.ts` (no purge: retention is Story 4.6), `finalize-run.ts` (closes every open run), `repo.ts` (all pipeline SQL), `auth.ts` (`isAuthorized`), `admin-run.ts` (`POST /admin/run`), `config.ts` (`isPaused`), `log.ts`, `types.ts` and `env.d.ts`. `process-store.ts` is a **placeholder** that records `skipped_manual` for manual stores and `error` with `fetcher_not_built_yet` for the others, until Stories 3.2 to 3.5 build the fetch, classify, validate, extract and save steps. `fetcher.ts`, `robots.ts` and `alert.ts` do not exist yet.
+**Built in Story 3.1 (2026-10-29):** `index.ts` (wiring only), `handlers.ts` (the three entry points), `start-run.ts` (no purge: retention is Story 4.6), `finalize-run.ts` (closes every open run), `repo.ts` (all pipeline SQL), `auth.ts` (`isAuthorized`), `admin-run.ts` (`POST /admin/run`), `config.ts` (`isPaused`), `log.ts`, `types.ts` and `env.d.ts`. `process-store.ts` is a **placeholder** that records `skipped_manual` for manual stores and `error` with `fetcher_not_built_yet` for the others, until Stories 3.2 to 3.5 build the fetch, classify, validate, extract and save steps. **Built in Story 3.2 (2026-10-30):** `fetcher.ts` (`fetchPage`: manual redirects, timeout, user-agent, https only), `robots.ts` (`checkRobots`), `probe.ts` (a CPU measurement stand-in, switched on only by `MEASURE_CPU=true`) and the real `process-store.ts` (robots, fetch, classify, record; it reads no page content and writes no sale records). `Deps` gained `fetch` (always passed as a wrapper, because the bare global fails with "Illegal invocation" in Workers) and an optional `createRewriter` (`HTMLRewriter` does not exist in Node). The pure rules are in `packages/core` (`url-safety.ts`, `classify.ts`, `robots.ts`). `POST /admin/run?store=<slug>` runs one store. `alert.ts` does not exist yet.
 
 #### Function Template
 
@@ -1032,9 +1034,9 @@ jobs:
 |---|---|---|---|
 | Development | http://localhost:4321 | local Wrangler, local D1 | Local development |
 | Staging | `*.workers.dev` URL, used until the domain is connected | `saleaway-pipeline.<account>.workers.dev` | Pre-launch testing. No separate staging database for the MVP |
-| Production | https://saleaway.co.za | `saleaway-pipeline.<account>.workers.dev/admin/run` (token only) | Live |
+| Production | https://saleaway.online | `saleaway-pipeline.<account>.workers.dev/admin/run` (token only) | Live |
 
-The domain `saleaway.co.za` must have its DNS on Cloudflare for a custom domain on a Worker. This is still an open question (PRD Story 4.4). Until then the site runs locally and on a `workers.dev` address (Story 1.2).
+The domain `saleaway.online` must have its DNS on Cloudflare for a custom domain on a Worker. This is still an open question (PRD Story 4.4). Until then the site runs locally and on a `workers.dev` address (Story 1.2).
 
 ### Rollback, pause and dependency upkeep
 
@@ -1293,6 +1295,8 @@ export function classifyFetch(res: Response | null, err: unknown): FetchClass {
 | R7 | **Bundle size** limit on the Free plan | Low with Astro | Deploy fails | Check size in CI, working limit 3 MiB compressed |
 
 **Spike order:** S0 (Story 1.2, done 2026-10-29) deployed the canary with a D1 binding and tested the Cache API. **Result: the Cache API does cache on `*.workers.dev`** (a response stored for 60 seconds was served as a HIT, expired, then cached again), contrary to the earlier belief, so the home page does not have to read D1 on every view before the domain is connected. Caching of the real home page is still confirmed on the production domain in Story 2.4. See `docs/spike-s0-workers-dev.md`. S1 (CPU measurement). S2 (fetch from a Worker). S3 click beacon write rate under load.
+
+**Spike S1 and S2 results (Story 3.2, 2026-10-30), measured on the deployed Worker.** *CPU (S1, with a stand-in probe for the real parsing):* a queue consumer invocation that checked `robots.txt`, fetched the page and streamed the body through one `HTMLRewriter` pass with five selectors used, over three runs each: Bash (760 KB) 37, 81 and 108 ms of CPU; Woolworths (1.6 MB) 24, 40 and 55 ms; Under Armour SA (325 KB) 20, 27 and 29 ms; Takealot (19 KB) 5, 7 and 9 ms. **All 12 invocations ended `ok`; Cloudflare stopped none at 10 ms**, so the 10 ms limit is not enforced on queue consumers on the Free plan (it agrees with the Queues documentation, 30 seconds by default, and not with the earlier assumption here). The 10 ms limit still applies to the web Worker's page requests and the scheduled handler. The numbers are an upper bound and must be repeated with the real validation and extraction (Story 3.4, criterion 8). On CPU grounds no store needs the fallback runner (Story 3.8). *Blocking (S2):* of the 89 stores fetched in one full run, 34 (38 percent) were blocked: HTTP 403 for 21 stores (bot protection at the retailer's edge) and HTTP 429 for 13 (12 of the 18 Shopify stores). `robots.txt` forbade nothing. Stores marked `verified_products` in the spreadsheet were blocked in 24 of 54 cases, so the home-connection test did not predict it. A Shopify product feed answered 429 to the honest user-agent for three stores checked and does not exist for Under Armour SA. This **confirms risk R2** and changes the plan for those stores (decision pending). Details and the per-store table: `docs/fetch-spike.md`.
 
 ## Black Friday traffic decision (2026-10-29)
 

@@ -56,6 +56,8 @@ export async function resetData(db: D1Database): Promise<void> {
 
 export interface RetailerSeed {
   id: number;
+  slug?: string;
+  seedStatus?: string;
   extractionMethod?: string;
   isVisible?: 0 | 1;
   saleUrl?: string | null;
@@ -67,16 +69,17 @@ export async function seedRetailers(db: D1Database, retailers: RetailerSeed[]): 
   const statements = retailers.map((r) =>
     db
       .prepare(
-        `INSERT INTO retailers (id, slug, name, homepage_url, category_id, extraction_method, sale_url, is_visible)
-         VALUES (?1, ?2, ?3, 'https://store.example', 1, ?4, ?5, ?6)`,
+        `INSERT INTO retailers (id, slug, name, homepage_url, category_id, extraction_method, sale_url, is_visible, seed_status)
+         VALUES (?1, ?2, ?3, 'https://store.example', 1, ?4, ?5, ?6, ?7)`,
       )
       .bind(
         r.id,
-        `store-${r.id}`,
+        r.slug ?? `store-${r.id}`,
         `Store ${r.id}`,
         r.extractionMethod ?? 'html',
         r.saleUrl === undefined ? `https://store-${r.id}.example/sale` : r.saleUrl,
         r.isVisible ?? 1,
+        r.seedStatus ?? 'search_only',
       ),
   );
   for (let i = 0; i < statements.length; i += 50) await db.batch(statements.slice(i, i + 50));

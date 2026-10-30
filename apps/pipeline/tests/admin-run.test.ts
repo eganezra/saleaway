@@ -96,3 +96,50 @@ describe('every other request', () => {
     expect(await runs()).toEqual([]);
   });
 });
+
+describe('POST /admin/run?store=<slug>', () => {
+  it('runs one store only: a manual run with a total of 1 and one message with no delay', async () => {
+    const { response, queue } = await call(post(TOKEN, '/admin/run?store=store-2'));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, runId: 1, storesTotal: 1 });
+    expect(await runs()).toEqual([{ id: 1, trigger: 'manual', stores_total: 1 }]);
+    expect(queue.allMessages()).toEqual([{ body: { runId: 1, retailerId: 2 }, delaySeconds: 0 }]);
+  });
+
+  it('rejects a store that is not a slug with 400 bad_store, and starts nothing', async () => {
+    for (const store of ['', 'Store-2', 'store_2', 'store 2', "store-2';DROP", '../x', 'a'.repeat(5) + '%00']) {
+      const { response, queue } = await call(post(TOKEN, `/admin/run?store=${encodeURIComponent(store)}`));
+      expect(response.status, store).toBe(400);
+      expect(((await response.json()) as { error: { code: string } }).error.code, store).toBe('bad_store');
+      expect(queue.calls, store).toEqual([]);
+    }
+    expect(await runs()).toEqual([]);
+  });
+
+  it('answers 404 store_not_found for a store that is unknown, hidden, or has no https URL', async () => {
+    await seedRetailers(t.db, [{ id: 4, isVisible: 0 }, { id: 5, saleUrl: null }, { id: 6, saleUrl: 'http://insecure.example/sale' }]);
+    for (const store of ['no-such-store', 'store-4', 'store-5', 'store-6']) {
+      const { response, queue } = await call(post(TOKEN, `/admin/run?store=${store}`));
+      expect(response.status, store).toBe(404);
+      expect(((await response.json()) as { error: { code: string } }).error.code, store).toBe('store_not_found');
+      expect(queue.calls, store).toEqual([]);
+    }
+    expect(await runs()).toEqual([]);
+  });
+
+  it('checks the token and the pause first, so a wrong token never learns whether a store exists', async () => {
+    const wrong = await call(post('wrong', '/admin/run?store=no-such-store'));
+    expect(wrong.response.status).toBe(401);
+    const badSlug = await call(post('wrong', '/admin/run?store=Bad Slug'));
+    expect(badSlug.response.status).toBe(401);
+    const paused = await call(post(TOKEN, '/admin/run?store=store-2'), { PIPELINE_ENABLED: 'false' });
+    expect(paused.response.status).toBe(409);
+    expect(await runs()).toEqual([]);
+  });
+
+  it('without the parameter every store is still enqueued', async () => {
+    const { queue } = await call(post(TOKEN));
+    expect(queue.allMessages()).toHaveLength(3);
+  });
+});
+

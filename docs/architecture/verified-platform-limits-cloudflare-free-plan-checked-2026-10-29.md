@@ -8,7 +8,7 @@ These numbers shape the design. They come from the official Cloudflare docs page
 | Subrequests per invocation | 50 | One cron run cannot fetch ~95 stores. Work is fanned out so each invocation handles one store. |
 | CPU time per invocation | **10 ms** (HTTP requests and Cron Triggers) | The tightest limit. Parsing large pages may exceed it (see Risk R1). Waiting for a network response does not count as CPU time. |
 | Cron Triggers | 5 per account, 15 minutes wall time | Two are used. |
-| Queue consumer wall time | 15 minutes | Fine. A free-plan CPU limit for consumers was not stated on the page, so it is assumed to be 10 ms. |
+| Queue consumer wall time | 15 minutes | Fine. **CPU for consumers (measured in Story 3.2, 2026-10-30):** the 10 ms limit was not enforced: 12 of 12 invocations that used 5 to 108 ms ended `ok`. Cloudflare's Queues page gives 30 seconds by default for both plans. |
 | Queues | Available on Free: 10,000 operations per day, 24 hour retention | About 3 operations per store per day, so roughly 300 a day. |
 | D1 | 500 MB per database, 5 GB per account, 10 databases, **5 million rows read per day, 100,000 rows written per day**, 50 queries per invocation, 100 bound parameters | Pipeline writes about 500 rows a day. Reads must be cached, so the home page cannot query D1 on every view. |
 | Browser Rendering | 10 minutes of browser time per day, 3 concurrent browsers | Enough for only a handful of JavaScript-only stores a day (Epic 5). |

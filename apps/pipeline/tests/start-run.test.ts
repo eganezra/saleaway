@@ -123,3 +123,15 @@ describe('startRun', () => {
     expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM retailers')).toEqual([{ n: 2 }]);
   });
 });
+
+describe('startRun for one store', () => {
+  it('has only that store, whatever else is visible, and the usual delay of 0', async () => {
+    await seedRetailers(t.db, [{ id: 1 }, { id: 2 }, { id: 3 }]);
+    const { queue, allMessages } = fakeQueue();
+    const out = await startRun(makeEnv(t.db, queue), 'manual', fakeDeps().deps, { retailerId: 2 });
+    expect(out).toEqual({ runId: 1, storesTotal: 1 });
+    expect(allMessages()).toEqual([{ body: { runId: 1, retailerId: 2 }, delaySeconds: 0 }]);
+    expect(await rows(t.db, 'SELECT trigger, stores_total FROM pipeline_runs')).toEqual([{ trigger: 'manual', stores_total: 1 }]);
+  });
+});
+

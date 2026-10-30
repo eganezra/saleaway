@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /a
+
+User-agent: SaleawayBot
+Disallow: /b
+
+User-agent: saleawaybot
+Disallow: /c

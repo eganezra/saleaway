@@ -51,9 +51,9 @@ jobs:
 |---|---|---|---|
 | Development | http://localhost:4321 | local Wrangler, local D1 | Local development |
 | Staging | `*.workers.dev` URL, used until the domain is connected | `saleaway-pipeline.<account>.workers.dev` | Pre-launch testing. No separate staging database for the MVP |
-| Production | https://saleaway.co.za | `saleaway-pipeline.<account>.workers.dev/admin/run` (token only) | Live |
+| Production | https://saleaway.online | `saleaway-pipeline.<account>.workers.dev/admin/run` (token only) | Live |
 
-The domain `saleaway.co.za` must have its DNS on Cloudflare for a custom domain on a Worker. This is still an open question (PRD Story 4.4). Until then the site runs locally and on a `workers.dev` address (Story 1.2).
+The domain `saleaway.online` must have its DNS on Cloudflare for a custom domain on a Worker. This is still an open question (PRD Story 4.4). Until then the site runs locally and on a `workers.dev` address (Story 1.2).
 
 ## Rollback, pause and dependency upkeep
 

@@ -1,0 +1,5 @@
+this is not a robots file
+<html><body>Not found</body></html>
+Disallow without a colon
+:::
+User-agent *

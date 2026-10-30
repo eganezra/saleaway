@@ -1,6 +1,6 @@
 # Saleaway
 
-Saleaway (saleaway.co.za) shows current sales from South African online stores in one place. A daily job reads each store's sale page and the website lists which stores have a sale and how deep the discounts go.
+Saleaway (saleaway.online) shows current sales from South African online stores in one place. A daily job reads each store's sale page and the website lists which stores have a sale and how deep the discounts go.
 
 This repository is a pnpm monorepo. Planning documents are in [`docs/`](docs/): the project brief, PRD, front-end spec, architecture and stories (`docs/stories/`).
 
@@ -85,7 +85,7 @@ D1 Time Travel is always on and keeps 7 days of history on the Free plan. `wrang
 
 ## Deploying
 
-Both Workers run on Cloudflare's Free plan at `workers.dev` addresses, deployed by hand from this computer. CI/CD and the real domain (`saleaway.co.za`) come in Story 4.4.
+Both Workers run on Cloudflare's Free plan at `workers.dev` addresses, deployed by hand from this computer. CI/CD and the real domain (`saleaway.online`) come in Story 4.4.
 
 | Worker | Address |
 |---|---|
@@ -136,15 +136,15 @@ The results of the first deploy (Cache API on `workers.dev`, bundle size, logs) 
 
 ## Pipeline
 
-The pipeline Worker (`saleaway-pipeline`) runs the daily job. **Today it is the skeleton only: it does not fetch any store page yet** (Stories 3.2 to 3.5 add the fetcher, validation, extraction and saving of sale records). Every run records one result per store, so the plumbing can be checked end to end.
+The pipeline Worker (`saleaway-pipeline`) runs the daily job. **Today it fetches each store's sale page politely and classifies the answer** (Story 3.2). It does not yet check that the page shows a real sale, read a discount, or save sale records (Stories 3.3 to 3.5). Every run records one result per store, with the HTTP status, how long it took, and a short reason when the result is not `ok`.
 
 | What | When |
 |---|---|
 | Start a run | every day at **03:00 UTC** (05:00 South African time) |
 | Close the run (record the totals) | every day at **03:45 UTC** (05:45 South African time) |
 
-- **How a run works:** the start cron records a run and puts one message per visible store on the queue `saleaway-fetch`, each delayed a bit more than the one before (`STAGGER_SECONDS`, 15 by default, so about 23 minutes for 92 stores). **Keep (number of stores - 1) x `STAGGER_SECONDS` under about 40 minutes** (26 seconds or less for 92 stores): the close cron runs 45 minutes after the start, and a run that is still going then is closed with the missing stores counted as a gap. A queue consumer handles one store per message and records one result in `run_results`. A store that fails is retried once and then recorded as an `error`, so one store never stops the others. The close cron writes the finish time and the totals (`stores_ok`, `stores_failed`) into `pipeline_runs`. For now, the 3 manual stores record `skipped_manual` and the other stores record `error` with `fetcher_not_built_yet`.
-- **Settings:** the variables `FINALIZE_CRON`, `STAGGER_SECONDS` and `PIPELINE_ENABLED` are in `apps/pipeline/wrangler.jsonc`. The only secret is `ADMIN_TOKEN` (set with `wrangler secret put ADMIN_TOKEN`, never in the repository, kept in your password manager).
+- **How a run works:** the start cron records a run and puts one message per visible store on the queue `saleaway-fetch`, each delayed a bit more than the one before (`STAGGER_SECONDS`, 15 by default, so about 23 minutes for 92 stores). **Keep (number of stores - 1) x `STAGGER_SECONDS` under about 40 minutes** (26 seconds or less for 92 stores): the close cron runs 45 minutes after the start, and a run that is still going then is closed with the missing stores counted as a gap. A queue consumer handles one store per message and records one result in `run_results`. A store that fails is retried once and then recorded as an `error`, so one store never stops the others. The close cron writes the finish time and the totals (`stores_ok`, `stores_failed`) into `pipeline_runs`. Each store's result is one of `ok`, `js_only` (the page is known to load its products with JavaScript, so it can only be checked by address), `blocked`, `not_found`, `redirected_away`, `error`, or `skipped_manual` (a manual store is never fetched).
+- **Settings:** the variables `FINALIZE_CRON`, `STAGGER_SECONDS`, `PIPELINE_ENABLED` and `MEASURE_CPU` (leave it `false`: it is a measurement switch, see below) are in `apps/pipeline/wrangler.jsonc`. The only secret is `ADMIN_TOKEN` (set with `wrangler secret put ADMIN_TOKEN`, never in the repository, kept in your password manager).
 - **Queue allowance:** the Free plan includes 10,000 queue operations a day. A delivered message costs about 3, so a run of 92 stores uses about 280, plus one more for each retry.
 
 ### Run it by hand
@@ -155,7 +155,15 @@ curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" https://saleaway-pipeline.<
 # 200 {"ok":true,"runId":12,"storesTotal":92}   401 wrong or missing token   409 the pipeline is paused
 ```
 
-A manual run starts a **new** run. Once the fetcher exists (Story 3.2) it will fetch every store again, which breaks the "one page fetch per store per day" politeness rule, so use it sparingly. A manual run is closed by the next 03:45 UTC close cron.
+A manual run starts a **new** run and fetches **every store again**, which breaks the "one page fetch per store per day" politeness rule, so do it rarely. To test one store, add `?store=<slug>` (for example `.../admin/run?store=bash-tfg`): that runs only that store. The slug must be the store's slug from the `retailers` table; a bad slug gives 400 and an unknown, hidden or non-https store gives 404. A manual run is closed by the next 03:45 UTC close cron.
+
+### How the fetcher behaves (and what it will never do)
+
+- It asks the site's `robots.txt` first and obeys it. A page that `robots.txt` forbids is recorded as `blocked` (reason `robots_disallow`) and is not requested. A `robots.txt` that cannot be reached (a 5xx answer or a timeout) is recorded as an `error` (`robots_unreachable`) and the page is not requested. A missing `robots.txt` (a 4xx answer) means everything is allowed.
+- Every request says who it is: `SaleawayBot/1.0 (+https://saleaway.online/contact)`. It waits at most 10 seconds, follows at most 3 redirects, and only ever requests `https` addresses (a redirect to `http` or to an IP address is not followed).
+- **It does not try to get past bot protection.** No disguised user-agent, no cookies, no solving of challenge pages, and no second attempt after a `blocked` answer. A blocked store is recorded and an operator decides: usually the `manual` method (Story 4.1).
+- A store with the `manual` method is never contacted, not even for `robots.txt`. It never saves any page content.
+- Each store makes one `robots.txt` request and one page request per run, spaced out by the stagger.
 
 ### Pause and resume
 

@@ -28,6 +28,7 @@ export async function startRun(
   env: Pick<Env, 'DB' | 'FETCH_QUEUE' | 'STAGGER_SECONDS'>,
   trigger: RunTrigger,
   deps: Deps,
+  options: { retailerId?: number } = {},
 ): Promise<StartRunResult> {
   const { log, clock } = deps;
 
@@ -37,7 +38,8 @@ export async function startRun(
     stagger = DEFAULT_STAGGER_SECONDS;
   }
 
-  const retailerIds = await getVisibleRetailerIds(env.DB);
+  // A run for one store (POST /admin/run?store=<slug>) has that store only; otherwise every runnable store.
+  const retailerIds = options.retailerId === undefined ? await getVisibleRetailerIds(env.DB) : [options.retailerId];
   const runId = await insertRun(env.DB, toIsoUtc(clock()), trigger, retailerIds.length);
 
   const queue = env.FETCH_QUEUE as Queue<StoreJob>;

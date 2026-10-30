@@ -13,7 +13,7 @@
 - `GET {origin}/robots.txt` - checked before the page fetch.
 - For Shopify stores: `GET {origin}/collections/{handle}/products.json?limit=...` - read was/now prices.
 
-**Integration Notes:** the user-agent is `SaleawayBot/1.0 (+https://saleaway.co.za/contact)`. Only `https` URLs are fetched, redirects are limited to 3, and private or local addresses are rejected. No attempt is made to get around bot protection (NFR6). Three stores (Amazon.co.za, Game, Checkers) blocked even a home connection, so they default to `manual`.
+**Integration Notes:** the user-agent is `SaleawayBot/1.0 (+https://saleaway.online/contact)`, on every request including `robots.txt`, with an `Accept` header and no other header. Each request times out after 10 seconds **[Assumption]**. Only `https` URLs are fetched, redirects are followed by hand and limited to 3, each target is checked first, and a redirect to `http://`, to an IP address or to a local name (`localhost.`, `x.internal`) is never requested. `robots.txt` is asked first and obeyed (RFC 9309): a refusal is recorded as `blocked`, an unreachable file (5xx, timeout) as an error with the page not fetched, and a missing file (4xx) means everything is allowed. A page of a store whose spreadsheet status is `verified_js_shell` is classified `js_only` on a 2xx answer without reading it. No attempt is made to get around bot protection (NFR6): a blocked store is recorded and never retried. Three stores (Amazon.co.za, Game, Checkers) blocked even a home connection, so they default to `manual`. **Measured from a deployed Worker (Story 3.2):** 34 of the 89 other stores also blocked it (see `docs/fetch-spike.md`).
 
 ## Cloudflare Web Analytics
 

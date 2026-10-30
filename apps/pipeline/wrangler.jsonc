@@ -16,6 +16,6 @@
     "producers": [{ "binding": "FETCH_QUEUE", "queue": "saleaway-fetch" }],
     "consumers": [{ "queue": "saleaway-fetch", "max_batch_size": 1, "max_retries": 1, "max_concurrency": 2 }]
   },
-  "vars": { "FINALIZE_CRON": "45 3 * * *", "STAGGER_SECONDS": "15", "PIPELINE_ENABLED": "true" },
+  "vars": { "FINALIZE_CRON": "45 3 * * *", "STAGGER_SECONDS": "15", "PIPELINE_ENABLED": "true", "MEASURE_CPU": "false" },
   "observability": { "enabled": true }
 }

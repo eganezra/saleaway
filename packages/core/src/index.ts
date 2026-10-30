@@ -16,3 +16,7 @@ export type {
   SeedRow,
   SeedStatus,
 } from './types';
+export { isSafeFetchUrl, resolveRedirect } from './url-safety';
+export { classifyResponse, redirectedAway } from './classify';
+export type { FetchOutcome } from './classify';
+export { isAllowedByRobots } from './robots';

@@ -64,6 +64,7 @@ so that I can pick the best sales.
 5. If nothing can be read, the record is "On sale", not an error.
 6. Each method has unit tests using saved page samples (NFR12).
 7. Under Armour SA and Wellness Warehouse (both Shopify) are covered as the first examples.
+8. CPU time per store is measured again on the deployed Worker, now with the real validation and extraction, for the same stores as in Story 3.2 (Bash, Woolworths, Takealot and Under Armour SA), because Story 3.2 could only measure a stand-in for these steps. The result is added to `docs/fetch-spike.md`. If any store regularly exceeds 8 ms of CPU **[Assumption]**, the response is chosen as in Story 3.2, criterion 6: a streaming parse, the `manual` method for that store, or Story 3.8 (fallback runner).
 
 ## Story 3.5 Save Sale Records and Expiry
 

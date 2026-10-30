@@ -1,0 +1,5 @@
+﻿User-agent: *
+Disallow: /crlf
+# a comment
+
+Allow: /crlf/ok

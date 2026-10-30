@@ -1,0 +1,4 @@
+User-agent: Googlebot
+User-agent: SaleawayBot
+User-agent: Bingbot
+Disallow: /multi

@@ -1,0 +1,15 @@
+# trimmed sample, shaped like a large retailer
+User-agent: *
+Disallow: /cart
+Disallow: /checkout
+Disallow: /search
+Disallow: /*?sort=
+Disallow: /account$
+Allow: /search/sale
+
+User-agent: SaleawayBot
+Disallow: /private
+Allow: /private/sale
+
+Sitemap: https://shop.example/sitemap.xml
+Crawl-delay: 10

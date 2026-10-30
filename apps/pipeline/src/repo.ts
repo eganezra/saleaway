@@ -31,15 +31,32 @@ export async function insertRun(
 
 export interface RetailerForJob {
   id: number;
+  slug: string;
   extractionMethod: string;
+  saleUrl: string | null;
+  seedStatus: string;
 }
 
 export async function getRetailerForJob(db: D1Database, retailerId: number): Promise<RetailerForJob | null> {
   const row = await db
-    .prepare('SELECT id, extraction_method FROM retailers WHERE id = ?1')
+    .prepare('SELECT id, slug, extraction_method, sale_url, seed_status FROM retailers WHERE id = ?1')
     .bind(retailerId)
-    .first<{ id: number; extraction_method: string }>();
-  return row ? { id: row.id, extractionMethod: row.extraction_method } : null;
+    .first<{ id: number; slug: string; extraction_method: string; sale_url: string | null; seed_status: string }>();
+  return row
+    ? { id: row.id, slug: row.slug, extractionMethod: row.extraction_method, saleUrl: row.sale_url, seedStatus: row.seed_status }
+    : null;
+}
+
+/** The id of a store that a normal run would process (visible, https sale URL), or null. */
+export async function findRunnableRetailerIdBySlug(db: D1Database, slug: string): Promise<number | null> {
+  const row = await db
+    .prepare(
+      `SELECT id FROM retailers
+       WHERE slug = ?1 AND is_visible = 1 AND substr(sale_url, 1, 8) = 'https://'`,
+    )
+    .bind(slug)
+    .first<{ id: number }>();
+  return row ? row.id : null;
 }
 
 export interface RunResultInput {

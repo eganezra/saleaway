@@ -1,6 +1,7 @@
 import { toIsoUtc } from '@saleaway/core';
 import { isAuthorized } from './auth';
 import { isPaused } from './config';
+import { findRunnableRetailerIdBySlug } from './repo';
 import { startRun } from './start-run';
 import type { Deps } from './types';
 
@@ -28,7 +29,16 @@ export async function handleAdminRun(
     return apiError(409, 'paused', 'The pipeline is paused (PIPELINE_ENABLED is false).', deps);
   }
   try {
-    const { runId, storesTotal } = await startRun(env, 'manual', deps);
+    // `?store=<slug>` runs one store only, so one store can be tested without fetching every store again.
+    const slug = new URL(request.url).searchParams.get('store');
+    let retailerId: number | undefined;
+    if (slug !== null) {
+      if (!/^[a-z0-9-]+$/.test(slug)) return apiError(400, 'bad_store', 'The store must be a slug such as bash-tfg.', deps);
+      const found = await findRunnableRetailerIdBySlug(env.DB, slug);
+      if (found === null) return apiError(404, 'store_not_found', 'No visible store has that slug.', deps);
+      retailerId = found;
+    }
+    const { runId, storesTotal } = await startRun(env, 'manual', deps, retailerId === undefined ? {} : { retailerId });
     return Response.json({ ok: true, runId, storesTotal });
   } catch (err) {
     deps.log.error('run_failed', { err });

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   closeRun,
   countResultsByClass,
+  findRunnableRetailerIdBySlug,
   getRetailerForJob,
   getVisibleRetailerIds,
   insertRun,
@@ -76,9 +77,31 @@ describe('insertRun and getRetailerForJob', () => {
   });
 
   it('reads a store for a job, or null when it does not exist', async () => {
-    await seedRetailers(t.db, [{ id: 1, extractionMethod: 'manual' }]);
-    expect(await getRetailerForJob(t.db, 1)).toEqual({ id: 1, extractionMethod: 'manual' });
+    await seedRetailers(t.db, [{ id: 1, extractionMethod: 'manual', seedStatus: 'verified_js_shell', saleUrl: 'https://store-1.example/sale' }]);
+    expect(await getRetailerForJob(t.db, 1)).toEqual({
+      id: 1,
+      slug: 'store-1',
+      extractionMethod: 'manual',
+      saleUrl: 'https://store-1.example/sale',
+      seedStatus: 'verified_js_shell',
+    });
     expect(await getRetailerForJob(t.db, 999)).toBeNull();
+  });
+});
+
+describe('findRunnableRetailerIdBySlug', () => {
+  it('finds a visible store with an https sale URL by its slug, and nothing else', async () => {
+    await seedRetailers(t.db, [
+      { id: 1 },
+      { id: 2, isVisible: 0 },
+      { id: 3, saleUrl: null },
+      { id: 4, saleUrl: 'http://insecure.example/sale' },
+      { id: 5, saleUrl: 'HTTPS://UPPER.example/sale' },
+    ]);
+    expect(await findRunnableRetailerIdBySlug(t.db, 'store-1')).toBe(1);
+    for (const slug of ['store-2', 'store-3', 'store-4', 'store-5', 'store-999', '']) {
+      expect(await findRunnableRetailerIdBySlug(t.db, slug), slug).toBeNull();
+    }
   });
 });
 

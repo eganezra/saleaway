@@ -1,0 +1,5 @@
+Disallow: /orphan
+User-agent: *
+Disallow: /x
+Unknown-Directive: value
+Disallow: /y
