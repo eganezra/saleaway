@@ -1,0 +1,26 @@
+{
+  "products": [
+    {
+      "id": 1,
+      "title": "Product 1",
+      "variants": [
+        {
+          "id": 10,
+          "price": "100.00",
+          "compare_at_price": "80.00"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Product 2",
+      "variants": [
+        {
+          "id": 20,
+          "price": "100.00",
+          "compare_at_price": "100.00"
+        }
+      ]
+    }
+  ]
+}

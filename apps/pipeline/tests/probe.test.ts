@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { productsJsonUrl, runProbe } from '../src/probe';
+import { runProbe } from '../src/probe';
 import { processStore } from '../src/process-store';
 import { insertRun } from '../src/repo';
 import { createTestDb, resetData, rows, seedRetailers } from './helpers/db';
@@ -21,14 +21,6 @@ beforeEach(async () => {
 const SALE = 'https://shop.example/collections/sale';
 const ROBOTS = 'https://shop.example/robots.txt';
 const OK_ROBOTS = { status: 200, body: 'User-agent: *\nDisallow:\n' };
-
-describe('productsJsonUrl', () => {
-  it('appends /products.json to the path, sets limit=250, and drops any query or fragment', () => {
-    expect(productsJsonUrl('https://underarmour.co.za/collections/sale')).toBe('https://underarmour.co.za/collections/sale/products.json?limit=250');
-    expect(productsJsonUrl('https://shop.example/collections/sale/')).toBe('https://shop.example/collections/sale/products.json?limit=250');
-    expect(productsJsonUrl('https://shop.example/collections/sale?sort=price#top')).toBe('https://shop.example/collections/sale/products.json?limit=250');
-  });
-});
 
 describe('the probe switch (MEASURE_CPU)', () => {
   it('off by default: no cpu_probe is logged, and the page is read only to be judged (Story 3.3)', async () => {

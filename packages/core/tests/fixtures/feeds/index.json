@@ -1,0 +1,56 @@
+[
+  {
+    "file": "shopify-collection.json",
+    "store": "hand-made",
+    "synthetic": true,
+    "expectPercent": 34
+  },
+  {
+    "file": "empty.json",
+    "store": "hand-made",
+    "synthetic": true,
+    "expectPercent": null
+  },
+  {
+    "file": "no-compare.json",
+    "store": "hand-made",
+    "synthetic": true,
+    "expectPercent": null
+  },
+  {
+    "file": "null-and-zero.json",
+    "store": "hand-made",
+    "synthetic": true,
+    "expectPercent": null
+  },
+  {
+    "file": "numbers.json",
+    "store": "hand-made",
+    "synthetic": true,
+    "expectPercent": 50
+  },
+  {
+    "file": "compare-lower.json",
+    "store": "hand-made",
+    "synthetic": true,
+    "expectPercent": null
+  },
+  {
+    "file": "out-of-range.json",
+    "store": "hand-made",
+    "synthetic": true,
+    "expectPercent": null
+  },
+  {
+    "file": "mixed-range.json",
+    "store": "hand-made",
+    "synthetic": true,
+    "expectPercent": 25
+  },
+  {
+    "file": "odd-shapes.json",
+    "store": "hand-made",
+    "synthetic": true,
+    "expectPercent": 40
+  }
+]

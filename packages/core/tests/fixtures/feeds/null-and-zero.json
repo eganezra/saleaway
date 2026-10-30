@@ -1,0 +1,48 @@
+{
+  "products": [
+    {
+      "id": 1,
+      "title": "Product 1",
+      "variants": [
+        {
+          "id": 10,
+          "price": "100.00",
+          "compare_at_price": null
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Product 2",
+      "variants": [
+        {
+          "id": 20,
+          "price": "100.00",
+          "compare_at_price": ""
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Product 3",
+      "variants": [
+        {
+          "id": 30,
+          "price": "100.00",
+          "compare_at_price": "0.00"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Product 4",
+      "variants": [
+        {
+          "id": 40,
+          "price": "100.00",
+          "compare_at_price": "0"
+        }
+      ]
+    }
+  ]
+}

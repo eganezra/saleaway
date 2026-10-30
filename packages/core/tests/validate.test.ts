@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { recordEffect, validateSalePage } from '../src/validate';
 import type { PageInput, ValidationReason, ValidationVerdict } from '../src/validate';
+import { hostilePages } from './helpers/hostile';
 
 const fixtureUrl = (name: string): URL => new URL(`./fixtures/pages/${name}`, import.meta.url);
 const fixture = (name: string): string => readFileSync(fileURLToPath(fixtureUrl(name)), 'utf-8');
@@ -286,22 +287,7 @@ describe('what the function returns', () => {
 
 describe('size and safety', () => {
   const MIB = 1024 * 1024;
-  const hostile: Record<string, string> = {
-    'many closed script tags and no style tag': '<script></script>'.repeat(Math.floor((3 * MIB) / 17)),
-    'many closed style tags and no script tag': '<style></style>'.repeat(Math.floor((3 * MIB) / 15)),
-    'many closed script and style tags together': '<script></script><style></style>'.repeat(Math.floor((3 * MIB) / 32)),
-    'many comments': '<!-- x -->'.repeat(Math.floor((3 * MIB) / 10)),
-    'many small tags with text': '<b>word</b> '.repeat(Math.floor((3 * MIB) / 12)),
-    'many unclosed script tags': '<script '.repeat(Math.floor((3 * MIB) / 8)),
-    'many unclosed style tags': '<style>'.repeat(Math.floor((3 * MIB) / 7)),
-    'many open angle brackets and no close': '<'.repeat(3 * MIB),
-    'many open tags and no text': '<a'.repeat(Math.floor((3 * MIB) / 2)),
-    'a long run of digits and spaces after R': `R${'1 '.repeat(Math.floor((3 * MIB) / 2))}`,
-    'many R characters': 'R'.repeat(3 * MIB),
-    'many percent signs': '<span>9%</span>'.repeat(Math.floor((3 * MIB) / 15)),
-    'a long attribute that never closes': `<div class="${'old-price '.repeat(Math.floor((3 * MIB) / 10))}`,
-    'a long title that never closes': `<title>${'a'.repeat(3 * MIB)}`,
-  };
+  const hostile = hostilePages();
   for (const [name, text] of Object.entries(hostile)) {
     it(`handles ${name} (3 MiB) in under a second`, () => {
       const started = Date.now();

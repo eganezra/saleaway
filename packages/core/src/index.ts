@@ -30,3 +30,4 @@ export { nextSaleRecord } from './sale-record';
 export type { FetchEvent, SaleRecordFields } from './sale-record';
 export { expiryFromDate, parseOverrideChange, parseOverridesFile } from './override-input';
 export type { ChangeResult, OverrideChange, OverrideRow, RawOverrideChange } from './override-input';
+export { MAX_DISCOUNT, MIN_DISCOUNT, extractDiscount, extractHtmlDiscount, extractShopifyDiscount, extractStructuredDiscount } from './extract';

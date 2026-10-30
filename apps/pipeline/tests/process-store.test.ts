@@ -174,9 +174,10 @@ describe('processStore: page validation (Story 3.3)', () => {
     for (const reserved of ['level', 'message', 'time']) expect(Object.keys(lines[0]?.fields ?? {})).not.toContain(reserved);
   });
 
-  it('does not change the result row: the same as before, and the record is saved with it', async () => {
+  it('saves the result row as before, with the discount read from the page, and the record with it', async () => {
     const { saved } = await runStore({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: SALE_PAGE } });
-    expect(saved).toMatchObject([{ result: 'ok', http_status: 200, error: null, discount_percent: null }]);
+    // since Story 3.4 the deepest discount of a valid page is saved with the result (two old-price pairs of 50 percent)
+    expect(saved).toMatchObject([{ result: 'ok', http_status: 200, error: null, discount_percent: 50 }]);
     // since Story 3.5 the page also makes a sale record, saved with the result
     expect(await rows(t.db, 'SELECT state, validation FROM sale_records')).toEqual([{ state: 'active', validation: 'content_verified' }]);
   });
@@ -306,11 +307,11 @@ describe('processStore: sale records (Story 3.5)', () => {
     return { result, named, network };
   }
 
-  it('a valid page saves an active, content-verified record, validated at the time of the run, with no percentage yet', async () => {
+  it('a valid page saves an active, content-verified record, validated at the time of the run, with its percentage', async () => {
     await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
     await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
     expect(await records()).toEqual([
-      { state: 'active', validation: 'content_verified', discount_percent: null, last_result: 'ok', first_seen_at: '2026-10-30T03:10:00Z', last_checked_at: '2026-10-30T03:10:00Z', last_validated_at: '2026-10-30T03:10:00Z', ended_at: null },
+      { state: 'active', validation: 'content_verified', discount_percent: 50, last_result: 'ok', first_seen_at: '2026-10-30T03:10:00Z', last_checked_at: '2026-10-30T03:10:00Z', last_validated_at: '2026-10-30T03:10:00Z', ended_at: null },
     ]);
   });
 
@@ -427,6 +428,173 @@ describe('processStore: sale records (Story 3.5)', () => {
     expect(await rows(t.db, 'SELECT extraction_method, is_visible, sale_url FROM retailers')).toEqual([{ extraction_method: 'html', is_visible: 1, sale_url: SALE }]);
     const text = JSON.stringify(await records());
     for (const word of ['old-price', 'Sale', 'html', 'R999', 'R499']) expect(text).not.toContain(word);
+  });
+});
+
+describe('processStore: discount extraction (Story 3.4)', () => {
+  const COLLECTION = 'https://shop.example/collections/sale';
+  const FEED = 'https://shop.example/collections/sale/products.json?limit=250';
+  const pairs = (...percents: number[]) =>
+    `<html><head><title>Sale</title></head><body><ol>${percents.map((p) => `<li><span class="old-price">R100</span><span>R${100 - p}</span></li>`).join('')}</ol></body></html>`; // a valid page: old-price pairs
+  const FEED_40 = JSON.stringify({ products: [{ variants: [{ price: '60.00', compare_at_price: '100.00' }] }] });
+  const records = () => rows<{ discount_percent: number | null }>(t.db, 'SELECT discount_percent FROM sale_records');
+  const results = () => rows<{ discount_percent: number | null }>(t.db, 'SELECT discount_percent FROM run_results');
+
+  async function run(seed: Partial<RetailerSeed>, routes: Record<string, Spec | Spec[]>, tweak?: (deps: ReturnType<typeof fakeDeps>['deps']) => void) {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE, ...seed }]);
+    const network = fakeFetch(routes);
+    const made = fakeDeps({ start: '2026-10-30T03:10:00.000Z', fetch: network.fetch });
+    tweak?.(made.deps);
+    const result = await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, made.deps);
+    return { result, network, ...made };
+  }
+
+  it('an html store saves the deepest pair of its page, in the record and in the result row', async () => {
+    const { named } = await run({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: pairs(25, 40, 10) } });
+    expect(await records()).toEqual([{ discount_percent: 40 }]);
+    expect(await results()).toEqual([{ discount_percent: 40 }]);
+    expect(named('discount_extracted')[0]?.fields).toEqual({ slug: 'store-1', method: 'html', percent: 40, feed: 'none', feedBytes: 0 });
+  });
+
+  it('a structured_data store reads the data in its page', async () => {
+    const body = '<html><body><p>R100</p><p>R200</p><script>[{"listPrice":200,"price":100},{"listPrice":300,"price":225}]</script></body></html>';
+    await run({ extractionMethod: 'structured_data' }, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body } });
+    expect(await records()).toEqual([{ discount_percent: 50 }]);
+  });
+
+  it('a manual store is never fetched and has no percentage', async () => {
+    const { network } = await run({ extractionMethod: 'manual' }, {});
+    expect(network.requests).toEqual([]);
+    expect(await results()).toEqual([{ discount_percent: null }]);
+  });
+
+  it('a shopify_json store whose address is a collection asks for its feed once, after robots.txt and the page, and uses it', async () => {
+    const { network, named } = await run({ extractionMethod: 'shopify_json', saleUrl: COLLECTION }, { 'https://shop.example/robots.txt': OK_ROBOTS, [COLLECTION]: { status: 200, body: pairs(25, 20) }, [FEED]: { status: 200, body: FEED_40 } });
+    expect(network.urls()).toEqual(['https://shop.example/robots.txt', COLLECTION, FEED]); // robots.txt exactly once
+    expect((network.requests[2]?.init?.headers as Record<string, string>)['User-Agent']).toContain('SaleawayBot/1.0');
+    expect(await records()).toEqual([{ discount_percent: 40 }]);
+    expect(await results()).toEqual([{ discount_percent: 40 }]);
+    expect(named('discount_extracted')[0]?.fields).toEqual({ slug: 'store-1', method: 'shopify_json', percent: 40, feed: 'used', feedBytes: FEED_40.length });
+  });
+
+  it('a feed that is refused, missing, slow, empty or useless falls back to the page and is never asked twice', async () => {
+    const cases: Array<[string, Spec, string]> = [
+      ['429', { status: 429 }, 'blocked'],
+      ['403', { status: 403 }, 'blocked'],
+      ['404', { status: 404 }, 'fallback'],
+      ['500', { status: 500 }, 'fallback'],
+      ['timeout', { throws: 'timeout' }, 'fallback'],
+      ['network', { throws: 'network' }, 'fallback'],
+      ['no percentage in it', { status: 200, body: '{"products":[]}' }, 'fallback'],
+      ['not json', { status: 200, body: 'oops' }, 'fallback'],
+    ];
+    for (const [name, spec, state] of cases) {
+      await resetData(t.db);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      const { network, named } = await run({ extractionMethod: 'shopify_json', saleUrl: COLLECTION }, { 'https://shop.example/robots.txt': OK_ROBOTS, [COLLECTION]: { status: 200, body: pairs(25, 20) }, [FEED]: spec });
+      expect(network.urls().filter((u) => u === FEED), name).toHaveLength(1);
+      expect(await records(), name).toEqual([{ discount_percent: 25 }]); // the page's own pair
+      expect((named('discount_extracted')[0]?.fields as { feed: string }).feed, name).toBe(state);
+    }
+  });
+
+  it('does not ask for the feed when robots.txt forbids it, and reads the page', async () => {
+    const forbid = { status: 200, body: 'User-agent: *\nDisallow: /collections/*/products.json\n' };
+    const { network, named } = await run({ extractionMethod: 'shopify_json', saleUrl: COLLECTION }, { 'https://shop.example/robots.txt': forbid, [COLLECTION]: { status: 200, body: pairs(25, 20) } });
+    expect(network.urls()).toEqual(['https://shop.example/robots.txt', COLLECTION]);
+    expect(await records()).toEqual([{ discount_percent: 25 }]);
+    expect((named('discount_extracted')[0]?.fields as { feed: string }).feed).toBe('not_allowed');
+  });
+
+  it('a shopify_json store whose address is a hub page, a product page or another path makes no feed request', async () => {
+    for (const saleUrl of ['https://shop.example/pages/promotions', 'https://shop.example/products/sale', 'https://shop.example/collections/sale/extra', 'https://shop.example/collections/sale?sort=price']) {
+      await resetData(t.db);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      const { network, named } = await run({ extractionMethod: 'shopify_json', saleUrl }, { 'https://shop.example/robots.txt': OK_ROBOTS, [saleUrl]: { status: 200, body: pairs(30, 20) } });
+      expect(network.urls(), saleUrl).toEqual(['https://shop.example/robots.txt', saleUrl]);
+      expect(await records(), saleUrl).toEqual([{ discount_percent: 30 }]);
+      expect((named('discount_extracted')[0]?.fields as { feed: string }).feed, saleUrl).toBe('none');
+    }
+  });
+
+  it('an html store never asks for a feed, whatever its address looks like', async () => {
+    const { network } = await run({ extractionMethod: 'html', saleUrl: COLLECTION }, { 'https://shop.example/robots.txt': OK_ROBOTS, [COLLECTION]: { status: 200, body: pairs(25, 20) } });
+    expect(network.urls()).toEqual(['https://shop.example/robots.txt', COLLECTION]);
+  });
+
+  it('only a valid page gets a percentage and a feed request: an unverifiable or ended page, a js_only store and a blocked answer get none', async () => {
+    const cases: Array<[string, Partial<RetailerSeed>, Spec]> = [
+      ['a JavaScript page', { extractionMethod: 'shopify_json', saleUrl: COLLECTION }, { status: 200, body: '<html><body><div id="root"></div></body></html>' }],
+      ['a page with no sale', { extractionMethod: 'shopify_json', saleUrl: COLLECTION }, { status: 200, body: '<html><title>Page not found</title></html>' }],
+      ['a js_only store', { extractionMethod: 'shopify_json', saleUrl: COLLECTION, seedStatus: 'verified_js_shell' }, { status: 200, body: pairs(30, 20) }],
+      ['a blocked answer', { extractionMethod: 'shopify_json', saleUrl: COLLECTION }, { status: 403 }],
+      ['a not found answer', { extractionMethod: 'shopify_json', saleUrl: COLLECTION }, { status: 404 }],
+    ];
+    for (const [name, seed, page] of cases) {
+      await resetData(t.db);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      const { network, named } = await run(seed, { 'https://shop.example/robots.txt': OK_ROBOTS, [COLLECTION]: page, [FEED]: { status: 200, body: FEED_40 } });
+      expect(network.urls().includes(FEED), name).toBe(false);
+      expect(named('discount_extracted'), name).toEqual([]);
+      expect(await results(), name).toEqual([{ discount_percent: null }]);
+    }
+  });
+
+  it('an extraction that throws is logged and the store is saved as "On sale"', async () => {
+    const { named } = await run({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: pairs(25, 20) } }, (deps) => {
+      deps.extract = () => {
+        throw new Error('boom');
+      };
+    });
+    expect(named('extraction_failed')[0]?.fields).toMatchObject({ slug: 'store-1' });
+    expect(named('extraction_failed')[0]?.level).toBe('warn');
+    expect(await records()).toEqual([{ discount_percent: null }]);
+    expect(await rows(t.db, 'SELECT state, validation FROM sale_records')).toEqual([{ state: 'active', validation: 'content_verified' }]);
+  });
+
+  it('a percentage outside 5 to 90 from the extractor is dropped before it is saved', async () => {
+    for (const bad of [4, 91, 0, 150, 50.5]) {
+      await resetData(t.db);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      await run({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: pairs(25, 20) } }, (deps) => {
+        deps.extract = () => bad;
+      });
+      expect((await records())[0]?.discount_percent, String(bad)).toBeNull();
+    }
+  });
+
+  it('reads the page once, and the validator and the extractor see the same text', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    const body = pairs(25, 30);
+    const network = fakeFetchWithTrackedBody(SALE, { [ROBOTS]: OK_ROBOTS }, 200, body);
+    const { deps } = fakeDeps({ fetch: network.fetch });
+    let validated = '';
+    let extracted = '';
+    deps.validate = (page) => {
+      validated = page.text;
+      return { verdict: 'valid', reason: 'discounts_found', signals: { amounts: 4, percentLabels: 0, wasPrices: 2, structured: 0, scripts: 0, textLength: 10 } };
+    };
+    deps.extract = (_method, input) => {
+      extracted = input.page;
+      return 30;
+    };
+    await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, deps);
+    expect(validated).toBe(body);
+    expect(extracted).toBe(body);
+    expect(network.stats.pulls).toBeLessThanOrEqual(2); // one chunk and the end
+  });
+
+  it('writes no page or feed text to any log field, and no field has a name the logger would drop', async () => {
+    const { entries } = await run({ extractionMethod: 'shopify_json', saleUrl: COLLECTION }, { 'https://shop.example/robots.txt': OK_ROBOTS, [COLLECTION]: { status: 200, body: pairs(25, 20) }, [FEED]: { status: 200, body: FEED_40 } });
+    const text = JSON.stringify(entries);
+    for (const word of ['old-price', 'compare_at_price', 'variants', 'Sale']) expect(text).not.toContain(word);
+    for (const entry of entries) for (const reserved of ['level', 'message', 'time']) expect(Object.keys(entry.fields ?? {})).not.toContain(reserved);
+  });
+
+  it('never writes an override or changes the store', async () => {
+    await run({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: pairs(25, 20) } });
+    expect(await rows(t.db, 'SELECT COUNT(*) AS n FROM overrides')).toEqual([{ n: 0 }]);
+    expect(await rows(t.db, 'SELECT extraction_method, is_visible FROM retailers')).toEqual([{ extraction_method: 'html', is_visible: 1 }]);
   });
 });
 

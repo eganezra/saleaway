@@ -1,4 +1,4 @@
-import type { Logger, PageInput, ValidationResult } from '@saleaway/core';
+import type { Logger, PageInput, ValidationResult, extractDiscount } from '@saleaway/core';
 
 /** The queue message: process one store inside one run. */
 export interface StoreJob {
@@ -29,4 +29,6 @@ export interface Deps {
   createRewriter?: () => RewriterLike;
   /** Judges a fetched sale page. Production leaves it unset (the real `validateSalePage` runs); tests set a stub. */
   validate?: (page: PageInput) => ValidationResult;
+  /** Reads the discount of a judged page. Production leaves it unset (the real `extractDiscount` runs); tests set a stub. */
+  extract?: typeof extractDiscount;
 }

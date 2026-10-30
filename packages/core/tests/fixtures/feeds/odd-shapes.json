@@ -1,0 +1,22 @@
+{
+  "products": [
+    null,
+    "text",
+    {
+      "variants": null
+    },
+    {
+      "variants": [
+        null,
+        {
+          "price": "abc",
+          "compare_at_price": "100"
+        },
+        {
+          "price": "60.00",
+          "compare_at_price": "100.00"
+        }
+      ]
+    }
+  ]
+}

@@ -1,11 +1,10 @@
 import { discard, fetchPage } from './fetcher';
+import { productsJsonUrl } from './shopify';
 import type { Deps } from './types';
 
 // MEASUREMENT ONLY (Story 3.2). Switched on by MEASURE_CPU=true. It stands in for the page validation and
 // the discount extraction of Stories 3.3 and 3.4, which do not exist yet, so the CPU a real page costs can
 // be measured on the deployed Worker. It keeps only counts: no page text is stored or logged.
-
-const MAX_PRODUCTS_LIMIT = 250;
 
 interface ProbeInput {
   slug: string;
@@ -23,15 +22,6 @@ async function countBytes(body: ReadableStream<Uint8Array> | null): Promise<numb
     if (done) return bytes;
     bytes += value.byteLength;
   }
-}
-
-/** `<sale_url>/products.json?limit=250`, built from the path so any query on the sale URL is dropped. */
-export function productsJsonUrl(saleUrl: string): string {
-  const url = new URL(saleUrl);
-  url.pathname = `${url.pathname.replace(/\/+$/, '')}/products.json`;
-  url.search = `?limit=${MAX_PRODUCTS_LIMIT}`;
-  url.hash = '';
-  return url.href;
 }
 
 function countShopifyProducts(data: unknown): { products: number; comparePriced: number } {

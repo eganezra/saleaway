@@ -74,6 +74,17 @@ A queue consumer invocation that checked `robots.txt`, fetched the page and stre
 
 **Decision (2026-10-30, Story 3.9):** the user ruled out contacting retailers and chose to **hide the blocked stores for launch**. The 34 blocked stores and one more listing on the same website (`ackermans-baby-kids-toys`, which answered 500 from the site that blocks `ackermans`) are listed in [`hidden-stores.json`](data/hidden-stores.json) and hidden with `pnpm ops:hide`. The site and the daily run now use 57 stores (53 that answer, 3 `manual`, and `benji-moon`, an error that is a data fix). The hidden stores come back one by one in Story 5.4; Story 4.3's script, run from a home connection, gives a free test of another network.
 
+### Product feeds from a home connection (Story 3.4, 2026-10-30)
+
+Before writing the Shopify extractor, the two Shopify stores whose sale address is a collection were asked once for their product feed (`/collections/<handle>/products.json?limit=250`), from a home connection, after reading their `robots.txt`, with the pipeline's user-agent and no retry:
+
+| Store | Feed address | Answer |
+|---|---|---|
+| `beauty-on-tapp` | `/collections/clearance-sale/products.json` | **429** (Shopify's rate limit; not asked again) |
+| `toy-kingdom` | `/collections/sale/products.json` | **404** (the store's own not-found page; no feed there) |
+
+So **neither feed answered from a home connection**, and the Shopify extractor was tested on hand-made feeds in the real Shopify shape. The other three `shopify_json` stores were not asked: `under-armour-sa` has no feed (Story 3.2) and was set to the `html` method; `norman-goodfellows` has a hub page as its sale address and `benji-moon` a single product page, so no feed address can be derived from them (a data fix, Story 4.3). The pipeline asks `beauty-on-tapp` and `toy-kingdom` for their feed once a night and reads the page when the feed does not answer; the first nightly run (`discount_extracted`, field `feed`) shows whether the Worker is treated differently, and if both keep failing an operator can switch them to `html`.
+
 ### All 92 stores in this run
 
 | # | Store | Site | Method | Result | HTTP | Reason | ms |

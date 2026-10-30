@@ -243,6 +243,17 @@ pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --remote --command
 
 Open a few of the stores in the second list in a browser. If one still shows a real sale, the rule is wrong for that store: do not deploy the web app yet, and tell the developer which store. Stores with a `last_result` of `blocked` or `error` and the state `unknown` have never been checked successfully.
 
+### How the discount is read
+
+For a page that was judged **valid**, the pipeline also works out the deepest discount (Story 3.4), by the store's extraction method, and saves it as a whole percentage from 5 to 90 (anything else is ignored, and a store with nothing readable is shown as "On sale"):
+
+- **`html`:** the page's was and now prices (an old price marked as `old-price`, `line-through`, `<s>` and so on, with the nearest lower price), and only if there are none, its "30% off" style labels. A label in a menu, header or footer is ignored, and a price pair beats a label because a label can come from a banner.
+- **`structured_data`:** the price fields in the page's data (a list price and a price), then the page as above.
+- **`shopify_json`:** the store's product feed (`/collections/<name>/products.json`), asked once a night, only when the store's address is a collection, and never retried; if it does not answer, the page is used.
+- **`manual`:** nothing is read: the number comes from an override (see [Overrides](#overrides)).
+
+A page that cannot be judged (a JavaScript page, a cut page) or that shows no sale has no percentage. Each night's result is one `discount_extracted` log line per store (the method, the percentage and what happened to the feed), never any page text. The live site does not show percentages yet (Story 2.1).
+
 ### Pause and resume
 
 Set `"PIPELINE_ENABLED": "false"` in `apps/pipeline/wrangler.jsonc` and run `pnpm deploy:pipeline`. Only the exact text `false` pauses it. While paused, no run starts (cron or manual, the manual endpoint answers 409) and no run is closed. Messages already on the queue are still processed, and an open run is closed by the first close cron after you resume (set it back to `"true"` and redeploy). A change made only in the Cloudflare dashboard is overwritten by the next deploy.

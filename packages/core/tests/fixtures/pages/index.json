@@ -9,6 +9,10 @@
     "expect": {
       "verdict": "valid",
       "reason": "discounts_found"
+    },
+    "expectPercent": {
+      "html": 35,
+      "structured_data": 35
     }
   },
   {
@@ -21,6 +25,10 @@
     "expect": {
       "verdict": "valid",
       "reason": "discounts_found"
+    },
+    "expectPercent": {
+      "html": 50,
+      "structured_data": 50
     }
   },
   {
@@ -33,6 +41,10 @@
     "expect": {
       "verdict": "valid",
       "reason": "discounts_found"
+    },
+    "expectPercent": {
+      "html": 14,
+      "structured_data": 14
     }
   },
   {
@@ -46,7 +58,11 @@
       "verdict": "ended",
       "reason": "no_discounts"
     },
-    "note": "Made from the hirschs sample by removing every was price and label"
+    "note": "Made from the hirschs sample by removing every was price and label",
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
+    }
   },
   {
     "file": "makro.html",
@@ -58,6 +74,10 @@
     "expect": {
       "verdict": "valid",
       "reason": "discounts_found"
+    },
+    "expectPercent": {
+      "html": 30,
+      "structured_data": 30
     }
   },
   {
@@ -71,7 +91,11 @@
       "verdict": "valid",
       "reason": "discounts_found"
     },
-    "note": "The page answered on /struckgold, another path on the same site: not a redirect away"
+    "note": "The page answered on /struckgold, another path on the same site: not a redirect away",
+    "expectPercent": {
+      "html": null,
+      "structured_data": 64
+    }
   },
   {
     "file": "woolworths-fashion.html",
@@ -84,7 +108,11 @@
       "verdict": "unverifiable",
       "reason": "javascript_shell"
     },
-    "note": "Reduced to the page shell: its products are not in the HTML"
+    "note": "Reduced to the page shell: its products are not in the HTML",
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
+    }
   },
   {
     "file": "takealot.html",
@@ -97,7 +125,11 @@
       "verdict": "unverifiable",
       "reason": "javascript_shell"
     },
-    "note": "Reduced to the page shell: its products are not in the HTML"
+    "note": "Reduced to the page shell: its products are not in the HTML",
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
+    }
   },
   {
     "file": "synthetic-404.html",
@@ -109,6 +141,10 @@
     "expect": {
       "verdict": "ended",
       "reason": "error_page"
+    },
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
     }
   },
   {
@@ -121,6 +157,10 @@
     "expect": {
       "verdict": "blocked",
       "reason": "challenge_page"
+    },
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
     }
   },
   {
@@ -133,6 +173,10 @@
     "expect": {
       "verdict": "blocked",
       "reason": "login_page"
+    },
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
     }
   },
   {
@@ -145,6 +189,10 @@
     "expect": {
       "verdict": "ended",
       "reason": "empty_listing"
+    },
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
     }
   },
   {
@@ -157,6 +205,10 @@
     "expect": {
       "verdict": "unverifiable",
       "reason": "javascript_shell"
+    },
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
     }
   },
   {
@@ -170,6 +222,10 @@
       "verdict": "ended",
       "reason": "redirected_away"
     },
-    "note": "The same page, but the fetch ended on the home page"
+    "note": "The same page, but the fetch ended on the home page",
+    "expectPercent": {
+      "html": 14,
+      "structured_data": 14
+    }
   }
 ]

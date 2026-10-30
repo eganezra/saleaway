@@ -22,6 +22,8 @@ apps/pipeline/src/
 
 **Built in Story 3.5 (2026-10-30):** `sale-record.ts` in `packages/core` (`nextSaleRecord`, the types `SaleRecordFields` and `FetchEvent`); in `repo.ts`, `getSaleRecord` (one `SELECT`, an old row with no `last_result` reads as `error`) and `saveStoreResult` (the result row and the sale record in one `db.batch`); in `process-store.ts` the result is now saved with its record. `recordStoreError` still writes only a result row. Nothing in the web app changed: the home query already reads `sale_records` (Story 2.3), but the live web app does not use the new rules until it is deployed.
 
+**Built in Story 3.4 (2026-10-30):** the extractors in `packages/core/src/extract/` (`extractShopifyDiscount`, `extractHtmlDiscount`, `extractStructuredDiscount` and the dispatcher `extractDiscount`, with the range `MIN_DISCOUNT` 5 and `MAX_DISCOUNT` 90) and `page-scan.ts` (the linear scanners that the validator and the extractors share: `removeBlocks`, `textNodes`, the amount, badge and old-price patterns). In the pipeline: `shopify.ts` (`productsJsonUrl`, `isShopifyCollection`, `fetchShopifyFeed`); `checkRobots` now returns `{ decision, text }` so the feed's path is checked against the robots.txt already read; `process-store.ts` reads the discount of a `valid` page (`readPercent`), requests the feed of a `shopify_json` store only when its sale address is exactly `/collections/<handle>` (once, never retried, a 429 is `blocked`), logs one `discount_extracted` line (`slug`, `method`, `percent`, `feed`, `feedBytes`: no text), and saves the percentage in the record and the result row; `Deps` has an optional `extract` for tests. `under-armour-sa` was set to the `html` method because it has no feed.
+
 ### Function Template
 
 ```typescript
