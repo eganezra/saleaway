@@ -39,31 +39,20 @@ if (vm.kind === 'error') Astro.response.status = 503;
     color: var(--color-muted);
   }
 
-  /* One column on a phone, then 2, 3 and 4 cards across (the spec's breakpoints). A plain grid, not a masonry: a card is
-     as tall as its rows, and the reading and tab order stay the order of the page. */
+  /* As many cards across as fit, none narrower than 21rem: a row (rank, name, "Checked" label, pill and chevron) needs
+     about 290px inside its card, so a narrower card makes the pill drop under the name or the label wrap. That is 1 column
+     on a phone, 2 on a tablet and 3 on a desktop (the 1280px content never has room for 4). A plain grid, not a masonry:
+     a card is as tall as its rows, and the reading and tab order stay the order of the page. */
   .cards {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(min(21rem, 100%), 1fr));
     gap: 16px;
     align-items: start;
   }
 
   @media (min-width: 640px) {
     .cards {
-      grid-template-columns: repeat(2, 1fr);
       gap: 24px;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .cards {
-      grid-template-columns: repeat(3, 1fr);
-    }
-  }
-
-  @media (min-width: 1440px) {
-    .cards {
-      grid-template-columns: repeat(4, 1fr);
     }
   }
 </style>
