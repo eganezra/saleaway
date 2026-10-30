@@ -13,6 +13,7 @@ import { queryRows, repoRoot, runSql } from './wrangler';
 // `pnpm ops:override --local | --remote ...`: the operator's override command (Story 4.1). See README, "Overrides".
 // It checks everything before it writes, writes through Wrangler, then reads the database back to be sure.
 
+const CLOCK_TOLERANCE_MS = 2 * 60 * 1000;
 const OVERRIDES_FILE = 'docs/data/overrides.json';
 const HIDDEN_FILE = 'docs/data/hidden-stores.json';
 
@@ -107,7 +108,8 @@ function change(options: OverrideOptions, today: string): number {
 
   const after = readOverride(options.target, store.id);
   const problems = after === 'unreadable' ? ['could not read the override back'] : differences(after === null ? null : toState(after), expected);
-  if (after !== 'unreadable' && after !== null && after.created_at < started) problems.push(`created_at was not renewed (${after.created_at})`);
+  // The database sets `created_at` with its own clock: allow two minutes between it and this computer's clock.
+  if (after !== 'unreadable' && after !== null && Date.parse(after.created_at) < Date.parse(started) - CLOCK_TOLERANCE_MS) problems.push(`created_at was not renewed (${after.created_at})`);
   if (options.bringBack) {
     const storeAfter = findStore(options.target, slug);
     if (storeAfter === 'unreadable' || storeAfter === null || storeAfter.extraction_method !== 'manual' || storeAfter.is_visible !== 1) {
@@ -223,6 +225,16 @@ function main(argv: string[]): number {
     log.error('override_usage', { reason: args.message });
     return 1;
   }
+  try {
+    return run(args);
+  } catch (error) {
+    // Anything unexpected (for example a value the SQL builder refuses) ends with a log line and exit 1, not a stack trace.
+    log.error('override_crashed', { error });
+    return 1;
+  }
+}
+
+function run(args: OverrideOptions): number {
   const today = toIsoUtc(new Date()).slice(0, 10);
   switch (args.mode) {
     case 'change':

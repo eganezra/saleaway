@@ -49,7 +49,20 @@ describe('parseOverrideChange: url', () => {
   });
   it('refuses http, an IP address, a local name, a script, a login in the address, a port, empty text and a very long address', () => {
     const bad = ['http://shop.example/x', 'https://127.0.0.1/', 'https://localhost./', 'javascript:alert(1)', 'https://u:p@shop.example/', 'https://shop.example:8443/', '', 'not a url', `https://shop.example/${'a'.repeat(2050)}`];
-    for (const saleUrl of bad) expect(errors({ saleUrl }).join(' '), saleUrl.slice(0, 40)).toMatch(/url must be an https address/);
+    for (const saleUrl of bad) expect(errors({ saleUrl }).join(' '), saleUrl.slice(0, 40)).toMatch(/url must be an https:\/\/ address/);
+  });
+});
+
+describe('parseOverrideChange: an address must be usable exactly as typed', () => {
+  it('refuses an address with a space, a tab, a newline or another blank anywhere, because the URL parser would quietly drop it', () => {
+    const bad = [' https://shop.example/sale', 'https://shop.example/sale ', 'https://shop.example/a\nb', 'https://shop.example/a\tb', 'https://shop.example/a b', 'https://shop.example/\u00a0x', 'https://shop.example/a\u0001b'];
+    for (const saleUrl of bad) expect(errors({ saleUrl }).join(' '), JSON.stringify(saleUrl)).toMatch(/url must be an https:\/\/ address/);
+  });
+  it('refuses an address that does not start with lower-case https://, because the site checks the start of the stored text', () => {
+    for (const saleUrl of ['HTTPS://shop.example/x', 'Https://shop.example/x', '//shop.example/x']) expect(errors({ saleUrl }).join(' '), saleUrl).toMatch(/url must be/);
+  });
+  it('keeps a query, a fragment and a capital in the host name', () => {
+    expect(okChange({ saleUrl: 'https://SHOP.example/x?a=1&b=2#top' }).saleUrl).toBe('https://SHOP.example/x?a=1&b=2#top');
   });
 });
 
@@ -145,8 +158,8 @@ describe('parseOverridesFile', () => {
   it('refuses a hide that is not a boolean', () => {
     for (const hide of [0, 'true', null, undefined]) expect(problems([row({ hide })]), String(hide)).toMatch(/hide must be true or false/);
   });
-  it('refuses an unsafe address', () => {
-    for (const saleUrl of ['http://x.example', 'https://127.0.0.1/', '', 5, undefined]) expect(problems([row({ saleUrl })]), String(saleUrl)).toMatch(/saleUrl/);
+  it('refuses an unsafe address, and one with a blank in it', () => {
+    for (const saleUrl of ['http://x.example', 'https://127.0.0.1/', '', 5, undefined, ' https://x.example/a', 'https://x.example/a\n', 'HTTPS://x.example/a']) expect(problems([row({ saleUrl })]), String(saleUrl)).toMatch(/saleUrl/);
   });
   it('refuses an expiry or a creation time that is not a real date and time', () => {
     for (const expiresAt of ['2026-11-30', '2026-13-01T00:00:00Z', '2026-02-30T00:00:00Z', 'soon', 5, undefined]) expect(problems([row({ expiresAt })]), String(expiresAt)).toMatch(/expiresAt/);

@@ -51,6 +51,16 @@ function hasControlCharacter(value: string): boolean {
   return false;
 }
 
+/**
+ * An address the site can use as it is stored: `https://` in lower case at the start, no space, tab, newline or other
+ * control character anywhere, and safe to fetch. `isSafeFetchUrl` alone is not enough: the URL parser quietly drops
+ * a leading or trailing space and any tab or newline, so " https://shop.example/sale" passes it, but the site checks
+ * the stored text for `https://` at its start and would hide the store.
+ */
+function isStorableUrl(value: string): boolean {
+  return /^https:\/\/\S+$/.test(value) && !hasControlCharacter(value) && isSafeFetchUrl(value);
+}
+
 function isRealDate(value: string): boolean {
   const match = DATE_PATTERN.exec(value);
   if (!match) return false;
@@ -90,8 +100,8 @@ export function parseOverrideChange(raw: RawOverrideChange, today: string, optio
 
   if (raw.saleUrl !== undefined) {
     if (raw.saleUrl === 'none') change.saleUrl = null;
-    else if (isSafeFetchUrl(raw.saleUrl)) change.saleUrl = raw.saleUrl;
-    else errors.push('url must be an https address of a public website (no IP address, no port, no login in it), or none');
+    else if (isStorableUrl(raw.saleUrl)) change.saleUrl = raw.saleUrl;
+    else errors.push('url must be an https:// address of a public website, in one piece (no space, no IP address, no port, no login in it), or none');
   }
 
   if (raw.expires !== undefined) {
@@ -138,7 +148,7 @@ export function parseOverridesFile(value: unknown): OverrideRow[] {
       problems.push(`${name}: discountPercent must be a whole number from ${MIN_PERCENT} to ${MAX_PERCENT}, or null`);
     }
     if (typeof hide !== 'boolean') problems.push(`${name}: hide must be true or false`);
-    if (saleUrl !== null && !(typeof saleUrl === 'string' && isSafeFetchUrl(saleUrl))) problems.push(`${name}: saleUrl must be a safe https address, or null`);
+    if (saleUrl !== null && !(typeof saleUrl === 'string' && isStorableUrl(saleUrl))) problems.push(`${name}: saleUrl must be a safe https address, or null`);
     if (expiresAt !== null && !(typeof expiresAt === 'string' && isRealDateTime(expiresAt))) problems.push(`${name}: expiresAt must be YYYY-MM-DDTHH:MM:SSZ, or null`);
     if (typeof note !== 'string' || note.length > MAX_NOTE_LENGTH || hasControlCharacter(note)) problems.push(`${name}: note must be text of at most ${MAX_NOTE_LENGTH} characters without control characters`);
     if (typeof createdAt !== 'string' || !isRealDateTime(createdAt)) problems.push(`${name}: createdAt must be YYYY-MM-DDTHH:MM:SSZ`);
