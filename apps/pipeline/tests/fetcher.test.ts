@@ -103,6 +103,40 @@ describe('fetchPage', () => {
     expect(await fetchPage(SALE, fakeFetch({}).fetch)).toEqual({ ok: false, reason: 'network' }); // no route: refused
   });
 
+  it('an aborted request is a timeout too', async () => {
+    const aborted = async () => {
+      const error = new Error('aborted');
+      error.name = 'AbortError';
+      throw error;
+    };
+    expect(await fetchPage(SALE, aborted)).toEqual({ ok: false, reason: 'timeout' });
+  });
+
+  it('frees the body of every intermediate redirect without reading it', async () => {
+    const state = { pulls: 0, cancelled: 0 };
+    const redirectBody = () =>
+      new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            state.pulls += 1;
+            controller.close();
+          },
+          cancel() {
+            state.cancelled += 1;
+          },
+        },
+        { highWaterMark: 0 },
+      );
+    const answers = [
+      () => new Response(redirectBody(), { status: 301, headers: { Location: '/a' } }),
+      () => new Response(redirectBody(), { status: 302, headers: { Location: '/b' } }),
+      () => new Response('page', { status: 200 }),
+    ];
+    const result = await fetchPage(SALE, async () => answers.shift()!());
+    expect(result).toMatchObject({ ok: true, status: 200, hops: 2 });
+    expect(state).toEqual({ pulls: 0, cancelled: 2 });
+  });
+
   it('a failure on a later hop is still reported', async () => {
     const { fetch } = fakeFetch({ [SALE]: { status: 301, headers: { Location: '/a' } }, 'https://shop.example/a': { throws: 'timeout' } });
     expect(await fetchPage(SALE, fetch)).toEqual({ ok: false, reason: 'timeout' });

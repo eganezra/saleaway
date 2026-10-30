@@ -3,6 +3,8 @@
 const MAX_TEXT_LENGTH = 500 * 1024; // RFC 9309: a crawler must parse at least 500 KiB
 const MAX_PATTERN_LENGTH = 1024;
 const MAX_RULES = 2000;
+// Upper bound on the matching work for one question (about 100 ms), so a hostile file cannot burn the CPU of a store's turn.
+const MAX_STEPS = 5_000_000;
 
 interface Rule {
   allow: boolean;
@@ -50,9 +52,10 @@ function parseGroups(text: string): Group[] {
 /**
  * Does `pattern` match the start of `text`? `*` matches any run of characters, and a trailing `$` anchors
  * the end. `reachable` holds every text position at which the pattern read so far can end, so the cost is
- * at most pattern length times text length, whatever the pattern looks like.
+ * at most pattern length times text length, whatever the pattern looks like. `budget.left` counts the
+ * work still allowed for the whole question: when it runs out, `budget.spent` is set and the answer is false.
  */
-function matches(pattern: string, text: string): boolean {
+function matches(pattern: string, text: string, budget: { left: number; spent: boolean }): boolean {
   const anchored = pattern.endsWith('$');
   const body = anchored ? pattern.slice(0, -1) : pattern;
   let reachable = new Set<number>([0]);
@@ -61,8 +64,18 @@ function matches(pattern: string, text: string): boolean {
     if (ch === '*') {
       let first = text.length;
       for (const position of reachable) first = Math.min(first, position);
+      budget.left -= reachable.size + (text.length - first + 1);
+      if (budget.left < 0) {
+        budget.spent = true;
+        return false;
+      }
       for (let i = first; i <= text.length; i++) next.add(i);
     } else {
+      budget.left -= reachable.size;
+      if (budget.left < 0) {
+        budget.spent = true;
+        return false;
+      }
       for (const position of reachable) {
         if (position < text.length && text[position] === ch) next.add(position + 1);
       }
@@ -77,6 +90,7 @@ function matches(pattern: string, text: string): boolean {
  * Is `pathAndQuery` (for example `/sale?x=1`) allowed for the crawler called `agent`?
  * The group naming the agent is used (several groups for it are combined), else the `*` group, else
  * everything is allowed. The longest matching pattern wins and `Allow` wins a tie. No match means allowed.
+ * A file whose rules cost more than MAX_STEPS to evaluate is not trusted: the answer is "not allowed".
  */
 export function isAllowedByRobots(robotsTxt: string, pathAndQuery: string, agent = 'SaleawayBot'): boolean {
   const groups = parseGroups(robotsTxt);
@@ -85,10 +99,14 @@ export function isAllowedByRobots(robotsTxt: string, pathAndQuery: string, agent
   if (chosen.length === 0) chosen = groups.filter((group) => group.agents.includes('*'));
   if (chosen.length === 0) return true;
 
+  const budget = { left: MAX_STEPS, spent: false };
   let best: Rule | null = null;
   for (const group of chosen) {
     for (const rule of group.rules) {
-      if (!matches(rule.pattern, pathAndQuery)) continue;
+      if (!matches(rule.pattern, pathAndQuery, budget)) {
+        if (budget.spent) return false;
+        continue;
+      }
       if (best === null || rule.pattern.length > best.pattern.length || (rule.pattern.length === best.pattern.length && rule.allow && !best.allow)) {
         best = rule;
       }

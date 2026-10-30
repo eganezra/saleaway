@@ -86,7 +86,7 @@ describe('runProbe', () => {
   const page = (body = 'page') => new Response(body, { status: 200 });
 
   it('a Shopify store makes the one extra products.json request and counts compare-at prices', async () => {
-    const products = { products: [{ variants: [{ compare_at_price: '100.00' }, { compare_at_price: null }] }, { variants: [{ compare_at_price: '50.00' }] }, { variants: [] }] };
+    const products = { products: [{ variants: [{ compare_at_price: '100.00' }, { compare_at_price: null }, { compare_at_price: '' }, {}] }, { variants: [{ compare_at_price: '50.00' }] }, { variants: [] }] };
     const network = fakeFetch({ 'https://shop.example/collections/sale/products.json?limit=250': { status: 200, body: JSON.stringify(products) } });
     const { deps, named } = fakeDeps({ fetch: network.fetch, createRewriter: fakeRewriter() });
     await runProbe({ slug: 'under-armour-sa', extractionMethod: 'shopify_json', saleUrl: SALE, response: page() }, deps);

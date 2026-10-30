@@ -66,6 +66,34 @@ describe('checkRobots', () => {
     expect(await checkRobots(ORIGIN, '/early', fakeFetch({ [ROBOTS]: { status: 200, body: early } }).fetch)).toBe('disallowed');
   });
 
+  it('stops reading a long body at 500 KiB and frees it', async () => {
+    const chunk = new TextEncoder().encode(`${'# padding '.repeat(100)}\n`); // about 1 KiB
+    const state = { pulls: 0, cancelled: false };
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          state.pulls += 1;
+          controller.enqueue(chunk);
+        },
+        cancel() {
+          state.cancelled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    expect(await checkRobots(ORIGIN, '/sale', async () => new Response(stream, { status: 200 }))).toBe('allowed');
+    expect(state.cancelled).toBe(true);
+    expect(state.pulls).toBeLessThan(Math.ceil((500 * 1024) / chunk.byteLength) + 2); // an endless body does not hang
+  });
+
+  it('does not use text beyond 500 KiB even when one chunk carries it', async () => {
+    const head = 'User-agent: *\n# ';
+    const filler = 'x'.repeat(500 * 1024 - head.length - 1);
+    const body = `${head}${filler}\nDisallow: /sale\n`; // the rule starts after the 500 KiB mark
+    const { fetch } = fakeFetch({ [ROBOTS]: { status: 200, body } });
+    expect(await checkRobots(ORIGIN, '/sale', fetch)).toBe('allowed');
+  });
+
   it('treats an HTML error page served as robots.txt as no rules', async () => {
     const { fetch } = fakeFetch({ [ROBOTS]: { status: 200, body: '<html><body>Not found</body></html>' } });
     expect(await checkRobots(ORIGIN, '/sale', fetch)).toBe('allowed');

@@ -134,6 +134,19 @@ describe('isAllowedByRobots rule matching', () => {
     expect(Date.now() - started).toBeLessThan(500);
   });
 
+  it('a file that is too costly to evaluate is not trusted: the answer is "not allowed", and quickly', () => {
+    const hostile = Array.from({ length: 2000 }, (_, i) => `Disallow: /${'*a'.repeat(500)}x${i}`).join('\n');
+    const started = Date.now();
+    expect(isAllowedByRobots(rules(hostile), `/${'a'.repeat(2000)}`)).toBe(false);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it('a large but ordinary file is still evaluated in full', () => {
+    const ordinary = Array.from({ length: 2000 }, (_, i) => `Disallow: /*?filter${i}=*&sort=`).join('\n');
+    expect(isAllowedByRobots(rules(ordinary), '/collections/sale?x=1')).toBe(true);
+    expect(isAllowedByRobots(rules(ordinary), '/collections/sale?filter1999=a&sort=b')).toBe(false);
+  });
+
   it('only reads the first 500 KiB', () => {
     const padding = `# ${'x'.repeat(100)}\n`.repeat(6000); // about 600 KiB of comments
     expect(isAllowedByRobots(`${padding}User-agent: *\nDisallow: /late\n`, '/late')).toBe(true);
