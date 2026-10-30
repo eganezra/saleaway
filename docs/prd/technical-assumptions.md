@@ -19,10 +19,10 @@ Unit + Integration. Unit tests for validation and discount extraction using save
 
 ## Additional Technical Assumptions and Requests
 
-- The first fetch test came from a home connection. Re-run it from a real Worker early (Story 3.2), since Cloudflare IP ranges may be blocked more often.
-- Known blocked stores (Amazon.co.za, Game, Checkers) default to the manual extraction method.
+- **Done in Story 3.2 (2026-10-30):** from the deployed Worker, 34 of the 89 stores fetched answered 403 or 429 (12 of the 18 Shopify stores answered 429), although the same pages loaded from a home connection. The honest user-agent is kept and no evasion is attempted (NFR6). Contacting retailers is ruled out. These stores, and one more listing on the same website, are hidden for launch (Story 3.9) and brought back one by one in Story 5.4.
+- Known blocked stores (Amazon.co.za, Game, Checkers) default to the manual extraction method. Another 35 stores are hidden by decision (`docs/data/hidden-stores.json`).
 - Extraction method is stored per store, so a store can be switched from "manual" to an automated method without a release.
 - 19 stores load their products with JavaScript, so a plain fetch may not contain prices. These start as "On sale" until browser rendering or a data endpoint is added (Epic 5).
 - The 21 search-only URLs in the spreadsheet must be checked before launch (Story 4.3).
 - Some Black Friday URLs still show 2025 content, so FR16 is a stretch item.
-- If the CPU measurement in Story 3.2 shows that big pages exceed the Free plan's 10 ms limit, the fetch-and-extract step moves to a scheduled GitHub Actions workflow (Story 3.8, conditional). See `docs/architecture.md`, "Platform decision".
+- The CPU limit does not stop the Worker: Story 3.2 measured 5 to 108 ms per store, and Cloudflare does not enforce 10 ms on queue consumers. A fallback runner on GitHub Actions or another free network (Story 3.8, conditional) is built only if Story 4.3 or Story 5.4 shows that a different network gets through where the Worker is blocked. See `docs/architecture.md`, "Platform decision".

@@ -5,7 +5,7 @@
 - Show every current sale from South African online stores on one fast, mobile-friendly website.
 - Refresh the data automatically every day, so visitors always see the latest sales without manual curation.
 - Show how deep each store's discount goes (for example "Up to 50% off"), and link straight to the store's own sale page.
-- Be live on saleaway.co.za in 3 days (by 31 October 2026), ahead of Black Friday on 27 November 2026.
+- Be live on saleaway.online in 3 days (by 31 October 2026), ahead of Black Friday on 27 November 2026.
 - Grow search and direct traffic, so ad revenue can follow and affiliate links and featured placement can come later.
 - Make adding a store a one-row change, with no code release.
 

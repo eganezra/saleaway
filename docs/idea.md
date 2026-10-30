@@ -1,4 +1,4 @@
-# Saleaway (saleaway.co.za) — Initial Idea
+# Saleaway (saleaway.online) — Initial Idea
 
 A website that automatically finds sales at South African online stores and shows them all in one place.
 

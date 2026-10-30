@@ -9,7 +9,7 @@ _Drafted by the PM agent (John) in YOLO mode from `docs/brief.md`. Items marked 
 - Show every current sale from South African online stores on one fast, mobile-friendly website.
 - Refresh the data automatically every day, so visitors always see the latest sales without manual curation.
 - Show how deep each store's discount goes (for example "Up to 50% off"), and link straight to the store's own sale page.
-- Be live on saleaway.co.za in 3 days (by 31 October 2026), ahead of Black Friday on 27 November 2026.
+- Be live on saleaway.online in 3 days (by 31 October 2026), ahead of Black Friday on 27 November 2026.
 - Grow search and direct traffic, so ad revenue can follow and affiliate links and featured placement can come later.
 - Make adding a store a one-row change, with no code release.
 
@@ -28,13 +28,15 @@ A spreadsheet of 106 SA stores (`docs/data/`) provides primary sale URLs for 92 
 | 2026-10-28 | 0.3 | Discount-first ordering (FR14), "Biggest discounts today" card (FR23, Story 3.7) | John (PM) |
 | 2026-10-29 | 0.4 | PO validation: freshness anchor and override precedence moved into Story 2.3, human prerequisites and launch-critical set added, Stories 3.8 and 4.5 added, test tooling and CPU measurement made explicit | Sarah (PO) |
 | 2026-10-29 | 0.5 | Local-first build order: Story 1.1 runs locally, Story 1.2 is now a first deploy to workers.dev, CI/CD and domain moved to new Story 4.4, launch checklist is 4.5, alert and retention is 4.6 | Sarah (PO) |
+| 2026-10-30 | 0.6 | After the first live run (Story 3.2): Story 3.4 criterion 8 (repeat the CPU measurement) and new Story 3.9 (hide blocked stores for launch). The domain is `saleaway.online` in the code and architecture docs; the older text of this PRD still says `saleaway.co.za` and is for the PO to update | Bob (SM) |
+| 2026-10-30 | 0.7 | Sprint change (correct-course) after the first live run: launch with 57 stores, blocked stores hidden (Story 3.9), edits to Stories 3.4, 3.6, 3.8, 4.1, 4.3 and 4.5, new Story 5.4, domain `saleaway.online` throughout, risk R2 updated (`docs/change-proposals/2026-10-30-blocked-stores.md`) | Sarah (PO) |
 
 ## Requirements
 
 ### Functional
 
 - **FR1:** The system maintains a Retailers table with, for each store: name, homepage, category, rank, platform, primary sale URL, optional Black Friday URL, extraction method, status, and a visible/hidden flag.
-- **FR2:** The Retailers table is seeded from `docs/data/retailers-seed.tsv` (92 stores with primary sale URLs) plus Crocs SA once its sale URL is found. Stores with no sale page are kept but hidden.
+- **FR2:** The Retailers table is seeded from `docs/data/retailers-seed.tsv` (92 stores with primary sale URLs) plus Crocs SA once its sale URL is found. Stores with no sale page are kept but hidden. Stores that block the pipeline are hidden by a recorded decision (`docs/data/hidden-stores.json`, Story 3.9), not deleted, so they can be shown again.
 - **FR3:** Adding, changing or hiding a store requires only a database row change (or the override command in FR12), with no code change or redeploy.
 - **FR4:** A scheduled job runs once every 24 hours and processes every visible retailer, split into batches so each run stays inside Cloudflare free-tier limits.
 - **FR5:** For each store, the job fetches the store's known sale URL with a clear user-agent, a timeout and politeness limits, and respects robots.txt.
@@ -123,13 +125,13 @@ Unit + Integration. Unit tests for validation and discount extraction using save
 
 ### Additional Technical Assumptions and Requests
 
-- The first fetch test came from a home connection. Re-run it from a real Worker early (Story 3.2), since Cloudflare IP ranges may be blocked more often.
-- Known blocked stores (Amazon.co.za, Game, Checkers) default to the manual extraction method.
+- **Done in Story 3.2 (2026-10-30):** from the deployed Worker, 34 of the 89 stores fetched answered 403 or 429 (12 of the 18 Shopify stores answered 429), although the same pages loaded from a home connection. The honest user-agent is kept and no evasion is attempted (NFR6). Contacting retailers is ruled out. These stores, and one more listing on the same website, are hidden for launch (Story 3.9) and brought back one by one in Story 5.4.
+- Known blocked stores (Amazon.co.za, Game, Checkers) default to the manual extraction method. Another 35 stores are hidden by decision (`docs/data/hidden-stores.json`).
 - Extraction method is stored per store, so a store can be switched from "manual" to an automated method without a release.
 - 19 stores load their products with JavaScript, so a plain fetch may not contain prices. These start as "On sale" until browser rendering or a data endpoint is added (Epic 5).
 - The 21 search-only URLs in the spreadsheet must be checked before launch (Story 4.3).
 - Some Black Friday URLs still show 2025 content, so FR16 is a stretch item.
-- If the CPU measurement in Story 3.2 shows that big pages exceed the Free plan's 10 ms limit, the fetch-and-extract step moves to a scheduled GitHub Actions workflow (Story 3.8, conditional). See `docs/architecture.md`, "Platform decision".
+- The CPU limit does not stop the Worker: Story 3.2 measured 5 to 108 ms per store, and Cloudflare does not enforce 10 ms on queue consumers. A fallback runner on GitHub Actions or another free network (Story 3.8, conditional) is built only if Story 4.3 or Story 5.4 shows that a different network gets through where the Worker is blocked. See `docs/architecture.md`, "Platform decision".
 
 ## Epic List
 
@@ -147,9 +149,10 @@ _Added by the PO on 2026-10-29 after validating all documents._
 
 ### Launch-critical vs deferrable
 
-- **Launch-critical (the site cannot go live honestly without these):** Stories 1.1 to 1.4, 2.1 to 2.5, 3.1 to 3.6, 4.1, 4.3, 4.4 and 4.5.
+- **Launch-critical (the site cannot go live honestly without these):** Stories 1.1 to 1.4, 2.1 to 2.5, 3.1 to 3.6, 3.9 (added 2026-10-30), 4.1, 4.3, 4.4 and 4.5.
 - **Deferrable if time runs short, cut in this order:** 2.6 (Black Friday badge), 3.7 (Biggest discounts card), 4.6 (failure alert and retention), 4.2 (health report; use the run log tables meanwhile), the HTML and structured-data extractors inside 3.4 (keep Shopify and manual), and the anchor menu in 2.2.
-- **Conditional:** Story 3.8 (fallback runner), built only if the CPU measurement in Story 3.2 fails.
+- **Conditional:** Story 3.8 (fallback runner), built only if a different network gets through where the Worker is blocked, or the CPU measurement in Story 3.4 fails.
+- **Launch store count (decided 2026-10-30):** the site launches with the stores that work from the Worker, 57 of the 92 with a sale page (Story 3.9). The other 35 come back in Story 5.4.
 - **Post-launch:** Epic 5.
 
 ### Human prerequisites (only you can do these)
@@ -158,7 +161,7 @@ _Added by the PO on 2026-10-29 after validating all documents._
 |---|---|---|
 | 1 | A Cloudflare account, with `wrangler login` working on your computer (**done 2026-10-29**; use Node 22) | Story 1.2 |
 | 2 | A GitHub repository for the project, with repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (a repository is also a good place for backups before then) | Story 4.4 |
-| 3 | The domain saleaway.co.za registered, with its nameservers pointed at Cloudflare (otherwise a temporary `workers.dev` address is used, where page caching was measured to work in Story 1.2). Start this early, since nameserver changes can take hours | Story 4.4 |
+| 3 | The domain `saleaway.online`, registered in Cloudflare (**done 2026-10-30**), so its DNS is already on Cloudflare. Story 4.4 attaches it to the web Worker | Story 4.4 |
 | 4 | A monitored email address for retailer removal requests (Cloudflare Email Routing can forward it to your inbox once the domain is on Cloudflare) | Story 4.5 |
 | 5 | A webhook URL for failure alerts (for example a Discord or Slack channel) | Story 4.6 |
 | 6 | A Cloudflare Web Analytics site token (only usable once the domain is connected) | Story 4.4 |
@@ -382,8 +385,8 @@ so that I can pick the best sales.
 4. Values outside a sane range (below 5% or above 90%) **[Assumption]** are ignored, and the record falls back to "On sale".
 5. If nothing can be read, the record is "On sale", not an error.
 6. Each method has unit tests using saved page samples (NFR12).
-7. Under Armour SA and Wellness Warehouse (both Shopify) are covered as the first examples.
-8. CPU time per store is measured again on the deployed Worker, now with the real validation and extraction, for the same stores as in Story 3.2 (Bash, Woolworths, Takealot and Under Armour SA), because Story 3.2 could only measure a stand-in for these steps. The result is added to `docs/fetch-spike.md`. If any store regularly exceeds 8 ms of CPU **[Assumption]**, the response is chosen as in Story 3.2, criterion 6: a streaming parse, the `manual` method for that store, or Story 3.8 (fallback runner).
+7. The Shopify stores that answered the Worker in Story 3.2 (`beauty-on-tapp`, `norman-goodfellows`, `toy-kingdom`) are covered as the first examples, after confirming that each one's `/products.json` also answers the Worker. Under Armour SA is a custom storefront with no product feed (Story 3.2) and uses the `html` method. Wellness Warehouse is hidden (blocked).
+8. CPU time per store is measured again on the deployed Worker, now with the real validation and extraction, for the same stores as in Story 3.2 (Bash, Woolworths, Takealot and Under Armour SA) and one Shopify store whose product feed answers, because Story 3.2 could only measure a stand-in for these steps and could not measure the JSON path. The result is added to `docs/fetch-spike.md`. If any store regularly exceeds 8 ms of CPU **[Assumption]**, the response is chosen as in Story 3.2, criterion 6: a streaming parse, the `manual` method for that store, or Story 3.8 (fallback runner).
 
 ### Story 3.5 Save Sale Records and Expiry
 
@@ -408,8 +411,8 @@ so that I know where manual overrides are needed.
 #### Acceptance Criteria
 
 1. A full run across all visible stores completes inside free-tier limits.
-2. A coverage summary lists the count of stores with a percentage, "On sale" only, blocked, not found, and errors.
-3. Stores that need manual handling are listed with their reason.
+2. A coverage summary lists the count of stores with a percentage, "On sale" only, blocked, not found, errors, and hidden.
+3. Stores that need manual handling are listed with their reason, and the stores hidden by Story 3.9 are listed with theirs (from `docs/data/hidden-stores.json`).
 4. Extraction methods are updated for stores where a better method is found during this run.
 5. The result is saved to `docs/data/first-run-coverage.md`.
 
@@ -431,17 +434,34 @@ so that I can reach the best deals in one click.
 ### Story 3.8 Fallback Runner on GitHub Actions (Conditional)
 
 As the operator,
-I want the fetch-and-extract step to run on a free GitHub Actions schedule if Cloudflare's CPU limit is too tight,
+I want the fetch-and-extract step to run on a free GitHub Actions schedule if the Worker cannot read the pages it needs (blocked by the retailer, or too much CPU),
 so that big retailer pages can still be read without a paid plan.
 
 #### Acceptance Criteria
 
-1. This story is built only if the CPU measurement in Story 3.2 (AC6) shows the Worker cannot handle the pages it needs to. Otherwise it is skipped.
+1. This story is built only if Story 4.3 or Story 5.4 shows that a different free network gets through for stores that block the Worker, or if the CPU measurement in Story 3.4 (criterion 8) shows the Worker cannot handle the pages it needs. The CPU measurement in Story 3.2 fits, so it is not a reason by itself. Otherwise it is skipped. Retailers are not contacted, and nothing is done to hide who the bot is (NFR6).
 2. A scheduled GitHub Actions workflow runs the same shared core code (fetch, classify, validate, extract) for the stores assigned to it and writes results to the same database with a narrowly scoped Cloudflare token.
 3. Every store is handled by exactly one runner, so nothing is fetched twice.
 4. Results, run log entries and the freshness rules are the same as for the Worker runner.
 5. A failed workflow run raises the same failure alert as Story 4.6, or is noted in the health report if that story is not built.
 6. The setup, secrets and the 60-day inactivity pause rule for scheduled workflows are documented in the README.
+
+### Story 3.9 Hide Blocked Stores for Launch
+
+_Added by the SM on 2026-10-30 after the first live run (Story 3.2, spike S2): 34 of the 89 fetched stores answered 403 or 429 to the Worker (risk R2). Contacting retailers is not an option, so the blocked stores are hidden for launch and fixed later (Story 3.8, Story 4.1 or Story 4.3)._
+
+As the operator,
+I want the stores that block the pipeline hidden from the site and from the daily run, by a recorded and reversible decision,
+so that the site launches with stores that work and no store is shown that nobody can check.
+
+#### Acceptance Criteria
+
+1. A list of hidden stores is kept in the repository (`docs/data/hidden-stores.json`). The file records the date of the decision, and each entry has the store's slug and a reason code that is explained in the file, so a later fix knows which stores to cover. The first list is the 35 stores of run 16: the 34 that answered 403 or 429, and the other listing on the same website as one of them (`ackermans-baby-kids-toys`).
+2. A documented operator command hides every store on the list in the local or the live database, and the same command with `--undo` makes them visible again. It can be run twice with the same result, it changes nothing else, and it checks its input before writing (FR3).
+3. A hidden store is not fetched by the daily run and is not shown on the site. The other 57 stores and all 10 categories are unaffected. Re-running the retailer seed does not undo it.
+4. An operator can still fetch one hidden store with `POST /admin/run?store=<slug>`, so a store can be tested again before it is shown.
+5. The command is run on the live database, and the live home page shows 57 store cards and none of the 35 hidden ones (the page is not cached yet; once Story 2.4 adds caching, allow about 10 minutes).
+6. The README explains how to hide and restore stores, and that blocking can change from day to day.
 
 ## Epic 4 Overrides, Operations & Launch Readiness
 
@@ -455,13 +475,14 @@ so that blocked or broken stores still look right.
 
 #### Acceptance Criteria
 
-1. A documented command or script can set a manual discount percentage, hide or show a store, and change its sale URL (FR12).
+1. A documented command or script can set a manual discount percentage, hide or show a store, and change its sale URL (FR12). Hiding a store here (an override) is not the same as hiding it with `is_visible` (Story 3.9): an override hide only removes the store from the site, and the pipeline still fetches it.
 2. An override can have an expiry date, after which it stops applying.
 3. Overrides win over extracted values, and the pipeline never deletes them.
 4. Changes take effect on the site without a redeploy, within the page cache lifetime of about 10 minutes (FR3). The override precedence rules themselves are built in Story 2.3.
 5. Amazon.co.za, Game and Checkers are set to manual by default.
 6. `ops:override --export` saves all overrides to a file in the repository, so the hand-entered data can be restored.
 7. Values passed to the command are validated before they are used in SQL (see Coding Standards in `docs/architecture.md`).
+8. A store hidden by Story 3.9 can be shown with manual values in one step: the command sets it to the `manual` method (so the pipeline never fetches it again), makes it visible, adds the manual override, and removes the store from `docs/data/hidden-stores.json`. Without the `manual` method, showing it would make the pipeline fetch a blocked store every night.
 
 ### Story 4.2 Health Report
 
@@ -490,19 +511,20 @@ so that visitors don't land on dead pages.
 3. The Crocs SA row (seeded hidden, without a URL) gets its sale URL and is made visible.
 4. Stores whose URL cannot be fixed are hidden.
 5. Black Friday URLs showing 2025 content are marked unverified (supports Story 2.6).
+6. The script runs from the operator's computer with the pipeline's user-agent and its `robots.txt` and URL-safety rules (these are shared code in `packages/core`), at most once a day, and records for each store hidden by Story 3.9 whether it answers from there. This is the free test of another network, and its result is the input for Story 5.4 and for Story 3.8.
 
 ### Story 4.4 CI/CD and Domain
 
 As the operator,
 I want automatic deploys on push and the real domain connected,
-so that releases are quick and safe, and the site is reachable at saleaway.co.za.
+so that releases are quick and safe, and the site is reachable at saleaway.online.
 
 #### Acceptance Criteria
 
 1. Pushing to the main branch builds, tests and deploys to Cloudflare automatically, applying new database migrations first.
 2. A failing build or test stops the deploy.
 3. The repository secrets (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) are set, and no secret is in the repository (NFR10).
-4. saleaway.co.za (and www) points to the deployed site over HTTPS. If the domain is not yet on Cloudflare, the steps are documented and launch uses the temporary `workers.dev` address.
+4. saleaway.online (and www) points to the deployed site over HTTPS. If the domain is not yet on Cloudflare, the steps are documented and launch uses the temporary `workers.dev` address.
 5. Page caching is confirmed to work on the real domain (a repeated request is served from cache), and the result is noted (see Story 2.4, AC5).
 6. Cookie-free Web Analytics is confirmed working on the real domain (see Story 2.5, AC2).
 7. A deploy takes less than 5 minutes.
@@ -515,12 +537,12 @@ so that we launch with confidence.
 
 #### Acceptance Criteria
 
-1. The site is live on saleaway.co.za over HTTPS with the daily job enabled.
+1. The site is live on saleaway.online over HTTPS with the daily job enabled.
 2. At least one complete scheduled run has succeeded.
 3. The home page, legal pages, sitemap and robots.txt all load correctly on a phone.
 4. The retailer contact route works (a monitored email address).
 5. A short rollback and "pause the pipeline" note exists in the README.
-6. The remaining known issues are listed.
+6. The remaining known issues are listed, including the stores hidden by Story 3.9 and why.
 
 ### Story 4.6 Failure Alert and Data Retention
 
@@ -574,6 +596,21 @@ so that I can find a store or category faster.
 1. A search box filters stores by name as the visitor types.
 2. A discount filter lets the visitor sort or filter by "Up to X% off".
 3. The page still works without JavaScript for browsing.
+
+### Story 5.4 Bring Blocked Stores Back
+
+As the operator,
+I want the stores hidden by Story 3.9 re-tested and returned one by one,
+so that coverage grows before Black Friday.
+
+#### Acceptance Criteria
+
+1. Each hidden store is re-tested with `POST /admin/run?store=<slug>`, and from another free network if Story 4.3 showed that it answers there. Blocking is not stable, so each store is judged on a fresh result.
+2. A store that answers is shown again and removed from `docs/data/hidden-stores.json`.
+3. A store that still blocks is either entered by hand with the `manual` method and an override (Story 4.1, criterion 8) for the biggest names by rank, or stays hidden. The decision for each store is recorded in the list.
+4. If another network answers for several stores, Story 3.8 (fallback runner) is built for those stores only, and each store is handled by exactly one runner.
+5. Retailers are not contacted, and nothing is done to hide who the bot is (NFR6).
+6. The number of visible stores before and after is recorded in the README.
 
 ## Checklist Results Report
 

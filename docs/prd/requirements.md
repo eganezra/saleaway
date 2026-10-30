@@ -3,7 +3,7 @@
 ## Functional
 
 - **FR1:** The system maintains a Retailers table with, for each store: name, homepage, category, rank, platform, primary sale URL, optional Black Friday URL, extraction method, status, and a visible/hidden flag.
-- **FR2:** The Retailers table is seeded from `docs/data/retailers-seed.tsv` (92 stores with primary sale URLs) plus Crocs SA once its sale URL is found. Stores with no sale page are kept but hidden.
+- **FR2:** The Retailers table is seeded from `docs/data/retailers-seed.tsv` (92 stores with primary sale URLs) plus Crocs SA once its sale URL is found. Stores with no sale page are kept but hidden. Stores that block the pipeline are hidden by a recorded decision (`docs/data/hidden-stores.json`, Story 3.9), not deleted, so they can be shown again.
 - **FR3:** Adding, changing or hiding a store requires only a database row change (or the override command in FR12), with no code change or redeploy.
 - **FR4:** A scheduled job runs once every 24 hours and processes every visible retailer, split into batches so each run stays inside Cloudflare free-tier limits.
 - **FR5:** For each store, the job fetches the store's known sale URL with a clear user-agent, a timeout and politeness limits, and respects robots.txt.

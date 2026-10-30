@@ -1,0 +1,151 @@
+{
+  "decidedOn": "2026-10-30",
+  "source": "Run 16 of the deployed pipeline Worker (docs/fetch-spike.md, Story 3.2). Hidden for launch because the store answered 403 or 429 to the honest user-agent from Cloudflare's network. Blocking can change: re-test with POST /admin/run?store=<slug> before showing a store again.",
+  "reasons": {
+    "http_403": "The store answered 403 Forbidden (bot protection) on 2026-10-30.",
+    "http_429": "The store answered 429 Too Many Requests on 2026-10-30.",
+    "same_site_as_blocked": "Another listing on the same website was blocked on 2026-10-30, and this one answered 500 from the same site."
+  },
+  "stores": [
+    {
+      "slug": "ackermans",
+      "reason": "http_429"
+    },
+    {
+      "slug": "ackermans-baby-kids-toys",
+      "reason": "same_site_as_blocked"
+    },
+    {
+      "slug": "adendorff-machinery-mart",
+      "reason": "http_403"
+    },
+    {
+      "slug": "adidas-sa",
+      "reason": "http_403"
+    },
+    {
+      "slug": "bradlows",
+      "reason": "http_403"
+    },
+    {
+      "slug": "canine-co",
+      "reason": "http_429"
+    },
+    {
+      "slug": "computer-mania",
+      "reason": "http_429"
+    },
+    {
+      "slug": "coricraft",
+      "reason": "http_429"
+    },
+    {
+      "slug": "ctm",
+      "reason": "http_403"
+    },
+    {
+      "slug": "decofurn",
+      "reason": "http_429"
+    },
+    {
+      "slug": "dis-chem",
+      "reason": "http_403"
+    },
+    {
+      "slug": "edgars",
+      "reason": "http_429"
+    },
+    {
+      "slug": "edgars-beauty",
+      "reason": "http_429"
+    },
+    {
+      "slug": "estee-lauder-sa",
+      "reason": "http_403"
+    },
+    {
+      "slug": "fair-price",
+      "reason": "http_429"
+    },
+    {
+      "slug": "family-pet-centre",
+      "reason": "http_429"
+    },
+    {
+      "slug": "hi-tec-sa",
+      "reason": "http_429"
+    },
+    {
+      "slug": "hifi-corp",
+      "reason": "http_403"
+    },
+    {
+      "slug": "incredible-connection",
+      "reason": "http_403"
+    },
+    {
+      "slug": "istore",
+      "reason": "http_403"
+    },
+    {
+      "slug": "leroy-merlin-sa",
+      "reason": "http_403"
+    },
+    {
+      "slug": "mac-cosmetics-sa",
+      "reason": "http_403"
+    },
+    {
+      "slug": "matrix-warehouse",
+      "reason": "http_429"
+    },
+    {
+      "slug": "new-balance-sa",
+      "reason": "http_403"
+    },
+    {
+      "slug": "outdoor-warehouse",
+      "reason": "http_403"
+    },
+    {
+      "slug": "pet-heaven",
+      "reason": "http_403"
+    },
+    {
+      "slug": "petshop-science-on-checkers-sixty60",
+      "reason": "http_403"
+    },
+    {
+      "slug": "petworld",
+      "reason": "http_429"
+    },
+    {
+      "slug": "shoprite",
+      "reason": "http_403"
+    },
+    {
+      "slug": "sportsmans-warehouse",
+      "reason": "http_403"
+    },
+    {
+      "slug": "truworths",
+      "reason": "http_403"
+    },
+    {
+      "slug": "wellness-warehouse",
+      "reason": "http_429"
+    },
+    {
+      "slug": "wootware",
+      "reason": "http_403"
+    },
+    {
+      "slug": "yuppiechef",
+      "reason": "http_403"
+    },
+    {
+      "slug": "zara-sa",
+      "reason": "http_403"
+    }
+  ]
+}

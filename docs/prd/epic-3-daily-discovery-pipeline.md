@@ -63,8 +63,8 @@ so that I can pick the best sales.
 4. Values outside a sane range (below 5% or above 90%) **[Assumption]** are ignored, and the record falls back to "On sale".
 5. If nothing can be read, the record is "On sale", not an error.
 6. Each method has unit tests using saved page samples (NFR12).
-7. Under Armour SA and Wellness Warehouse (both Shopify) are covered as the first examples.
-8. CPU time per store is measured again on the deployed Worker, now with the real validation and extraction, for the same stores as in Story 3.2 (Bash, Woolworths, Takealot and Under Armour SA), because Story 3.2 could only measure a stand-in for these steps. The result is added to `docs/fetch-spike.md`. If any store regularly exceeds 8 ms of CPU **[Assumption]**, the response is chosen as in Story 3.2, criterion 6: a streaming parse, the `manual` method for that store, or Story 3.8 (fallback runner).
+7. The Shopify stores that answered the Worker in Story 3.2 (`beauty-on-tapp`, `norman-goodfellows`, `toy-kingdom`) are covered as the first examples, after confirming that each one's `/products.json` also answers the Worker. Under Armour SA is a custom storefront with no product feed (Story 3.2) and uses the `html` method. Wellness Warehouse is hidden (blocked).
+8. CPU time per store is measured again on the deployed Worker, now with the real validation and extraction, for the same stores as in Story 3.2 (Bash, Woolworths, Takealot and Under Armour SA) and one Shopify store whose product feed answers, because Story 3.2 could only measure a stand-in for these steps and could not measure the JSON path. The result is added to `docs/fetch-spike.md`. If any store regularly exceeds 8 ms of CPU **[Assumption]**, the response is chosen as in Story 3.2, criterion 6: a streaming parse, the `manual` method for that store, or Story 3.8 (fallback runner).
 
 ## Story 3.5 Save Sale Records and Expiry
 
@@ -89,8 +89,8 @@ so that I know where manual overrides are needed.
 ### Acceptance Criteria
 
 1. A full run across all visible stores completes inside free-tier limits.
-2. A coverage summary lists the count of stores with a percentage, "On sale" only, blocked, not found, and errors.
-3. Stores that need manual handling are listed with their reason.
+2. A coverage summary lists the count of stores with a percentage, "On sale" only, blocked, not found, errors, and hidden.
+3. Stores that need manual handling are listed with their reason, and the stores hidden by Story 3.9 are listed with theirs (from `docs/data/hidden-stores.json`).
 4. Extraction methods are updated for stores where a better method is found during this run.
 5. The result is saved to `docs/data/first-run-coverage.md`.
 
@@ -112,14 +112,31 @@ so that I can reach the best deals in one click.
 ## Story 3.8 Fallback Runner on GitHub Actions (Conditional)
 
 As the operator,
-I want the fetch-and-extract step to run on a free GitHub Actions schedule if Cloudflare's CPU limit is too tight,
+I want the fetch-and-extract step to run on a free GitHub Actions schedule if the Worker cannot read the pages it needs (blocked by the retailer, or too much CPU),
 so that big retailer pages can still be read without a paid plan.
 
 ### Acceptance Criteria
 
-1. This story is built only if the CPU measurement in Story 3.2 (AC6) shows the Worker cannot handle the pages it needs to. Otherwise it is skipped.
+1. This story is built only if Story 4.3 or Story 5.4 shows that a different free network gets through for stores that block the Worker, or if the CPU measurement in Story 3.4 (criterion 8) shows the Worker cannot handle the pages it needs. The CPU measurement in Story 3.2 fits, so it is not a reason by itself. Otherwise it is skipped. Retailers are not contacted, and nothing is done to hide who the bot is (NFR6).
 2. A scheduled GitHub Actions workflow runs the same shared core code (fetch, classify, validate, extract) for the stores assigned to it and writes results to the same database with a narrowly scoped Cloudflare token.
 3. Every store is handled by exactly one runner, so nothing is fetched twice.
 4. Results, run log entries and the freshness rules are the same as for the Worker runner.
 5. A failed workflow run raises the same failure alert as Story 4.6, or is noted in the health report if that story is not built.
 6. The setup, secrets and the 60-day inactivity pause rule for scheduled workflows are documented in the README.
+
+## Story 3.9 Hide Blocked Stores for Launch
+
+_Added by the SM on 2026-10-30 after the first live run (Story 3.2, spike S2): 34 of the 89 fetched stores answered 403 or 429 to the Worker (risk R2). Contacting retailers is not an option, so the blocked stores are hidden for launch and fixed later (Story 3.8, Story 4.1 or Story 4.3)._
+
+As the operator,
+I want the stores that block the pipeline hidden from the site and from the daily run, by a recorded and reversible decision,
+so that the site launches with stores that work and no store is shown that nobody can check.
+
+### Acceptance Criteria
+
+1. A list of hidden stores is kept in the repository (`docs/data/hidden-stores.json`). The file records the date of the decision, and each entry has the store's slug and a reason code that is explained in the file, so a later fix knows which stores to cover. The first list is the 35 stores of run 16: the 34 that answered 403 or 429, and the other listing on the same website as one of them (`ackermans-baby-kids-toys`).
+2. A documented operator command hides every store on the list in the local or the live database, and the same command with `--undo` makes them visible again. It can be run twice with the same result, it changes nothing else, and it checks its input before writing (FR3).
+3. A hidden store is not fetched by the daily run and is not shown on the site. The other 57 stores and all 10 categories are unaffected. Re-running the retailer seed does not undo it.
+4. An operator can still fetch one hidden store with `POST /admin/run?store=<slug>`, so a store can be tested again before it is shown.
+5. The command is run on the live database, and the live home page shows 57 store cards and none of the 35 hidden ones (the page is not cached yet; once Story 2.4 adds caching, allow about 10 minutes).
+6. The README explains how to hide and restore stores, and that blocking can change from day to day.

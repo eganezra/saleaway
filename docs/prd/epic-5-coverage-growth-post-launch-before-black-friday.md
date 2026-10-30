@@ -38,3 +38,18 @@ so that I can find a store or category faster.
 1. A search box filters stores by name as the visitor types.
 2. A discount filter lets the visitor sort or filter by "Up to X% off".
 3. The page still works without JavaScript for browsing.
+
+## Story 5.4 Bring Blocked Stores Back
+
+As the operator,
+I want the stores hidden by Story 3.9 re-tested and returned one by one,
+so that coverage grows before Black Friday.
+
+### Acceptance Criteria
+
+1. Each hidden store is re-tested with `POST /admin/run?store=<slug>`, and from another free network if Story 4.3 showed that it answers there. Blocking is not stable, so each store is judged on a fresh result.
+2. A store that answers is shown again and removed from `docs/data/hidden-stores.json`.
+3. A store that still blocks is either entered by hand with the `manual` method and an override (Story 4.1, criterion 8) for the biggest names by rank, or stays hidden. The decision for each store is recorded in the list.
+4. If another network answers for several stores, Story 3.8 (fallback runner) is built for those stores only, and each store is handled by exactly one runner.
+5. Retailers are not contacted, and nothing is done to hide who the bot is (NFR6).
+6. The number of visible stores before and after is recorded in the README.

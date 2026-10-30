@@ -4,7 +4,7 @@ _Created by the Analyst agent in YOLO mode from `docs/idea.md` and the answers g
 
 ## Executive Summary
 
-Saleaway (saleaway.co.za) is a website that automatically finds sales at South African online stores and shows them all in one place. Once a day a scheduled job checks each store for a sale page, verifies it is a real active sale, works out how deep the discounts go, and saves a clean record to a database. Visitors browse a list of store cards such as "Crocs SA: Up to 50% off" and click through to the store's own sale page.
+Saleaway (saleaway.online) is a website that automatically finds sales at South African online stores and shows them all in one place. Once a day a scheduled job checks each store for a sale page, verifies it is a real active sale, works out how deep the discounts go, and saves a clean record to a database. Visitors browse a list of store cards such as "Crocs SA: Up to 50% off" and click through to the store's own sale page.
 
 - **Problem:** South African bargain hunters have to visit many retailer sites one by one to find out who is running a sale.
 - **Target market:** South African bargain hunters.
@@ -98,7 +98,7 @@ Saleaway (saleaway.co.za) is a website that automatically finds sales at South A
 
 ### MVP Success Criteria
 
-The site is live on saleaway.co.za. At least one full automated daily cycle has run successfully across the seeded retailers. The home page lists current sales, each with its deepest discount where it could be extracted and "On sale" where not. Visitors can click a card and land on the retailer's real sale page.
+The site is live on saleaway.online. At least one full automated daily cycle has run successfully across the seeded retailers. The home page lists current sales, each with its deepest discount where it could be extracted and "On sale" where not. Visitors can click a card and land on the retailer's real sale page.
 
 ## Post-MVP Vision
 
@@ -169,7 +169,7 @@ Price history, deal-of-the-day features, a Black Friday landing hub, and other A
 - What is Crocs SA's sale URL? It is not in the spreadsheet.
 - Who checks the 21 search-only URLs in a browser before launch?
 - Should the Phase 2 plan include affiliate feeds or retailer partnerships to allow richer product-level listings?
-- Is the domain saleaway.co.za already registered and on Cloudflare?
+- Is the domain saleaway.online already registered and on Cloudflare?
 - Which ad network will be used?
 
 ### Areas Needing Further Research
