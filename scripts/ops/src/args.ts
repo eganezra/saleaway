@@ -144,3 +144,48 @@ export function parseOverrideArgs(argv: readonly string[]): OverrideArgs {
   if (slug !== null) return fail(`--${mode} works on every override: it takes no --slug.`);
   return { ok: true, target, mode, slug: null, raw, bringBack };
 }
+
+export interface CoverageOptions {
+  target: SeedTarget;
+  /** The run to report on, or null for the latest one that has a result. */
+  run: number | null;
+  /** The file to write (checked by `resolveCoverageOut`), or null to print the report. */
+  out: string | null;
+}
+
+export type CoverageArgs = ({ ok: true } & CoverageOptions) | { ok: false; message: string };
+
+const COVERAGE_USAGE = 'Usage: pnpm ops:coverage --local | --remote [--run <id>] [--out docs/data/<file>.md]';
+
+/**
+ * `ops:coverage` only reads, but it still takes exactly one of `--local` or `--remote` (no default), so that it is always clear
+ * which database a report describes. `--run` is a positive whole number; `--out` is a file name (its folder is checked later).
+ */
+export function parseCoverageArgs(argv: readonly string[]): CoverageArgs {
+  const fail = (message: string): CoverageArgs => ({ ok: false, message: `${message} ${COVERAGE_USAGE}` });
+  let local = false;
+  let remote = false;
+  let run: number | null = null;
+  let out: string | null = null;
+  const seen = new Set<string>();
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i] as string;
+    if (arg !== '--local' && arg !== '--remote' && arg !== '--run' && arg !== '--out') return fail(`Unknown argument: ${arg}.`);
+    if (seen.has(arg)) return fail(`${arg} was given twice.`);
+    seen.add(arg);
+    if (arg === '--local') local = true;
+    else if (arg === '--remote') remote = true;
+    else {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith('--')) return fail(`${arg} needs a value.`);
+      i += 1;
+      if (arg === '--run') {
+        if (!/^[1-9]\d{0,9}$/.test(value)) return fail(`--run must be a positive whole number: ${value}.`);
+        run = Number(value);
+      } else out = value;
+    }
+  }
+  if (local && remote) return fail('Choose one of --local or --remote, not both.');
+  if (!local && !remote) return fail('Say which database to read.');
+  return { ok: true, target: local ? 'local' : 'remote', run, out };
+}

@@ -19,7 +19,8 @@
     "db:migrate:remote": "pnpm --filter @saleaway/web exec wrangler d1 migrations apply saleaway --remote",
     "ops:seed": "pnpm --filter @saleaway/ops exec tsx src/seed.ts",
     "ops:hide": "pnpm --filter @saleaway/ops exec tsx src/hide.ts",
-    "ops:override": "pnpm --filter @saleaway/ops exec tsx src/override.ts"
+    "ops:override": "pnpm --filter @saleaway/ops exec tsx src/override.ts",
+    "ops:coverage": "pnpm --filter @saleaway/ops exec tsx src/coverage.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

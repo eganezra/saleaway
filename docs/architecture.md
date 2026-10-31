@@ -386,7 +386,7 @@ Saleaway has no public API. The only HTTP endpoints are internal, so no OpenAPI 
 
 **Responsibility:** the commands in Stories 1.3, 3.9, 4.1, 4.2 and 4.3.
 
-**Key Interfaces:** `pnpm ops:seed`, `pnpm ops:hide` (hides or shows the stores in `docs/data/hidden-stores.json`), `pnpm ops:override` (creates, changes, clears, lists, exports and restores overrides; `--bring-back` shows a hidden store with manual values), `pnpm ops:health`, `pnpm ops:check-urls`, `pnpm ops:run` (calls `/admin/run`).
+**Key Interfaces:** `pnpm ops:seed`, `pnpm ops:hide` (hides or shows the stores in `docs/data/hidden-stores.json`), `pnpm ops:override` (creates, changes, clears, lists, exports and restores overrides; `--bring-back` shows a hidden store with manual values), `pnpm ops:coverage` (reads one run and the sale records and writes a coverage report; read-only), `pnpm ops:health`, `pnpm ops:check-urls`, `pnpm ops:run` (calls `/admin/run`).
 
 **Dependencies:** Wrangler (`wrangler d1 execute --remote`), authenticated by your Cloudflare login.
 
@@ -782,6 +782,8 @@ apps/pipeline/src/
 
 **Built in Story 3.10 (2026-10-31):** fewer false `ended` verdicts. In `packages/core`: `AMOUNT` and `PRICE` in `page-scan.ts` accept `ZAR` as well as `R`; a new `SAVE_NODE` pattern; in `validate.ts` the `saveLabels` signal (a seventh count, counted as a discount signal), the narrower empty-listing rule, the "calls itself a sale" guard (`SALE_WORDS`, whole words, tested on the title, the first heading and the address path) and the new reason `discounts_not_readable`. Four real pages (Gelmar, Spar, Evetech, Mr Price) and one plain category page are page samples; the older `no-discounts-listing.html` sample is now `unverifiable` because its title and address say "specials". In `apps/pipeline`, `listUnfinishedRuns` returns the newest unfinished runs first (the cap of 10 stays: D1 allows 50 queries per invocation and closing a run takes 2). The extractors read `ZAR` prices too (a Gelmar-style pair gives its percentage).
 
+**Built in Story 3.6 (2026-10-31):** the coverage report. `scripts/ops/src/coverage-plan.ts` is pure (the buckets and the Markdown) and `coverage.ts` is the command: `pnpm ops:coverage --local | --remote [--run <id>] [--out docs/data/<file>.md]`. It runs three read-only queries (the run with its first and last result times, every store with its result for that run and its sale record, and the active overrides), prints the report, or writes it when `--out` is given (inside `docs/data/`, a `.md` file, resolved from the repository root). It writes nothing to the database. `run_results` keeps each night's result, but `sale_records` is overwritten by every run, so the report states the date its records are from and warns when they are newer than the run it describes. Reports of the first runs are `docs/data/first-run-coverage.md` (with the free-tier check) and, when made, `docs/data/second-run-coverage.md`. `loot` was changed to `structured_data` in the live database by a one-row update (the seed never changes an existing store's method).
+
 #### Function Template
 
 ```typescript
@@ -933,7 +935,7 @@ saleaway/
 ├── db/
 │   ├── migrations/                 # 0001_init.sql, then one file per later story
 │   └── seed/                       # seed script reads docs/data/retailers-seed.tsv
-├── scripts/ops/                    # seed, hide (Story 3.9), override (Story 4.1: override.ts, override-plan.ts), health, check-urls, run
+├── scripts/ops/                    # seed, hide (Story 3.9), override (Story 4.1: override.ts, override-plan.ts), coverage (Story 3.6: coverage.ts, coverage-plan.ts), health, check-urls, run
 ├── docs/                           # brief, prd, front-end-spec, architecture, data (incl. hidden-stores.json, overrides.json)
 ├── .env.example                    # variable names only, no values
 ├── pnpm-workspace.yaml  package.json  tsconfig.base.json

@@ -70,6 +70,38 @@ A queue consumer invocation that checked `robots.txt`, fetched the page and stre
 - These numbers are an upper bound: they include `robots.txt` parsing and a deliberately broad probe. They must be **repeated with the real validation and extraction** (Story 3.4, criterion 8).
 - **A Shopify product feed could not be measured**: none of the Shopify stores checked offers one to an honest user-agent (see above).
 
+### CPU measured with the real steps (Story 3.6)
+
+**Source:** the Workers Logs of run 17 (2026-10-31, 03:00 to 03:15 UTC), exported from the Cloudflare dashboard by the operator (Observability, Logs, Worker `saleaway-pipeline`; the file is kept outside the repository, 130 events). Every queue invocation handles one store, so an invocation's `cpuTimeMs` is that store's CPU with the **real** steps: `robots.txt`, the page fetch, classification, validation, extraction and the save. The log lines hold the store's slug only for stores whose page was read (`page_validated`, `discount_extracted`); the other invocations were matched to their store by the time the result was saved (`run_results.created_at`, one second apart at most) and all 57 matched in order, with no slug disagreeing. No request was made to any store for this.
+
+| Store | Page size | CPU (ms) | Wall time (ms) | Outcome | Story 3.2 stand-in (CPU, ms) |
+|---|---|---|---|---|---|
+| `bash-tfg` | 757,236 bytes | 65 | 2623 | `ok`, valid, 80% | 81, 108, 37 |
+| `woolworths-fashion` | 1,648,796 bytes | 87 | 4994 | `ok`, unverifiable (`javascript_shell`) | 55, 40, 24 |
+| `takealot` | not logged (a known JavaScript page is not read; 19,381 bytes in Story 3.2) | 6 | 724 | `js_only` | 5, 7, 9 |
+| `under-armour-sa` | 320,086 bytes | 17 | 942 | `ok`, unverifiable (`unreadable`) | 29, 27, 20 |
+| `toy-kingdom` (Shopify) | 516,429 bytes | 42 | 1703 | `ok`, valid, 50% (`shopify_json`, `feed: fallback`) | not measured |
+
+Only one invocation of each store was seen (one run), so these are single readings, not a range.
+
+**All 57 invocations of run 17:** median **13 ms**, 90th percentile **97 ms** (nearest rank), largest **153 ms** (`cotton-on-sa`, a 1.66 MB page). **35 of 57 are above 8 ms** (31 above 10 ms, 17 above 50 ms, 5 above 100 ms). By kind of result:
+
+| Result | Invocations | Median CPU (ms) | Largest (ms) |
+|---|---|---|---|
+| `ok` (page read, validated and extracted) | 37 | 41 | 153 |
+| `js_only` (not read) | 14 | 5 | 10 |
+| `skipped_manual` | 3 | 2 | 6 |
+| `blocked` | 2 | 3.5 | 5 |
+| `error` | 1 | 4 | 4 |
+
+Of the 37 pages read, 34 are above 8 ms; the three below are small pages (`liquor-city` 1 KB, `epetstore` 37 KB, `spar` 134 KB). The largest are the biggest pages: `cotton-on-sa` (153), `cotton-on-kids-sa` (144), `evetech` (126), `onedayonly` (116; its page was cut at the 3 MiB read limit and still gave 72%) and `absolute-pets` (116). The other work of the run was small: the start cron 2 ms, and the closing cron 13 ms (it closed 10 runs in 4.1 s of wall time and ended `ok`). Longest wall time of a store: 6.3 s.
+
+**Compared with Story 3.2:** the real steps cost about the same as the stand-in. The largest reading went from 108 to 153 ms; `bash-tfg` was lower (65 against 37 to 108) and `woolworths-fashion` higher (87 against 24 to 55), `under-armour-sa` lower (17 against 20 to 29) and `takealot` unchanged. CPU follows the size of the page read, not the store.
+
+**Shopify product feed:** it still did not answer. `toy-kingdom` was the only Shopify store whose page was read, and its line says `feed: fallback` (the feed was asked once, did not answer, and the page was used). The other three `shopify_json` stores gave no extraction line: `beauty-on-tapp` and `norman-goodfellows` were `blocked` (HTTP 429) before the feed step and `benji-moon` was an `error` (`unsafe_redirect`); `under-armour-sa` is `html`. So no Shopify feed has answered from the Worker, and the `shopify_json` path works through its page fallback only.
+
+**Conclusion:** yes, most stores that read a page exceed 8 ms of CPU in every run (34 of 37), up to 153 ms. **No invocation was stopped: all 57 ended `ok`.** This confirms Story 3.2: the Free plan's 10 ms limit is not enforced on queue consumers, and the closing cron (13 ms) was not cut either. So this is a note and **no store was changed for CPU**. The risk is that Cloudflare starts enforcing the limit on queue consumers: 31 stores would then be stopped on a night. If that is ever seen (an invocation with an exceeded-CPU outcome), the responses are a streaming parse of the page, the `manual` method, or the fallback runner (Story 3.8); that would be a decision for the PO.
+
 **What the operator should decide** (these are decisions, not done yet): how to treat the 34 blocked stores. Options: give them the `manual` method and enter percentages by hand (Story 4.1); try the fallback runner on GitHub Actions to see whether its addresses are treated differently (Story 3.8, a test is needed first); ask the biggest retailers to allow the user-agent; or hide them at launch. This list feeds Story 3.6 and Story 4.3.
 
 **Decision (2026-10-30, Story 3.9):** the user ruled out contacting retailers and chose to **hide the blocked stores for launch**. The 34 blocked stores and one more listing on the same website (`ackermans-baby-kids-toys`, which answered 500 from the site that blocks `ackermans`) are listed in [`hidden-stores.json`](data/hidden-stores.json) and hidden with `pnpm ops:hide`. The site and the daily run now use 57 stores (53 that answer, 3 `manual`, and `benji-moon`, an error that is a data fix). The hidden stores come back one by one in Story 5.4; Story 4.3's script, run from a home connection, gives a free test of another network.
