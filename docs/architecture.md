@@ -683,6 +683,8 @@ apps/web/src/
 
 **Built in Story 2.5 (2026-10-30):** the layout, the legal pages, the click counter and the ad slots. `BaseLayout.astro` now has a skip link ("Skip to content", the first focusable element, targeting `<main id="main" tabindex="-1">` of every page), `Header.astro` (the wordmark and two links, Categories and How it works; not sticky, no menu button) and `Footer.astro` (two links, About and Privacy, the disclaimer and the year; the footer ad slot above them). `pages/about.astro` ("How Saleaway works", with an "Our bot" part that names the bot's user-agent, says it makes a few requests a day at most and obeys `robots.txt`) and `pages/privacy.astro` (no accounts, no cookies, no personal information kept; the visit count is described only while an analytics token is set, and the ads paragraph follows `ADS_ENABLED`) make no database query. There is no Contact page: `pages/contact.ts` answers a 302 to `/about#our-bot` because the bot's user-agent carries `/contact`. The middleware's cached paths are `/`, `/about` and `/privacy` (`CACHED_PATHS`), and the sitemap lists the same three. `POST /api/click` (`pages/api/click.ts`, logic in `lib/clickHandler.ts`) counts a click-out per store per day in `click_counts` (migration `0003_click_counts.sql`, one upsert, `recordClick` in `lib/db.ts`): body a store slug of at most 100 bytes (413), `Origin` of another site refused (403), a slug that does not parse is a 400, an unknown store a 404, success a 204, a database failure a 503 with one `click_failed` log line holding only the slug and the error; every answer is `no-store` and sets no cookie; nothing about the visitor (address, user-agent, referrer, cookie) is read or stored. `CLICK_SAMPLE_RATE` (a var, default `"1"`) counts a share of clicks and adds `round(1 / rate)` to each counted one, so a total stays an estimate. `scripts/site.ts` (the click beacon, `navigator.sendBeacon` on `click` and `auxclick` of `a[data-store]`) is **one separate same-origin file**: `vite.build.assetsInlineLimit` is `0` in `astro.config.mjs` because Astro otherwise puts a script this small into the page and the CSP (`script-src 'self'`) blocks an inline script. The Cloudflare Web Analytics tag (`https://static.cloudflareinsights.com/beacon.min.js`, `defer`, `data-cf-beacon`) is added only when `CF_WEB_ANALYTICS_TOKEN` (a var, empty by default) is a plain token (`lib/analytics.ts`); Story 4.4 confirms it on the real domain. `AdSlot.astro` draws a dashed "Advertisement" frame that reserves its height (top 90px from 640px up, a 250px cell after the third category card, footer 60px or 90px) and **renders nothing and keeps no space** unless `ADS_ENABLED` is exactly `"true"` (default `"false"`); the frames are empty until an ad network is chosen (its snippet and hosts, the CSP and the Privacy page come with that step). A Lighthouse mobile run with the slots on has a layout shift of 0. Each slot is a landmark with its own name ("Advertisement, top of the page" and so on). **Accessibility (found in QA review of Story 2.5):** a store row's rank number and chevron are generated content (`::before` and `::after` with no spoken text), the parts of the link are separated by real spaces, and its accessible name follows the order the row is drawn in (name, checked, figure), so the name holds the visible text (WCAG 2.5.3, Label in Name); the smoke test uses the WCAG 2.0, 2.1 and 2.2 tags including the Level A 2.1 set and turns on axe's Label in Name rule.
 
+**Built in Story 4.4 (2026-10-31):** `www` goes to the apex. `src/lib/host.ts` has the pure `wwwRedirectTarget(requestUrl, siteUrl)`: it returns the same path and query on the site's own origin only when the host is exactly `www.` plus the host of `SITE_URL`, and null for every other host. The middleware calls it first (for `GET` and `HEAD`), before the page cache, and answers with a 301 that still carries the site's headers. `siteOrigin` in `seo.ts` is exported for it. No other page changed.
+
 ### Component Template
 
 ```astro
@@ -914,8 +916,8 @@ export function isAuthorized(req: Request, token: string | undefined): boolean {
 ```text
 saleaway/
 ├── .github/workflows/
-│   ├── ci.yml                      # lint, typecheck, test on every push and PR
-│   └── deploy.yml                  # deploy web and pipeline on main after CI passes
+│   ├── ci.yml                      # lint, typecheck, test and the smoke test on every PR; deploy.yml calls it (Story 4.4)
+│   └── deploy.yml                  # on main: the checks, then (when DEPLOY_ENABLED is true) migrations, web, the quiet-window wait, pipeline
 ├── apps/
 │   ├── web/                        # Astro site (see Frontend Architecture)
 │   │   ├── src/  public/  tests/
@@ -937,7 +939,7 @@ saleaway/
 ├── db/
 │   ├── migrations/                 # 0001_init.sql, then one file per later story
 │   └── seed/                       # seed script reads docs/data/retailers-seed.tsv
-├── scripts/ops/                    # seed, hide (Story 3.9), override (Story 4.1: override.ts, override-plan.ts), coverage (Story 3.6: coverage.ts, coverage-plan.ts), check-urls (Story 4.3: check-urls.ts, check-urls-plan.ts), health, run
+├── scripts/ops/                    # seed, hide (Story 3.9), override (Story 4.1: override.ts, override-plan.ts), coverage (Story 3.6: coverage.ts, coverage-plan.ts), check-urls (Story 4.3: check-urls.ts, check-urls-plan.ts), deploy-window (Story 4.4: deploy-window.ts, wait-for-quiet-window.ts, the CI helper), health, run
 ├── docs/                           # brief, prd, front-end-spec, architecture, data (incl. hidden-stores.json, overrides.json)
 ├── .env.example                    # variable names only, no values
 ├── pnpm-workspace.yaml  package.json  tsconfig.base.json
@@ -1034,37 +1036,16 @@ CLOUDFLARE_ACCOUNT_ID=<id>
 
 ### CI/CD Pipeline
 
-```yaml
-# .github/workflows/deploy.yml (shape; built in Story 4.4, after the local-first build)
-name: deploy
-on:
-  push: { branches: [main] }
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: lts/*, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint && pnpm typecheck && pnpm test
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: lts/*, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm db:migrate:remote
-        env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
-      - run: pnpm deploy:all
-        env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
-```
+**As built in Story 4.4 (2026-10-31).** Two workflows in `.github/workflows/`:
 
-### Environments
+- **`ci.yml`** runs on every pull request, and `deploy.yml` calls it. One job on `ubuntu-latest`: `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, then the Playwright browser (`playwright install --with-deps chromium`) and `pnpm test:smoke` (the smoke test with the axe check). Node comes from `.nvmrc` and pnpm from the `packageManager` field of `package.json`. It uses no secret.
+- **`deploy.yml`** runs on a push to `main` and by hand (`workflow_dispatch`). It calls `ci.yml`; its `deploy` job `needs` that job, so a failing build or test stops the deploy. The deploy job runs only when the branch is `main` **and** the repository variable `DEPLOY_ENABLED` is the text `true` (the launch switch: without it a push runs the checks and stops). Its steps, in this order: `pnpm db:migrate:remote` (new migrations first; they are additive), `pnpm deploy:web`, `pnpm ci:wait-for-quiet-window`, `pnpm deploy:pipeline`. Only the three steps that talk to Cloudflare receive the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Deploys never run at the same time and a running one is never cancelled (`concurrency`).
+- **The quiet window.** The nightly run is on between 03:00 and 03:45 UTC, and a deploy of the pipeline then could cut a store short. `ci:wait-for-quiet-window` (`scripts/ops/src/wait-for-quiet-window.ts`, with the pure `msUntilQuietWindow` in `deploy-window.ts`) returns at once outside 02:50:00 to 03:49:59 UTC and inside it waits until 03:50 UTC. The web app is deployed before the wait; only the pipeline waits. The deploy job's limit is 90 minutes and each step has its own limit.
+- **Checked as text** by `scripts/ops/tests/workflows.test.ts`: the deploy needs the checks, is gated on the branch and the variable, applies migrations before the web deploy and waits before the pipeline deploy, gives the secrets only to the three Cloudflare steps, uses actions at a major version, and holds no literal secret.
+
+The token for `CLOUDFLARE_API_TOKEN` is made from Cloudflare's "Edit Cloudflare Workers" template plus Account D1 Edit, Account Queues Edit, and Zone DNS Edit and Zone Read for `saleaway.online`.
+
+## Environments
 
 | Environment | Frontend URL | Backend URL | Purpose |
 |---|---|---|---|
@@ -1072,7 +1053,7 @@ jobs:
 | Staging | `*.workers.dev` URL, used until the domain is connected | `saleaway-pipeline.<account>.workers.dev` | Pre-launch testing. No separate staging database for the MVP |
 | Production | https://saleaway.online | `saleaway-pipeline.<account>.workers.dev/admin/run` (token only) | Live |
 
-The domain `saleaway.online` must have its DNS on Cloudflare for a custom domain on a Worker. This is still an open question (PRD Story 4.4). Until then the site runs locally and on a `workers.dev` address (Story 1.2).
+The domain `saleaway.online` is registered in Cloudflare and uses its nameservers. `apps/web/wrangler.jsonc` lists `saleaway.online` and `www.saleaway.online` as custom domains of the web Worker (each hostname is its own entry: a custom domain is an exact match, with no wildcard), and the first deploy creates the DNS records and the certificates. The Worker sends `www` to the apex with a 301 (`apps/web/src/lib/host.ts`). Only the web Worker has a domain: the pipeline stays on its `workers.dev` address (its one endpoint, `/admin/run`, needs the bearer token). The Workers Cache API that holds the page cache works on custom domains, so a cache hit (`x-cache: HIT`) can only be seen on the real domain.
 
 ### Rollback, pause and dependency upkeep
 

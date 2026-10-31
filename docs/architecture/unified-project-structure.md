@@ -3,8 +3,8 @@
 ```text
 saleaway/
 ├── .github/workflows/
-│   ├── ci.yml                      # lint, typecheck, test on every push and PR
-│   └── deploy.yml                  # deploy web and pipeline on main after CI passes
+│   ├── ci.yml                      # lint, typecheck, test and the smoke test on every PR; deploy.yml calls it (Story 4.4)
+│   └── deploy.yml                  # on main: the checks, then (when DEPLOY_ENABLED is true) migrations, web, the quiet-window wait, pipeline
 ├── apps/
 │   ├── web/                        # Astro site (see Frontend Architecture)
 │   │   ├── src/  public/  tests/
@@ -26,7 +26,7 @@ saleaway/
 ├── db/
 │   ├── migrations/                 # 0001_init.sql, then one file per later story
 │   └── seed/                       # seed script reads docs/data/retailers-seed.tsv
-├── scripts/ops/                    # seed, hide (Story 3.9), override (Story 4.1: override.ts, override-plan.ts), coverage (Story 3.6: coverage.ts, coverage-plan.ts), check-urls (Story 4.3: check-urls.ts, check-urls-plan.ts), health, run
+├── scripts/ops/                    # seed, hide (Story 3.9), override (Story 4.1: override.ts, override-plan.ts), coverage (Story 3.6: coverage.ts, coverage-plan.ts), check-urls (Story 4.3: check-urls.ts, check-urls-plan.ts), deploy-window (Story 4.4: deploy-window.ts, wait-for-quiet-window.ts, the CI helper), health, run
 ├── docs/                           # brief, prd, front-end-spec, architecture, data (incl. hidden-stores.json, overrides.json)
 ├── .env.example                    # variable names only, no values
 ├── pnpm-workspace.yaml  package.json  tsconfig.base.json

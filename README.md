@@ -165,7 +165,7 @@ The numbers are an approximation: automated visits can add clicks, and a `CLICK_
 
 ## Deploying
 
-Both Workers run on Cloudflare's Free plan at `workers.dev` addresses, deployed by hand from this computer. CI/CD and the real domain (`saleaway.online`) come in Story 4.4.
+Both Workers run on Cloudflare's Free plan. They can be deployed by hand from this computer (below) or by GitHub when you push to `main` (next section). The web Worker is also the home of `saleaway.online` and `www.saleaway.online` (Story 4.4); the pipeline stays on its `workers.dev` address.
 
 | Worker | Address |
 |---|---|
@@ -173,6 +173,21 @@ Both Workers run on Cloudflare's Free plan at `workers.dev` addresses, deployed 
 | `saleaway-pipeline` | `https://saleaway-pipeline.<account>.workers.dev` (placeholder, answers 404) |
 
 `<account>` is the `workers.dev` subdomain of the Cloudflare account. It is not stored in the repository.
+
+### Deploys from GitHub (Story 4.4)
+
+The code is at `github.com/eganezra/saleaway`. Two workflows live in `.github/workflows/`:
+
+- **`ci.yml`** checks a pull request: install, lint, type check, the unit tests, then the smoke test in a real browser (with the accessibility check). It uses no secret.
+- **`deploy.yml`** runs on every push to `main`. It runs the same checks first, and **a failing check stops the deploy**. If they pass **and** the repository variable `DEPLOY_ENABLED` is `true`, it then: applies new database migrations, deploys the web app, waits if it is inside the nightly window (02:50 to 03:50 UTC, so the pipeline is never deployed while the daily run is on), and deploys the pipeline. You can also start it by hand from the Actions tab (it deploys only from `main`).
+
+**The launch switch.** `DEPLOY_ENABLED` is a *variable* (Settings, Secrets and variables, Actions, **Variables** tab), not a secret. **While it is missing or anything but `true`, a push runs the checks and deploys nothing.** Setting it to `true` is the decision to put the new site live: do it only after the overrides for the three manual stores (`amazon-co-za`, `game-massmart`, `checkers-sixty60`) are in, because a store with no record and no override is hidden. To stop deploys again, delete the variable or set it to anything else.
+
+**The two secrets** (Settings, Secrets and variables, Actions, **Secrets** tab): `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The token comes from the "Edit Cloudflare Workers" template plus Account D1 Edit, Account Queues Edit, and Zone DNS Edit and Zone Read for `saleaway.online`. If a deploy fails with a permission error, the message names what is missing. Never put either in a file or in a commit.
+
+**Roll back.** A bad deploy is undone with `pnpm --filter @saleaway/web exec wrangler rollback` (or the same for `@saleaway/pipeline`), which returns that Worker to its previous version. Migrations only add tables and columns, so the database needs no rollback. To stop the next push from deploying again, remove `DEPLOY_ENABLED` first.
+
+**By hand still works:** everything in "Deploy" below is unchanged, and it is the way to deploy from this computer when GitHub is not wanted. Do not deploy by hand between 02:50 and 03:50 UTC.
 
 ### One-time setup
 

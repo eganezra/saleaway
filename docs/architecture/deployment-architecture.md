@@ -15,35 +15,14 @@
 
 ## CI/CD Pipeline
 
-```yaml
-# .github/workflows/deploy.yml (shape; built in Story 4.4, after the local-first build)
-name: deploy
-on:
-  push: { branches: [main] }
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: lts/*, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint && pnpm typecheck && pnpm test
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: lts/*, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm db:migrate:remote
-        env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
-      - run: pnpm deploy:all
-        env: { CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}", CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" }
-```
+**As built in Story 4.4 (2026-10-31).** Two workflows in `.github/workflows/`:
+
+- **`ci.yml`** runs on every pull request, and `deploy.yml` calls it. One job on `ubuntu-latest`: `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, then the Playwright browser (`playwright install --with-deps chromium`) and `pnpm test:smoke` (the smoke test with the axe check). Node comes from `.nvmrc` and pnpm from the `packageManager` field of `package.json`. It uses no secret.
+- **`deploy.yml`** runs on a push to `main` and by hand (`workflow_dispatch`). It calls `ci.yml`; its `deploy` job `needs` that job, so a failing build or test stops the deploy. The deploy job runs only when the branch is `main` **and** the repository variable `DEPLOY_ENABLED` is the text `true` (the launch switch: without it a push runs the checks and stops). Its steps, in this order: `pnpm db:migrate:remote` (new migrations first; they are additive), `pnpm deploy:web`, `pnpm ci:wait-for-quiet-window`, `pnpm deploy:pipeline`. Only the three steps that talk to Cloudflare receive the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Deploys never run at the same time and a running one is never cancelled (`concurrency`).
+- **The quiet window.** The nightly run is on between 03:00 and 03:45 UTC, and a deploy of the pipeline then could cut a store short. `ci:wait-for-quiet-window` (`scripts/ops/src/wait-for-quiet-window.ts`, with the pure `msUntilQuietWindow` in `deploy-window.ts`) returns at once outside 02:50:00 to 03:49:59 UTC and inside it waits until 03:50 UTC. The web app is deployed before the wait; only the pipeline waits. The deploy job's limit is 90 minutes and each step has its own limit.
+- **Checked as text** by `scripts/ops/tests/workflows.test.ts`: the deploy needs the checks, is gated on the branch and the variable, applies migrations before the web deploy and waits before the pipeline deploy, gives the secrets only to the three Cloudflare steps, uses actions at a major version, and holds no literal secret.
+
+The token for `CLOUDFLARE_API_TOKEN` is made from Cloudflare's "Edit Cloudflare Workers" template plus Account D1 Edit, Account Queues Edit, and Zone DNS Edit and Zone Read for `saleaway.online`.
 
 ## Environments
 
@@ -53,7 +32,7 @@ jobs:
 | Staging | `*.workers.dev` URL, used until the domain is connected | `saleaway-pipeline.<account>.workers.dev` | Pre-launch testing. No separate staging database for the MVP |
 | Production | https://saleaway.online | `saleaway-pipeline.<account>.workers.dev/admin/run` (token only) | Live |
 
-The domain `saleaway.online` must have its DNS on Cloudflare for a custom domain on a Worker. This is still an open question (PRD Story 4.4). Until then the site runs locally and on a `workers.dev` address (Story 1.2).
+The domain `saleaway.online` is registered in Cloudflare and uses its nameservers. `apps/web/wrangler.jsonc` lists `saleaway.online` and `www.saleaway.online` as custom domains of the web Worker (each hostname is its own entry: a custom domain is an exact match, with no wildcard), and the first deploy creates the DNS records and the certificates. The Worker sends `www` to the apex with a 301 (`apps/web/src/lib/host.ts`). Only the web Worker has a domain: the pipeline stays on its `workers.dev` address (its one endpoint, `/admin/run`, needs the bearer token). The Workers Cache API that holds the page cache works on custom domains, so a cache hit (`x-cache: HIT`) can only be seen on the real domain.
 
 ## Rollback, pause and dependency upkeep
 
