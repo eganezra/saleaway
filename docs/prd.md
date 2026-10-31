@@ -71,7 +71,7 @@ A spreadsheet of 106 SA stores (`docs/data/`) provides primary sale URLs for 92 
 - **NFR3:** Data freshness: every visible store is re-checked at least every 24 hours, and no record older than 72 hours is shown.
 - **NFR4:** The pipeline is resilient: one store's failure, block or timeout never stops the rest of the run. Runs can be safely repeated (idempotent).
 - **NFR5:** Pipeline success rate of 95% or higher of scheduled runs completing.
-- **NFR6:** Politeness: no more than one page fetch per store per day on the normal path (plus one robots.txt check), a clear user-agent that links to a page about the bot, robots.txt respected, and no attempt to evade bot protection.
+- **NFR6:** Politeness: no more than one page fetch per store per day on the normal path (plus one robots.txt check), a clear user-agent that links to a page about the bot, robots.txt respected, and no attempt to evade bot protection. *(Note, 2026-11-01, Story 5.1: for a store read by a browser render, "one page fetch" means one page load per store per day, with images, fonts, media and style sheets not downloaded, no other page visited, `robots.txt` obeyed and the bot's own user-agent.)*
 - **NFR7:** Legal safety: store only facts (name, URL, discount percentage, timestamps). Do not copy or display retailer images, descriptions, logos or page layouts. All cards link out to the retailer.
 - **NFR8:** Privacy: no cookies or personal data collected at launch, so no cookie banner is needed. POPIA obligations must be revisited when an ad network adds cookies.
 - **NFR9:** Accessibility: meets WCAG AA basics (contrast, keyboard use, labels, semantic headings).
@@ -596,7 +596,7 @@ so that big stores such as Takealot show a real percentage.
 #### Acceptance Criteria
 
 1. For stores flagged as JavaScript-only, the pipeline either uses a browser render within free-tier limits or a store's data endpoint to read prices.
-2. The method is chosen per store through `extraction_method`.
+2. The method is chosen per store through a new column, `fetch_mode` (`plain` or `browser`). `extraction_method` keeps saying how the page's content is read; its database CHECK cannot be widened without rebuilding the table, which the additive-migrations rule forbids.
 3. The number of stores moving from "On sale" to a percentage is reported.
 4. The approach stays within NFR1 and NFR6.
 

@@ -11,7 +11,7 @@ so that big stores such as Takealot show a real percentage.
 ### Acceptance Criteria
 
 1. For stores flagged as JavaScript-only, the pipeline either uses a browser render within free-tier limits or a store's data endpoint to read prices.
-2. The method is chosen per store through `extraction_method`.
+2. The method is chosen per store through a new column, `fetch_mode` (`plain` or `browser`). `extraction_method` keeps saying how the page's content is read; its database CHECK cannot be widened without rebuilding the table, which the additive-migrations rule forbids.
 3. The number of stores moving from "On sale" to a percentage is reported.
 4. The approach stays within NFR1 and NFR6.
 
