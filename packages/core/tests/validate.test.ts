@@ -355,6 +355,15 @@ describe('Story 3.10: fewer false "ended" verdicts', () => {
     it.each(['Save the date', 'Save 20 R', 'Save R', 'Saved R 15.00', 'Please save R 15.00 now', 'Save R 15.00 on every pack of milk we sell this week'])('does not count "%s"', (label) => {
       expect(judge(html(`<span>${label}</span>`)).signals.saveLabels).toBe(0);
     });
+    it.each(['Save R50 when you spend R500', 'Save R15 today', 'Save R 15.00 off', 'Save R 15.00!', 'Save R 15.00 per pack'])('does not count a banner that goes on after the amount: "%s" (found in QA review)', (label) => {
+      expect(judge(html(`<span>${label}</span>`)).signals.saveLabels).toBe(0);
+    });
+    it('does not count a saving label that is longer than 40 characters', () => {
+      const long = `Save R 1${' 111'.repeat(12)}`;
+      expect(long.length).toBeGreaterThan(40);
+      expect(judge(html(`<span>${long}</span>`)).signals.saveLabels).toBe(0);
+      expect(judge(html('<span>Save R 1 111 111</span>')).signals.saveLabels).toBe(1);
+    });
     it('makes a page with two labels and two prices a sale', () => {
       const card = (n: number) => `<li><span>Product ${n}</span><span class="label">Save R 15.00</span><span class="price">R 89.99</span></li>`;
       const result = judge(html(`<ol>${card(1)}${card(2)}</ol>`, 'SPAR Specials'));
@@ -410,6 +419,12 @@ describe('Story 3.10: fewer false "ended" verdicts', () => {
       const url = `https://shop.example${path}`;
       expect(judge(html(noDiscounts, PLAIN_TITLE), { expectedUrl: url, finalUrl: url })).toMatchObject({ verdict: 'ended', reason: 'no_discounts' });
     });
+    it.each(['https://shop.example/big_sale_items', 'https://shop.example/deals_of_the_day', 'https://shop.example/store/Clearance_Rack.html', 'https://shop.example/%7Especials', 'https://shop.example/Summer%20Sale', 'https://shop.example/deals%20and%20offers', 'https://shop.example/%E2%9C%A8Promos'])(
+      'reads a word in the path that is set off by an underscore or an escape: %s (found in QA review)',
+      (url) => {
+        expect(judge(html(noDiscounts, PLAIN_TITLE), { expectedUrl: url, finalUrl: url })).toMatchObject({ verdict: 'unverifiable', reason: 'discounts_not_readable' });
+      },
+    );
     it('a sale word in the body text only does not save it', () => {
       expect(plain('<p>Our big sale starts soon, special offers every day</p>' + noDiscounts)).toMatchObject({ verdict: 'ended', reason: 'no_discounts' });
     });

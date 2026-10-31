@@ -80,7 +80,8 @@ function includesAny(haystack: string, needles: readonly string[]): boolean {
 function callsItselfASale(title: string, heading: string, expectedUrl: string): boolean {
   let path = '';
   try {
-    path = new URL(expectedUrl).pathname.replace(/[^A-Za-z0-9]+/g, ' ');
+    // an escape (%20 is a space) turns into a space first, or it would glue itself to the next word: `/Summer%20Sale` is "Summer 20Sale" otherwise
+    path = new URL(expectedUrl).pathname.replace(/%[0-9A-Fa-f]{2}/g, ' ').replace(/[^A-Za-z0-9]+/g, ' ');
   } catch {
     // an address that does not parse has no path to read
   }
