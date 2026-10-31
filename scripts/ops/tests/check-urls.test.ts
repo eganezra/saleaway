@@ -169,6 +169,28 @@ describe('runCheckUrls: a full run', () => {
     spy.mockRestore();
   });
 
+  it('writes the report first and the once-a-day stamp last, so a failed write cannot lock the next run', async () => {
+    const spy = quiet();
+    const t = setup();
+    const order: string[] = [];
+    const original = t.io.writeFile;
+    t.io.writeFile = (path, text) => {
+      order.push(path);
+      original(path, text);
+    };
+    await runCheckUrls([], t.io);
+    expect(order).toEqual([`/repo/${RESULT_MARKDOWN}`, `/repo/${RESULT_JSON}`]);
+
+    // The report write fails: no stamp exists, so a second run is allowed.
+    const broken = setup();
+    broken.io.writeFile = () => {
+      throw new Error('disk full');
+    };
+    await expect(runCheckUrls([], broken.io)).rejects.toThrow('disk full');
+    expect(broken.written.has(`/repo/${RESULT_JSON}`)).toBe(false);
+    spy.mockRestore();
+  });
+
   it('writes nothing when the run is cut short', async () => {
     const spy = quiet();
     const t = setup({ sleepThrows: true });

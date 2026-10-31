@@ -165,8 +165,9 @@ export async function runCheckUrls(argv: string[], io: CheckUrlsIo): Promise<num
     return 0;
   }
 
-  io.writeFile(join(io.root, RESULT_JSON), `${JSON.stringify(file, null, 2)}\n`);
+  // The JSON is the once-a-day stamp, so it is written last: a failure between the two writes leaves no stamp and the run can be repeated.
   io.writeFile(join(io.root, RESULT_MARKDOWN), renderCheckMarkdown(file, names));
+  io.writeFile(join(io.root, RESULT_JSON), `${JSON.stringify(file, null, 2)}\n`);
   log.info('check_urls_done', { pages: file.pages, written: [RESULT_JSON, RESULT_MARKDOWN] });
   return 0;
 }

@@ -2,7 +2,7 @@
 
 On 2026-10-31 the operator said "you make a call" about the browser check, so the Dev settled each store **on the evidence of the real runs** (the pipeline's run 17 and the URL check made from the operator's computer, `url-check.md`). **No one has looked at these pages in a browser**: that is a limit of this record, and the last section lists what is still worth a person's eyes.
 
-## Decided on the evidence (11 stores moved off "Found via search")
+## Decided on the evidence (10 stores moved off "Found via search")
 
 | Store | Now | Evidence |
 | --- | --- | --- |
@@ -14,9 +14,8 @@ On 2026-10-31 the operator said "you make a call" about the browser check, so th
 | Pick n Pay | Verified – page loads (products load via JS) | answers (200); the Worker saw a JavaScript page, nothing read; the seed already said "JS-only" |
 | Woolworths (fashion) | Verified – page loads (products load via JS) | answers (200); the Worker saw a JavaScript page, nothing read |
 | Liquor City | Verified – page loads (products load via JS) | answers (200); a 1 KB page, a JavaScript page; the seed already said "JS-only" |
-| Mr Price | Verified – page loads (products load via JS) | answers (200); the seed says it renders empty without JS; run 17's "ended" verdict was a false one (Story 3.10), run 18 gives the new one |
 
-The first seven have the strongest proof: a discount figure was read from the page itself. The last four only show that the address answers and what kind of page it is; whether it shows a sale is not proven.
+The first seven have the strongest proof: a discount figure was read from the page itself. The last three only show that the address answers and that the page is a JavaScript page (run 17's logs: 87, 946 and 11 characters of text, no prices); whether it shows a sale is not proven.
 
 ## Other changes made from the same evidence
 
@@ -28,6 +27,7 @@ The first seven have the strongest proof: a discount figure was read from the pa
 
 | Store | Why it was not settled |
 | --- | --- |
+| Mr Price (`mr-price`) | **QA correction (2026-10-31):** first marked "loads via JS" on the seed's note, but run 17 read it as a normal page (7.6 KB of text, 12 prices, no discount signals). It was judged "ended" by the old rule. It stays "Found via search" so that run 18 judges it with Story 3.10's rules. |
 | Amazon.co.za (`amazon-co-za`), Game (`game-massmart`) | Manual stores: the bot never reads them and they still need **overrides** (a percentage and an expiry). Opening each page to read the percentage settles the address too. Both answer 200 from the operator's computer. |
 | Norman Goodfellows (`norman-goodfellows`) | Blocks both networks (429), and its address is a hub page. Only a look says if it is a sale page. It stays visible; it will go stale and hide itself after 72 hours without a record. |
 | Hifi Corp, Incredible, Outdoor Warehouse, Sportsmans Warehouse | Hidden because the Worker was blocked; **they answer from the operator's computer** (200). Left as "Found via search" for Story 5.4, which would bring them back and re-check them then. |
