@@ -1,9 +1,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { parseHiddenStores } from '@saleaway/core';
 import { parseCoverageArgs } from './args';
-import { buildCoverage, renderMarkdown, resolveCoverageOut } from './coverage-plan';
-import type { CoverageRun, CoverageStore } from './coverage-plan';
+import type { SeedTarget } from './args';
+import { buildCoverage, renderMarkdown, resolveCoverageOut, storeFromRow } from './coverage-plan';
+import type { CoverageRun, StoreRow } from './coverage-plan';
 import { log } from './log';
 import { queryRows, repoRoot } from './wrangler';
 
@@ -21,24 +23,6 @@ interface RunRow {
   last_result_at: string | null;
 }
 
-interface StoreRow {
-  slug: string;
-  name: string;
-  category: string;
-  extraction_method: string;
-  is_visible: number;
-  sale_url: string | null;
-  has_override: number;
-  result: string | null;
-  http_status: number | null;
-  error: string | null;
-  state: 'active' | 'ended' | 'unknown' | null;
-  validation: 'content_verified' | 'url_verified' | 'none' | null;
-  discount_percent: number | null;
-  last_result: string | null;
-  last_checked_at: string | null;
-}
-
 const RUN_SQL = (run: number | null): string =>
   'SELECT p.id, p.trigger, p.started_at, p.finished_at, p.stores_total, ' +
   '(SELECT COUNT(*) FROM run_results r WHERE r.run_id = p.id) AS result_count, ' +
@@ -47,36 +31,27 @@ const RUN_SQL = (run: number | null): string =>
   'FROM pipeline_runs p ' +
   (run === null ? 'WHERE EXISTS (SELECT 1 FROM run_results r WHERE r.run_id = p.id) ORDER BY p.id DESC LIMIT 1' : `WHERE p.id = ${run}`);
 
-// `run` is a validated whole number. The override counts only while it has not expired.
+// `run` is a validated whole number. `overrides` has one row per store; whether it is still in force is decided in code.
 const STORES_SQL = (run: number): string =>
   'SELECT t.slug, t.name, c.name AS category, t.extraction_method, t.is_visible, t.sale_url, ' +
-  "(SELECT COUNT(*) FROM overrides o WHERE o.retailer_id = t.id AND (o.expires_at IS NULL OR o.expires_at >= strftime('%Y-%m-%d','now'))) AS has_override, " +
+  'o.retailer_id IS NOT NULL AS override_exists, o.expires_at AS override_expires_at, ' +
   'rr.result, rr.http_status, rr.error, s.state, s.validation, s.discount_percent, s.last_result, s.last_checked_at ' +
   'FROM retailers t JOIN categories c ON c.id = t.category_id ' +
+  'LEFT JOIN overrides o ON o.retailer_id = t.id ' +
   `LEFT JOIN run_results rr ON rr.retailer_id = t.id AND rr.run_id = ${run} ` +
   'LEFT JOIN sale_records s ON s.retailer_id = t.id ORDER BY t.slug';
 
-function toStore(row: StoreRow): CoverageStore {
-  return {
-    slug: row.slug,
-    name: row.name,
-    category: row.category,
-    extractionMethod: row.extraction_method,
-    isVisible: row.is_visible === 1,
-    noSaleUrl: row.sale_url === null,
-    hasOverride: row.has_override > 0,
-    result: row.result,
-    httpStatus: row.http_status,
-    error: row.error,
-    state: row.state,
-    validation: row.validation,
-    recordPercent: row.discount_percent,
-    recordLastResult: row.last_result,
-    lastCheckedAt: row.last_checked_at,
-  };
+/** Everything the command touches outside itself, so a test can pass fakes. */
+export interface CoverageIo {
+  root: string;
+  query: <T>(target: SeedTarget, sql: string) => T[] | null;
+  readHiddenList: () => unknown;
+  writeFile: (path: string, text: string) => void;
+  print: (text: string) => void;
+  now: () => Date;
 }
 
-function main(argv: string[]): number {
+export function runCoverage(argv: string[], io: CoverageIo): number {
   const args = parseCoverageArgs(argv);
   if (!args.ok) {
     log.error('coverage_usage', { reason: args.message });
@@ -87,7 +62,7 @@ function main(argv: string[]): number {
   // Bad input stops here, before the database is asked anything.
   let out: string | null = null;
   if (args.out !== null) {
-    const resolved = resolveCoverageOut(repoRoot, args.out);
+    const resolved = resolveCoverageOut(io.root, args.out);
     if (!resolved.ok) {
       log.error('coverage_usage', { reason: resolved.message });
       return 1;
@@ -96,23 +71,23 @@ function main(argv: string[]): number {
   }
   let hidden;
   try {
-    hidden = parseHiddenStores(JSON.parse(readFileSync(join(repoRoot, 'docs/data/hidden-stores.json'), 'utf-8')));
+    hidden = parseHiddenStores(io.readHiddenList());
   } catch (error) {
     log.error('coverage_invalid', { error });
     return 1;
   }
 
-  const runs = queryRows<RunRow>(target, RUN_SQL(wanted));
-  const found = runs?.[0];
+  const runs = io.query<RunRow>(target, RUN_SQL(wanted));
   if (runs === null) {
     log.error('coverage_query_failed', { target, what: 'run' });
     return 1;
   }
+  const found = runs[0];
   if (found === undefined) {
     log.error('coverage_no_run', { target, run: wanted });
     return 1;
   }
-  const rows = queryRows<StoreRow>(target, STORES_SQL(found.id));
+  const rows = io.query<StoreRow>(target, STORES_SQL(found.id));
   if (rows === null) {
     log.error('coverage_query_failed', { target, what: 'stores' });
     return 1;
@@ -128,17 +103,32 @@ function main(argv: string[]): number {
     firstResultAt: found.first_result_at,
     lastResultAt: found.last_result_at,
   };
-  const coverage = buildCoverage({ run, stores: rows.map(toStore), hidden, madeAt: new Date().toISOString().replace(/\.\d+Z$/, 'Z') });
+  const now = io.now();
+  const coverage = buildCoverage({
+    run,
+    stores: rows.map((row) => storeFromRow(row, now)),
+    hidden,
+    madeAt: now.toISOString().replace(/\.\d+Z$/, 'Z'),
+  });
   const markdown = renderMarkdown(coverage);
 
-  if (out === null) {
-    process.stdout.write(markdown);
-  } else {
-    mkdirSync(dirname(out), { recursive: true });
-    writeFileSync(out, markdown, 'utf-8');
-  }
+  if (out === null) io.print(markdown);
+  else io.writeFile(out, markdown);
   log.info('coverage_done', { target, run: run.id, visible: coverage.visible, hidden: coverage.hidden, written: out !== null, counts: coverage.counts });
   return 0;
 }
 
-process.exitCode = main(process.argv.slice(2));
+// Runs only when started as the script (`pnpm ops:coverage`), not when a test imports `runCoverage`.
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.exitCode = runCoverage(process.argv.slice(2), {
+    root: repoRoot,
+    query: queryRows,
+    readHiddenList: () => JSON.parse(readFileSync(join(repoRoot, 'docs/data/hidden-stores.json'), 'utf-8')),
+    writeFile: (path, text) => {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, text, 'utf-8');
+    },
+    print: (text) => process.stdout.write(text),
+    now: () => new Date(),
+  });
+}

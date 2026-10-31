@@ -1,4 +1,5 @@
 import { isAbsolute, relative, resolve } from 'node:path';
+import { isOverrideActive } from '@saleaway/core';
 
 // The coverage report of a pipeline run (Story 3.6). Pure: no I/O, no clock. The command reads the rows, this turns them into
 // the buckets and the Markdown. A store's record is the latest night's (`sale_records` is rewritten by every run), so the
@@ -53,6 +54,52 @@ export interface CoverageStore {
   recordPercent: number | null;
   recordLastResult: string | null;
   lastCheckedAt: string | null;
+}
+
+/** One row of the stores query, as the database returns it. */
+export interface StoreRow {
+  slug: string;
+  name: string;
+  category: string;
+  extraction_method: string;
+  is_visible: number;
+  sale_url: string | null;
+  override_exists: number;
+  override_expires_at: string | null;
+  result: string | null;
+  http_status: number | null;
+  error: string | null;
+  state: 'active' | 'ended' | 'unknown' | null;
+  validation: 'content_verified' | 'url_verified' | 'none' | null;
+  discount_percent: number | null;
+  last_result: string | null;
+  last_checked_at: string | null;
+}
+
+/**
+ * The store as the report sees it. An override counts only while the site would use it: the same rule as the site and `ops:override`
+ * (`isOverrideActive`, so an expiry date is the start of that day in UTC), not a comparison of text in the query.
+ */
+export function storeFromRow(row: StoreRow, now: Date): CoverageStore {
+  return {
+    slug: row.slug,
+    name: row.name,
+    category: row.category,
+    extractionMethod: row.extraction_method,
+    isVisible: row.is_visible === 1,
+    noSaleUrl: row.sale_url === null,
+    hasOverride:
+      row.override_exists === 1 &&
+      isOverrideActive({ discountPercent: null, hide: false, saleUrl: null, expiresAt: row.override_expires_at, createdAt: '' }, now),
+    result: row.result,
+    httpStatus: row.http_status,
+    error: row.error,
+    state: row.state,
+    validation: row.validation,
+    recordPercent: row.discount_percent,
+    recordLastResult: row.last_result,
+    lastCheckedAt: row.last_checked_at,
+  };
 }
 
 export interface HiddenList {
@@ -181,7 +228,7 @@ export function buildCoverage(input: { run: CoverageRun; stores: readonly Covera
     const bucket = bucketOf(store);
     counts[bucket] += 1;
     if (bucket === 'on_sale_only') {
-      const how = store.validation === 'content_verified' ? 'valid page, no figure' : store.result === 'js_only' ? 'JavaScript page, address only' : 'page not readable, address only';
+      const how = store.validation === 'content_verified' ? 'valid page, no figure' : store.result === 'js_only' ? 'JavaScript page, address only' : 'page could not be judged, address only';
       if (store.validation === 'content_verified') onSaleSplit.contentVerifiedNoFigure += 1;
       else if (store.result === 'js_only') onSaleSplit.jsOnly += 1;
       else onSaleSplit.otherUrlVerified += 1;
@@ -246,7 +293,7 @@ export function renderMarkdown(coverage: Coverage): string {
   const summaryRows = BUCKETS.map((bucket) => [BUCKET_LABEL[bucket], String(coverage.counts[bucket])]);
   const split = coverage.onSaleSplit;
   summaryRows.splice(2, 0, [
-    '&nbsp;&nbsp;of which: valid page with no figure / JavaScript page / page not readable',
+    '&nbsp;&nbsp;of which: valid page with no figure / JavaScript page / page could not be judged',
     `${split.contentVerifiedNoFigure} / ${split.jsOnly} / ${split.otherUrlVerified}`,
   ]);
   summaryRows.push(['**Visible stores**', `**${coverage.visible}**`], ['Hidden stores', String(coverage.hidden)]);

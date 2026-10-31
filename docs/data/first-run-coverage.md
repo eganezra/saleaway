@@ -10,7 +10,7 @@ Sale records as of 2026-10-31 03:14:39 UTC.
 | --- | --- |
 | With a percentage | 21 |
 | "On sale" only (no percentage) | 22 |
-| &nbsp;&nbsp;of which: valid page with no figure / JavaScript page / page not readable | 1 / 14 / 7 |
+| &nbsp;&nbsp;of which: valid page with no figure / JavaScript page / page could not be judged | 1 / 14 / 7 |
 | Judged ended | 8 |
 | Blocked | 2 |
 | Not found | 0 |
@@ -45,27 +45,27 @@ Sale records as of 2026-10-31 03:14:39 UTC.
 
 | Store | Method | Why no figure |
 | --- | --- | --- |
-| Absolute Pets (absolute-pets) | html | page not readable, address only |
+| Absolute Pets (absolute-pets) | html | page could not be judged, address only |
 | Bob Shop (bob-shop) | html | JavaScript page, address only |
 | Cape Union Mart / K-Way (cape-union-mart-k-way) | html | JavaScript page, address only |
 | Cashbuild (cashbuild) | html | JavaScript page, address only |
 | Clicks (clicks) | html | JavaScript page, address only |
-| DreamWare Tech (dreamware-tech) | html | page not readable, address only |
-| ePETstore (epetstore) | html | page not readable, address only |
+| DreamWare Tech (dreamware-tech) | html | page could not be judged, address only |
+| ePETstore (epetstore) | html | page could not be judged, address only |
 | Food Lover's Market (food-lovers-market) | html | JavaScript page, address only |
 | @home (shop on Bash) (home-shop-on-bash) | html | JavaScript page, address only |
-| Liquor City (liquor-city) | html | page not readable, address only |
+| Liquor City (liquor-city) | html | page could not be judged, address only |
 | Loot (loot) | html | valid page, no figure |
-| Pick n Pay (pick-n-pay) | html | page not readable, address only |
+| Pick n Pay (pick-n-pay) | html | page could not be judged, address only |
 | Samsung SA (samsung-sa) | html | JavaScript page, address only |
 | SHEIN SA (shein-sa) | html | JavaScript page, address only |
 | Superbalist (superbalist) | html | JavaScript page, address only |
 | Superbalist (superbalist-fashion-apparel) | html | JavaScript page, address only |
 | Takealot (takealot) | html | JavaScript page, address only |
 | Temu (SA storefront) (temu-sa-storefront) | html | JavaScript page, address only |
-| Under Armour SA (under-armour-sa) | html | page not readable, address only |
+| Under Armour SA (under-armour-sa) | html | page could not be judged, address only |
 | Woolworths (all depts) (woolworths-all-depts) | html | JavaScript page, address only |
-| Woolworths (fashion) (woolworths-fashion) | html | page not readable, address only |
+| Woolworths (fashion) (woolworths-fashion) | html | page could not be judged, address only |
 | Woolworths Food (woolworths-food) | html | JavaScript page, address only |
 
 ## Hidden stores
@@ -103,7 +103,7 @@ Written by hand after the report was generated (the command does not make this p
 | What | Free-tier limit | Run 17 used | How the figure was worked out |
 | --- | --- | --- | --- |
 | Worker requests per day | 100,000 | 59, at most 116 with one retry each | 2 crons + 1 queue invocation per store; `max_retries` is 1 |
-| D1 rows written per day | 100,000 | about 113 rows, a few hundred if index entries are counted | 1 `pipeline_runs` row + 57 `run_results` rows + 54 `sale_records` rows (the 3 manual stores have none) + 1 closing update. The click counter (Story 2.5) writes one row per click at sample rate 1, so it shares this budget: about 99,000 clicks a day before sampling matters |
+| D1 rows written per day | 100,000 | about 113 rows, a few hundred if index entries are counted | 1 `pipeline_runs` row + 57 `run_results` rows + 54 `sale_records` rows (the 3 manual stores have none) + 1 closing update. The click counter (Story 2.5) writes one row per click at sample rate 1, so it shares this budget (about 99,000 clicks a day). Each click is also a request to the web Worker, which shares its own 100,000 a day with every page view, so that limit is reached first |
 | D1 rows read per day | 5,000,000 | about 2,000 | start cron scans about 106 stores; each store reads 2 rows; closing reads at most 10 runs of about 57 results each |
 | Queue operations per day | 10,000 | about 171, at most about 342 | one message per store: a write, a read and an acknowledge (about 3 each), doubled if every store retried |
 | Workers Logs events per day | 200,000 | a few hundred | per store: the invocation line, `page_validated` and `discount_extracted` (about 3), plus the run lines |

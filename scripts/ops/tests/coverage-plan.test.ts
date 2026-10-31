@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseCoverageArgs } from '../src/args';
-import { BUCKETS, bucketOf, buildCoverage, cell, renderMarkdown, resolveCoverageOut } from '../src/coverage-plan';
-import type { CoverageRun, CoverageStore, HiddenList } from '../src/coverage-plan';
+import { runCoverage } from '../src/coverage';
+import type { CoverageIo } from '../src/coverage';
+import { BUCKETS, bucketOf, buildCoverage, cell, renderMarkdown, resolveCoverageOut, storeFromRow } from '../src/coverage-plan';
+import type { CoverageRun, CoverageStore, HiddenList, StoreRow } from '../src/coverage-plan';
 
 const run: CoverageRun = {
   id: 17,
@@ -168,5 +170,158 @@ describe('parseCoverageArgs', () => {
   it('refuses an option given twice', () => {
     expect(parseCoverageArgs(['--local', '--local']).ok).toBe(false);
     expect(parseCoverageArgs(['--local', '--run', '1', '--run', '2']).ok).toBe(false);
+  });
+});
+
+describe('every bucket in one fixture (Story 3.6 QA)', () => {
+  const stores = [
+    store({ slug: 'p1' }),
+    store({ slug: 'o1', recordPercent: null }),
+    store({ slug: 'e1', state: 'ended', recordPercent: null }),
+    store({ slug: 'b1', result: 'blocked', httpStatus: 429, error: 'http_429' }),
+    store({ slug: 'n1', result: 'not_found', httpStatus: 404, error: 'http_404' }),
+    store({ slug: 'r1', result: 'redirected_away', error: 'redirected_to_other.example' }),
+    store({ slug: 'x1', result: 'error', error: 'unsafe_redirect' }),
+    store({ slug: 'u1', state: 'unknown', recordPercent: null, recordLastResult: 'error' }),
+    store({ slug: 'm1', result: 'skipped_manual', state: null }),
+  ];
+  const coverage = buildCoverage({ run, stores, hidden, madeAt: '2026-10-31T04:00:00Z' });
+
+  it('puts one store in each of the nine buckets and the counts add up', () => {
+    expect(BUCKETS.map((bucket) => coverage.counts[bucket])).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    expect(coverage.visible).toBe(9);
+  });
+
+  it('gives each hand-work group its plain reason', () => {
+    const reason = (slug: string) => coverage.needsHandling.find((item) => item.slug === slug)?.reason;
+    expect(reason('n1')).toBe('page not found (HTTP 404)');
+    expect(reason('r1')).toBe('redirected away from the sale page');
+    expect(reason('x1')).toBe('error: unsafe_redirect');
+    expect(reason('u1')).toBe('never checked successfully (error)');
+    expect(reason('e1')).toBe('judged ended: open the page and check it by hand');
+  });
+
+  it('does not call a page it could only judge by address "not readable"', () => {
+    const text = renderMarkdown(buildCoverage({ run, stores: [store({ slug: 'js', recordPercent: null, validation: 'url_verified' })], hidden, madeAt: '2026-10-31T04:00:00Z' }));
+    expect(text).toContain('page could not be judged, address only');
+    expect(text).not.toContain('not readable');
+  });
+});
+
+describe('storeFromRow: an override counts only while the site would use it', () => {
+  const row = (overrides: Partial<StoreRow>): StoreRow => ({
+    slug: 'amazon-co-za',
+    name: 'Amazon.co.za',
+    category: 'General',
+    extraction_method: 'manual',
+    is_visible: 1,
+    sale_url: 'https://example.invalid/deals',
+    override_exists: 1,
+    override_expires_at: null,
+    result: 'skipped_manual',
+    http_status: null,
+    error: null,
+    state: null,
+    validation: null,
+    discount_percent: null,
+    last_result: null,
+    last_checked_at: null,
+    ...overrides,
+  });
+  const noon = new Date('2026-11-30T12:00:00Z');
+
+  it.each([
+    [{ override_exists: 0 }, false],
+    [{ override_exists: 1, override_expires_at: null }, true],
+    [{ override_expires_at: '2026-12-01' }, true],
+    // A bare date is the start of that day in UTC, so on the expiry day itself the site no longer uses the override.
+    [{ override_expires_at: '2026-11-30' }, false],
+    [{ override_expires_at: '2026-11-29' }, false],
+  ] as Array<[Partial<StoreRow>, boolean]>)('%j has an override: %s', (given, expected) => {
+    expect(storeFromRow(row(given), noon).hasOverride).toBe(expected);
+  });
+
+  it('maps the other columns', () => {
+    const mapped = storeFromRow(row({ is_visible: 0, sale_url: null, discount_percent: 40, last_checked_at: '2026-10-31T03:00:00Z' }), noon);
+    expect(mapped).toMatchObject({ isVisible: false, noSaleUrl: true, recordPercent: 40, lastCheckedAt: '2026-10-31T03:00:00Z' });
+  });
+});
+
+describe('runCoverage', () => {
+  const hiddenJson = { decidedOn: '2026-10-30', source: 'test', reasons: { http_403: 'Answered 403.' }, stores: [{ slug: 'locked', reason: 'http_403' }] };
+  const runRow = { id: 17, trigger: 'cron', started_at: '2026-10-31T03:00:00Z', finished_at: null, stores_total: 1, result_count: 1, first_result_at: '2026-10-31T03:00:05Z', last_result_at: '2026-10-31T03:01:00Z' };
+  const storeRow: StoreRow = {
+    slug: 'shop', name: 'Shop', category: 'Fashion', extraction_method: 'html', is_visible: 1, sale_url: 'https://shop.invalid/sale',
+    override_exists: 0, override_expires_at: null, result: 'ok', http_status: 200, error: null, state: 'active', validation: 'content_verified',
+    discount_percent: 30, last_result: 'ok', last_checked_at: '2026-10-31T03:01:00Z',
+  };
+
+  function setup(answers: Array<unknown[] | null>) {
+    const queries: string[] = [];
+    const written: Array<[string, string]> = [];
+    const printed: string[] = [];
+    const io: CoverageIo = {
+      root: '/repo',
+      query: (_target, sql) => {
+        queries.push(sql);
+        return (answers.shift() ?? null) as never;
+      },
+      readHiddenList: () => hiddenJson,
+      writeFile: (path, text) => written.push([path, text]),
+      print: (text) => printed.push(text),
+      now: () => new Date('2026-10-31T06:00:00Z'),
+    };
+    return { io, queries, written, printed };
+  }
+  const quiet = () => vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+  it('prints the report and writes nothing without --out', () => {
+    const spy = quiet();
+    const t = setup([[runRow], [storeRow]]);
+    expect(runCoverage(['--remote'], t.io)).toBe(0);
+    expect(t.printed.join('')).toContain('# Coverage report: run 17');
+    expect(t.written).toEqual([]);
+    spy.mockRestore();
+  });
+
+  it('writes the file inside docs/data when --out is given', () => {
+    const spy = quiet();
+    const t = setup([[runRow], [storeRow]]);
+    expect(runCoverage(['--remote', '--run', '17', '--out', 'docs/data/x.md'], t.io)).toBe(0);
+    expect(t.written.map(([path]) => path)).toEqual(['/repo/docs/data/x.md']);
+    expect(t.queries[0]).toContain('WHERE p.id = 17');
+    spy.mockRestore();
+  });
+
+  it.each([
+    ['the run query fails', [null]],
+    ['the stores query fails', [[runRow], null]],
+    ['the run does not exist', [[]]],
+  ] as Array<[string, Array<unknown[] | null>]>)('writes no file and fails when %s', (_name, answers) => {
+    const spy = quiet();
+    const t = setup(answers);
+    expect(runCoverage(['--remote', '--out', 'docs/data/x.md'], t.io)).toBe(1);
+    expect(t.written).toEqual([]);
+    expect(t.printed).toEqual([]);
+    spy.mockRestore();
+  });
+
+  it('asks nothing of the database when the arguments or the path are wrong', () => {
+    const spy = quiet();
+    for (const argv of [[], ['--remote', '--out', 'README.md'], ['--remote', '--out', 'docs/data/../x.md'], ['--remote', '--run', 'abc']]) {
+      const t = setup([[runRow], [storeRow]]);
+      expect(runCoverage(argv, t.io)).toBe(1);
+      expect(t.queries).toEqual([]);
+    }
+    spy.mockRestore();
+  });
+
+  it('only reads: no query changes data', () => {
+    const spy = quiet();
+    const t = setup([[runRow], [storeRow]]);
+    runCoverage(['--local'], t.io);
+    expect(t.queries.every((sql) => sql.trimStart().startsWith('SELECT'))).toBe(true);
+    expect(t.queries.join(' ')).not.toMatch(/\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE)\b/i);
+    spy.mockRestore();
   });
 });

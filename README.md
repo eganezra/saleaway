@@ -304,12 +304,12 @@ For a full picture of one run (how many stores have a percentage, are blocked, e
 
 ```bash
 pnpm ops:coverage --remote                                          # the latest run that has results, printed to the screen
-pnpm ops:coverage --remote --run 17 --out docs/data/first-run-coverage.md   # a given run, written to a file
+pnpm ops:coverage --remote --run 18 --out docs/data/second-run-coverage.md  # a given run, written to a new file
 ```
 
 `pnpm ops:coverage` needs `--local` or `--remote` (with neither, or both, it stops) and only **reads** the database: it never writes to it and sends no request to any store. `--run <id>` picks the run (the default is the latest one with results); `--out <file>` writes the report instead of printing it, and the file must be a `.md` file inside `docs/data/`. The report counts the visible stores by what the run found (with a percentage, "On sale" only, judged ended, blocked, errors, manual), lists the stores that need hand work and the hidden stores by reason, and holds only store names, slugs and numbers.
 
-One thing to know: a store's sale record is rewritten by every nightly run, so the report says the date its records are from and warns when they are newer than the run you asked about. To describe a run, make the report soon after it. Two reports are kept: [`docs/data/first-run-coverage.md`](docs/data/first-run-coverage.md) (run 17, with the free-tier check) and, once made, `docs/data/second-run-coverage.md`.
+One thing to know: a store's sale record is rewritten by every nightly run, so the report says the date its records are from and warns when they are newer than the run you asked about. To describe a run, make the report soon after it. Two reports are kept: [`docs/data/first-run-coverage.md`](docs/data/first-run-coverage.md) (run 17, with the free-tier check) and, once made, `docs/data/second-run-coverage.md`. **Do not write over `first-run-coverage.md`:** it holds the free-tier check and the list of extraction methods changed, which were written by hand after it was generated, and run 17's state cannot be made again (the records have moved on). Print a new report, or write it to a new file name.
 
 ### Try it on your computer
 
