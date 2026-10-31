@@ -20,9 +20,16 @@
   margin: 0 0 16px;
 }
 
-.doc ul {
+.doc ul,
+.doc ol {
   margin: 0 0 16px;
   padding-left: 1.25rem;
+}
+
+/* The opening sentence of a page: a little larger than the text below it. */
+.doc .lede {
+  font-size: 1.1875rem;
+  line-height: 1.5;
 }
 
 .doc li {

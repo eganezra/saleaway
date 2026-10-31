@@ -173,15 +173,15 @@ for (const { name, width, height } of WIDTHS) {
   });
 }
 
-test('the About page names the bot and has the "Our bot" part; the Privacy page claims no visit count that is not running', async ({ page }) => {
+test('the About page names the bot and has the "Our bot" part; the Privacy page says no cookies and names the visit count that is running', async ({ page }) => {
   await page.goto('/about');
   await expect(page.locator('h2#our-bot')).toHaveText('Our bot');
   await expect(page.locator('main')).toContainText(BOT_USER_AGENT);
   await expect(page.locator('main')).toContainText('robots.txt');
   await page.goto('/privacy');
-  await expect(page.locator('main')).toContainText('sets no cookies');
-  // the default build has no analytics token, so the page must not say that visits are counted
-  await expect(page.locator('main')).not.toContainText('Cloudflare Web Analytics');
+  await expect(page.locator('main')).toContainText("we don't use cookies");
+  // Cloudflare adds its own cookie-free Web Analytics to the real domain (Story 4.4), so the page says visits are counted
+  await expect(page.locator('main')).toContainText('Cloudflare Web Analytics');
 });
 
 test('/contact forwards to the "Our bot" part of the About page', async ({ request }) => {

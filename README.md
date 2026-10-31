@@ -144,7 +144,7 @@ D1 Time Travel is always on and keeps 7 days of history on the Free plan. `wrang
 | `ALLOW_INDEXING` | `"false"` | `"true"` lets search engines in (the launch step above) |
 | `ADS_ENABLED` | `"false"` | `"true"` shows the three ad frames (top, between the cards, footer); they are empty until an ad network is chosen. Update the Privacy page and the cookie question first |
 | `CLICK_SAMPLE_RATE` | `"1"` | The share of store clicks to count, above 0 and at most 1. Lower it if the daily database writes get near the limit |
-| `CF_WEB_ANALYTICS_TOKEN` | `""` | The Cloudflare Web Analytics token (public). Empty means no analytics tag. Set it when the real domain is connected (Story 4.4) |
+| `CF_WEB_ANALYTICS_TOKEN` | `""` | Only for adding Cloudflare's analytics tag **ourselves**. Empty means our code adds no tag. Cloudflare already adds its own cookie-free Web Analytics tag to `saleaway.online` (automatic setup, on by default for a site Cloudflare serves), and the Privacy page says so. If you set this token, first switch that site to **manual snippet installation** in Cloudflare (Web Analytics, Manage site), or every visit is counted twice |
 
 A change to any of them takes effect with the next `pnpm deploy:web`.
 

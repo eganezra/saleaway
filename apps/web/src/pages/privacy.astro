@@ -2,54 +2,57 @@
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { isAdsEnabled } from '../lib/ads';
-import { analyticsToken } from '../lib/analytics';
 import { PAGE_CACHE_SECONDS } from '../lib/cache';
 import '../styles/doc.css';
 
-// Story 2.5: what the site does and does not collect. It only says what is true today: the visit count is described only while
-// an analytics token is set, and this page is updated before any ad network is switched on (NFR8).
+// Story 2.5: what the site does and does not collect, in plain words. It only says what is true today. Since Story 4.4 Cloudflare adds its
+// own cookie-free Web Analytics tag to the real domain (automatic setup), so the visit count is always described; this page is updated
+// before any other analytics or any ad network is switched on (NFR8).
 Astro.response.headers.set('Cache-Control', `public, max-age=${PAGE_CACHE_SECONDS}`);
-const countsVisits = analyticsToken(env.CF_WEB_ANALYTICS_TOKEN) !== null;
 const showsAds = isAdsEnabled(env.ADS_ENABLED);
 ---
 
-<BaseLayout title="Privacy at Saleaway" description="What Saleaway collects: no accounts, no cookies and no personal information that it keeps." path="/privacy">
+<BaseLayout
+  title="Privacy at Saleaway"
+  description="Saleaway has no accounts and no cookies, and keeps no personal information about you. Here is what we count and who handles the rest."
+  path="/privacy"
+>
   <main id="main" tabindex="-1" class="doc">
     <h1>Privacy</h1>
 
     <h2>The short version</h2>
-    <p>Saleaway has no accounts, sets no cookies and does not collect or store any personal information about you itself. Our host handles requests, as described below.</p>
+    <p>
+      You don't need an account to use Saleaway, we don't use cookies, and we don't keep personal information about you. The little we count can't
+      identify you.
+    </p>
 
-    <h2>What is counted</h2>
+    <h2>What we count</h2>
     <ul>
-      {
-        countsVisits ? (
-          <li>
-            Visits to the site are counted with Cloudflare Web Analytics. It does not use cookies and does not identify people; it counts page views, countries,
-            devices and how fast pages load.
-          </li>
-        ) : null
-      }
       <li>
-        When you follow a store link we add one to that store's count for the day. We keep the number only: nothing about you, your device or where you came from.
+        <strong>Visits.</strong> We count visits to see what's useful and keep the site fast. This uses Cloudflare Web Analytics, which doesn't use
+        cookies and doesn't identify individual people. It records things like page views, countries, device types and how quickly pages load.
+      </li>
+      <li>
+        <strong>Store taps.</strong> When you tap a store, we add one to that store's tally for the day. It's just a number: nothing about you, your
+        device or where you came from.
       </li>
     </ul>
 
-    <h2>Our hosting</h2>
+    <h2>Where the site lives</h2>
     <p>
-      Saleaway runs on Cloudflare. To deliver and protect the site, Cloudflare handles each request, including your IP address, under its own privacy
-      policy.
+      Saleaway runs on Cloudflare. To deliver the site and keep it secure, Cloudflare processes each request, including your IP address, and keeps
+      short-lived technical logs, under its own privacy policy.
     </p>
 
-    <h2>Other websites</h2>
-    <p>Store links lead to other websites. They have their own privacy policies and we do not control them.</p>
+    <h2>Links to other sites</h2>
+    <p>Store links take you to the store's own website, which has its own privacy policy. We don't control it.</p>
 
     <h2>Ads</h2>
     {
       showsAds ? (
         <p>This site has space for ads. When an ad network shows an ad there, it may set cookies on your device.</p>
       ) : (
-        <p>There are no ads today. If ads are added, the ad network may set cookies, and we will update this page first.</p>
+        <p>There are no ads today. If we ever add them, the ad network may use cookies, and we'll update this page first.</p>
       )
     }
   </main>

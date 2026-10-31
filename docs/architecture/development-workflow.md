@@ -56,7 +56,7 @@ SITE_URL=https://saleaway.online      # canonical address, sitemap (Story 2.4); 
 ALLOW_INDEXING=false                 # "true" lets search engines in; off until launch (a wrangler var, needs a deploy)
 CLICK_SAMPLE_RATE=1                  # share of clicks to count, above 0 and at most 1 (Story 2.5); a wrangler var
 ADS_ENABLED=false                    # "true" turns the ad slots on; off until an ad network approves the site (Story 2.5)
-CF_WEB_ANALYTICS_TOKEN=              # public, goes in the page; empty means no analytics tag (Story 2.5); set in Story 4.4
+CF_WEB_ANALYTICS_TOKEN=              # public, goes in the page; empty means our code adds no tag (Story 2.5). Cloudflare adds its own tag on the real domain (Story 4.4): set this only with that automatic setup switched off
 
 # Pipeline Worker (wrangler vars)
 FINALIZE_CRON="45 3 * * *"

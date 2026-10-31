@@ -4,42 +4,62 @@ import { BOT_USER_AGENT } from '../lib/bot';
 import { PAGE_CACHE_SECONDS } from '../lib/cache';
 import '../styles/doc.css';
 
-// Story 2.5: how Saleaway works, and (in "Our bot") what its bot is. No database query. The old `/contact` address, which the
-// bot's user-agent carries, forwards to the "Our bot" part.
+// Story 2.5: how Saleaway works, and (in "Our bot") what its bot is. Written for visitors first (plain, benefit-led; the technical
+// part is the last section, for store owners). No database query. The old `/contact` address, which the bot's user-agent carries,
+// forwards to the "Our bot" part, so its id stays.
 Astro.response.headers.set('Cache-Control', `public, max-age=${PAGE_CACHE_SECONDS}`);
 ---
 
 <BaseLayout
   title="How Saleaway works"
-  description="How Saleaway finds South African online store sales, what the discount figures mean, what we keep and how our bot behaves."
+  description="Saleaway checks South African online stores every day and shows you who has a sale on and how big the saving is, so you can spot a good deal without opening twenty tabs."
   path="/about"
 >
   <main id="main" tabindex="-1" class="doc">
     <h1>How Saleaway works</h1>
-
-    <h2>What it is</h2>
-    <p>
-      Saleaway lists South African online stores that have a sale on, with the biggest discount we found and when we last checked the store. It is an
-      independent site: it is not run by, affiliated with or endorsed by any store listed. Every store link opens that store's own page in a new tab.
+    <p class="lede">
+      Saleaway checks South African online stores every day and shows you who has a sale on and how big the saving is, so you can spot a good deal
+      without opening twenty tabs.
     </p>
 
-    <h2>How the discounts are read</h2>
+    <h2>Three simple steps</h2>
+    <ol>
+      <li><strong>We check the stores.</strong> Every day we look at each store's sale page, so you don't have to.</li>
+      <li>
+        <strong>We show you the biggest saving.</strong> "Up to 40% off" is the biggest discount we found on that store's sale page. When we can see a
+        sale but not how big it is, you'll see "On sale".
+      </li>
+      <li>
+        <strong>You go straight to the store.</strong> Tap a store and its own sale page opens in a new tab. You shop and pay with the store, just like
+        always.
+      </li>
+    </ol>
+
+    <h2>Always fresh</h2>
+    <p>
+      Every store shows when we last checked it, like "Checked today" or "Checked 2 days ago". If a sale looks like it has ended, or we haven't been able
+      to check a store for a while, we leave it off the list rather than show you old news.
+    </p>
+
+    <h2>Good to know</h2>
     <ul>
-      <li>Once a day, a program reads each store's sale page. It does this automatically, so nobody checks the figures by hand.</li>
-      <li>"Up to 40% off" is the biggest discount we found on that page. "On sale" means the page shows a sale but we found no figure.</li>
-      <li>"Checked today" or "Checked 2 days ago" says how fresh the information is. A store whose sale looks over, or whose check is too old, is not shown.</li>
-      <li>A figure can be wrong or out of date. Check the store's page before you buy.</li>
+      <li>
+        <strong>Check before you buy.</strong> Discounts change quickly and we read them automatically, so a figure can occasionally be out of date or
+        wrong. Always confirm the price on the store's page.
+      </li>
+      <li>
+        <strong>We're independent.</strong> Saleaway isn't run by, affiliated with or endorsed by any of the stores listed.
+      </li>
+      <li>
+        <strong>The store's content stays with the store.</strong> We show a store's name, a link to its sale page and the discount we found. The
+        pictures, product details and prices stay on the store's own site.
+      </li>
     </ul>
-
-    <h2>What we keep</h2>
-    <p>
-      Only the store's name, the address of its sale page, the discount figure and the times we checked. We do not copy pictures, logos or product details
-      from any store.
-    </p>
 
     <h2 id="our-bot">Our bot</h2>
     <p>
-      The program that reads the sale pages is a bot. It identifies itself as <code>{BOT_USER_AGENT}</code>.
+      A note for store owners. Saleaway reads each store's public sale page with a small, polite program: our bot. It always introduces itself honestly
+      as <code>{BOT_USER_AGENT}</code>.
     </p>
     <ul>
       <li>
@@ -47,9 +67,9 @@ Astro.response.headers.set('Cache-Control', `public, max-age=${PAGE_CACHE_SECOND
         list.
       </li>
       <li>It obeys <code>robots.txt</code>.</li>
-      <li>It does not try to hide who it is or to get round a store's protection.</li>
+      <li>It never hides who it is and never tries to get round a store's protection.</li>
     </ul>
-    <p>A store that does not want to be read can say so in its <code>robots.txt</code>, and the bot will leave it alone. For example:</p>
+    <p>Prefer not to be listed? Add this to your <code>robots.txt</code> and the bot will leave your store alone:</p>
     <pre>User-agent: SaleawayBot
 Disallow: /</pre>
   </main>
