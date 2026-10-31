@@ -17,5 +17,11 @@
     "CLICK_SAMPLE_RATE": "1",
     "CF_WEB_ANALYTICS_TOKEN": ""
   },
+  // Story 4.4: the real address. Each hostname is its own custom domain (an exact match, no wildcard): the Worker answers both and
+  // sends `www` to the apex with a 301 (src/lib/host.ts). The first deploy creates the DNS records and the certificates.
+  "routes": [
+    { "pattern": "saleaway.online", "custom_domain": true },
+    { "pattern": "www.saleaway.online", "custom_domain": true }
+  ],
   "observability": { "enabled": true }
 }

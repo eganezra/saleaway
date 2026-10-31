@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@9.0.0",
   "engines": {
     "node": ">=22.23.4"
   },
@@ -21,7 +22,8 @@
     "ops:hide": "pnpm --filter @saleaway/ops exec tsx src/hide.ts",
     "ops:override": "pnpm --filter @saleaway/ops exec tsx src/override.ts",
     "ops:coverage": "pnpm --filter @saleaway/ops exec tsx src/coverage.ts",
-    "ops:check-urls": "pnpm --filter @saleaway/ops exec tsx src/check-urls.ts"
+    "ops:check-urls": "pnpm --filter @saleaway/ops exec tsx src/check-urls.ts",
+    "ci:wait-for-quiet-window": "pnpm --filter @saleaway/ops exec tsx src/wait-for-quiet-window.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

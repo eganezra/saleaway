@@ -1,0 +1,29 @@
+name: ci
+
+# Lint, type check, unit tests and the smoke test (which includes the axe accessibility check). It runs on every pull request, and
+# deploy.yml calls it before it deploys (Story 4.4). It uses no secret.
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      # The smoke test drives a real browser: the browser and its system libraries are installed first.
+      - run: pnpm --filter @saleaway/web exec playwright install --with-deps chromium
+      - run: pnpm test:smoke

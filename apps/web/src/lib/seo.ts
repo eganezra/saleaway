@@ -21,7 +21,7 @@ export function isIndexingAllowed(value: string | undefined): boolean {
 }
 
 /** The site's own address (scheme and host only), or the default when the setting is missing, invalid or not https. */
-function siteOrigin(siteUrl: string | undefined): string {
+export function siteOrigin(siteUrl: string | undefined): string {
   try {
     const url = new URL(siteUrl ?? '');
     return url.protocol === 'https:' && url.hostname !== '' ? url.origin : DEFAULT_SITE_URL;
