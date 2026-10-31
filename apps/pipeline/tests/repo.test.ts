@@ -265,12 +265,12 @@ describe('countResultsByClass', () => {
 });
 
 describe('listUnfinishedRuns and closeRun', () => {
-  it('lists runs without a finish time, oldest first, with their store totals', async () => {
+  it('lists runs without a finish time, newest first, with their store totals', async () => {
     const a = await insertRun(t.db, '2026-10-29T03:00:00Z', 'cron', 10);
     const b = await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 92);
     expect(await listUnfinishedRuns(t.db)).toEqual([
-      { id: a, storesTotal: 10 },
       { id: b, storesTotal: 92 },
+      { id: a, storesTotal: 10 },
     ]);
   });
 
@@ -284,8 +284,9 @@ describe('listUnfinishedRuns and closeRun', () => {
     expect(await listUnfinishedRuns(t.db)).toEqual([]);
   });
 
-  it('lists at most 10 runs at a time (D1 allows 50 queries per invocation)', async () => {
-    for (let i = 0; i < 12; i++) await insertRun(t.db, `2026-10-${String(10 + i).padStart(2, '0')}T03:00:00Z`, 'cron', 1);
-    expect(await listUnfinishedRuns(t.db)).toHaveLength(10);
+  it('lists at most 10 runs at a time (D1 allows 50 queries per invocation), and they are the 10 newest', async () => {
+    const ids: number[] = [];
+    for (let i = 0; i < 12; i++) ids.push(await insertRun(t.db, `2026-10-${String(10 + i).padStart(2, '0')}T03:00:00Z`, 'cron', 1));
+    expect((await listUnfinishedRuns(t.db)).map((r) => r.id)).toEqual(ids.slice(2).reverse());
   });
 });

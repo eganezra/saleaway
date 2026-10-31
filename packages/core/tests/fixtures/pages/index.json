@@ -55,10 +55,10 @@
     "expectedUrl": "https://www.hirschs.co.za/specials-and-promotions",
     "finalUrl": "https://www.hirschs.co.za/specials-and-promotions",
     "expect": {
-      "verdict": "ended",
-      "reason": "no_discounts"
+      "verdict": "unverifiable",
+      "reason": "discounts_not_readable"
     },
-    "note": "Made from the hirschs sample by removing every was price and label",
+    "note": "Made from the hirschs sample by removing every was price and label Story 3.10: its title (\"Specials Catalogue\") and address (/specials-and-promotions) call it a specials page, so a listing with no discount signal is unverifiable, not ended.",
     "expectPercent": {
       "html": null,
       "structured_data": null
@@ -227,5 +227,90 @@
       "html": 14,
       "structured_data": 14
     }
+  },
+  {
+    "file": "gelmar.html",
+    "store": "gelmar",
+    "savedOn": "2026-10-31",
+    "synthetic": false,
+    "expectedUrl": "https://www.gelmar.co.za/special.html",
+    "finalUrl": "https://www.gelmar.co.za/special.html",
+    "expect": {
+      "verdict": "valid",
+      "reason": "discounts_found"
+    },
+    "expectPercent": {
+      "html": 30,
+      "structured_data": 30
+    },
+    "note": "Story 3.10: prices written ZAR 69.00 (no R), Magento old-price markup, and wish list and compare widgets whose \"no items\" text once made the page an empty listing. Deepest pair: ZAR 250.00 down to ZAR 175.00 is 30 percent."
+  },
+  {
+    "file": "spar.html",
+    "store": "spar",
+    "savedOn": "2026-10-31",
+    "synthetic": false,
+    "expectedUrl": "https://www.spar.co.za/region-and-national-specials",
+    "finalUrl": "https://www.spar.co.za/region-and-national-specials",
+    "expect": {
+      "verdict": "valid",
+      "reason": "discounts_found"
+    },
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
+    },
+    "note": "Story 3.10: discounts written as \"Save R 15.00\" labels, no was price and no percentage."
+  },
+  {
+    "file": "evetech.html",
+    "store": "evetech",
+    "savedOn": "2026-10-31",
+    "synthetic": false,
+    "expectedUrl": "https://www.evetech.co.za/specials",
+    "finalUrl": "https://www.evetech.co.za/specials",
+    "expect": {
+      "verdict": "unverifiable",
+      "reason": "discounts_not_readable"
+    },
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
+    },
+    "note": "Story 3.10: a specials page whose products carry a Special tag but no was price; the heading says up to 50 percent off in a long sentence."
+  },
+  {
+    "file": "mr-price.html",
+    "store": "mr-price",
+    "savedOn": "2026-10-31",
+    "synthetic": false,
+    "expectedUrl": "https://www.mrp.com/promos",
+    "finalUrl": "https://www.mrp.com/promos",
+    "expect": {
+      "verdict": "unverifiable",
+      "reason": "discounts_not_readable"
+    },
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
+    },
+    "note": "Story 3.10: a shell whose products load by JavaScript; a few amounts come from menu lines."
+  },
+  {
+    "file": "synthetic-plain-category.html",
+    "store": "synthetic",
+    "savedOn": "2026-10-31",
+    "synthetic": true,
+    "expectedUrl": "https://shop.example/women",
+    "finalUrl": "https://shop.example/women",
+    "expect": {
+      "verdict": "ended",
+      "reason": "no_discounts"
+    },
+    "expectPercent": {
+      "html": null,
+      "structured_data": null
+    },
+    "note": "Story 3.10: priced products, nothing discounted, and no sale word in the title, heading or address."
   }
 ]

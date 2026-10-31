@@ -1,5 +1,5 @@
 import { redirectedAway } from './classify';
-import { AMOUNT, PERCENT_NODE, STRUCTURED, WAS_MARKER, WAS_TAG, WAS_TEXT, count, firstElementText, removeBlocks, textNodes } from './page-scan';
+import { AMOUNT, PERCENT_NODE, SAVE_NODE, STRUCTURED, WAS_MARKER, WAS_TAG, WAS_TEXT, count, firstElementText, removeBlocks, textNodes } from './page-scan';
 
 // Sale page validation (Story 3.3): is this fetched page a real sale? Pure: no I/O, no clock. The caller reads
 // the page and passes its text in. A page is called "not a sale" only on positive evidence; when it cannot be
@@ -16,6 +16,7 @@ export type ValidationReason =
   | 'error_page'
   | 'empty_listing'
   | 'no_discounts'
+  | 'discounts_not_readable'
   | 'challenge_page'
   | 'login_page'
   | 'javascript_shell'
@@ -30,6 +31,8 @@ export interface ValidationSignals {
   wasPrices: number;
   /** Structured-data hints: a price-before-discount field with a value. */
   structured: number;
+  /** Saving labels: a text element that is only "Save R 15.00" (Story 3.10). */
+  saveLabels: number;
   /** `<script>` tags. */
   scripts: number;
   /** Length of the visible text. */
@@ -60,7 +63,11 @@ const MIN_SCRIPTS_FOR_SHELL = 8; // [Assumption]
 const SHELL_TEXT_LENGTH = 1500; // [Assumption]
 const CHALLENGE_WINDOW = 4096;
 
-const NO_PRODUCTS = ['no products', '0 results', 'nothing found', 'no items', 'no results', "sorry, we couldn't find", 'sorry, we could not find'];
+// Not "no items": it matches "You have no items in your wish list" and "no items to compare", which are site furniture (Story 3.10).
+const NO_PRODUCTS = ['no products', '0 results', 'nothing found', 'no results', "sorry, we couldn't find", 'sorry, we could not find'];
+// A page, a heading or an address that calls itself a sale (Story 3.10): whole words, also in the plural, so "wholesale", "ideal",
+// "dealer" and "specialist" do not count.
+const SALE_WORDS = /\b(?:sale|special|deal|offer|promo|promotion|clearance|discount|outlet|saving)s?\b/i;
 const CHALLENGE = ['just a moment', 'attention required', 'checking your browser', 'access denied', 'pardon our interruption', 'verify you are human', 'captcha'];
 const ERROR_TITLE = /\b(?:404|not found|page not found|no longer available|oops|error|something went wrong)\b/i;
 const LOGIN_TITLE = /\b(?:sign in|log in|login)\b/i;
@@ -69,10 +76,21 @@ function includesAny(haystack: string, needles: readonly string[]): boolean {
   return needles.some((needle) => haystack.includes(needle));
 }
 
+/** Does the page's title, main heading or address path say it is a sale, a special, a deal, an offer, a promotion ...? */
+function callsItselfASale(title: string, heading: string, expectedUrl: string): boolean {
+  let path = '';
+  try {
+    path = new URL(expectedUrl).pathname.replace(/[^A-Za-z0-9]+/g, ' ');
+  } catch {
+    // an address that does not parse has no path to read
+  }
+  return SALE_WORDS.test(title) || SALE_WORDS.test(heading) || SALE_WORDS.test(path);
+}
+
 /**
  * Judges one fetched sale page. The first rule that matches decides (see docs/stories/3.3.story.md, "The rules"):
  * 1 redirected away, 2 challenge page, 3 login page, 4 error page, 5 discounts found, 6 JavaScript shell,
- * 7 empty listing, 8 no discounts, 9 unreadable.
+ * 7 empty listing, 8 no discounts (or, on a page that calls itself a sale, discounts not readable), 9 unreadable.
  */
 export function validateSalePage(page: PageInput): ValidationResult {
   const { markup, scriptText, scripts } = removeBlocks(page.text);
@@ -86,9 +104,10 @@ export function validateSalePage(page: PageInput): ValidationResult {
   const wasPrices =
     count(WAS_MARKER, markup) + count(WAS_TAG, markup) + count(WAS_TEXT, visible);
   const structured = count(STRUCTURED, scriptText) + count(STRUCTURED, markup);
+  const saveLabels = nodes.reduce((n, node) => (node.length <= 40 && SAVE_NODE.test(node) ? n + 1 : n), 0);
   const amounts = count(AMOUNT, visible);
-  const signals: ValidationSignals = { amounts, percentLabels, wasPrices, structured, scripts, textLength: visible.length };
-  const discountSignals = percentLabels + wasPrices + structured;
+  const signals: ValidationSignals = { amounts, percentLabels, wasPrices, structured, saveLabels, scripts, textLength: visible.length };
+  const discountSignals = percentLabels + wasPrices + structured + saveLabels;
   const result = (verdict: ValidationVerdict, reason: ValidationReason): ValidationResult => ({ verdict, reason, signals });
 
   // 1. The address the fetch ended on is another site, or the home page of the same site.
@@ -126,10 +145,14 @@ export function validateSalePage(page: PageInput): ValidationResult {
 
   // 7 and 8 need the whole page: a truncated page may hold the discounts in the part that was cut.
   if (!page.truncated) {
-    // 7. The page says there is nothing to show.
-    if (amounts < MIN_AMOUNTS_FOR_LISTING && includesAny(lowerVisible, NO_PRODUCTS)) return result('ended', 'empty_listing');
-    // 8. The page lists priced products and none is discounted.
-    if (amounts >= MIN_AMOUNTS_FOR_LISTING && discountSignals === 0) return result('ended', 'no_discounts');
+    // 7. The page says there is nothing to show (and holds no discount signal at all: a page with discounts is not empty).
+    if (amounts < MIN_AMOUNTS_FOR_LISTING && discountSignals === 0 && includesAny(lowerVisible, NO_PRODUCTS)) return result('ended', 'empty_listing');
+    // 8. The page lists priced products and none is discounted. A page that calls itself a sale (its title, its heading or its
+    // address says so) may show its discounts in a way this check cannot read, so it is not called ended (Story 3.10).
+    if (amounts >= MIN_AMOUNTS_FOR_LISTING && discountSignals === 0) {
+      const h1 = firstElementText(markup, lowerMarkup, 'h1');
+      return callsItselfASale(title, h1, page.expectedUrl) ? result('unverifiable', 'discounts_not_readable') : result('ended', 'no_discounts');
+    }
   }
 
   // 9. Anything else cannot be judged.

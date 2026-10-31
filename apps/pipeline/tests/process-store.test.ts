@@ -164,9 +164,9 @@ describe('processStore: page validation (Story 3.3)', () => {
     const lines = named('page_validated');
     expect(lines).toHaveLength(1);
     expect(lines[0]?.level).toBe('info');
-    expect(lines[0]?.fields).toMatchObject({ slug: 'shop', verdict: 'valid', reason: 'discounts_found', bytes: SALE_PAGE.length, truncated: false, amounts: 4, wasPrices: 2, percentLabels: 0, structured: 0, scripts: 0 });
+    expect(lines[0]?.fields).toMatchObject({ slug: 'shop', verdict: 'valid', reason: 'discounts_found', bytes: SALE_PAGE.length, truncated: false, amounts: 4, wasPrices: 2, percentLabels: 0, structured: 0, saveLabels: 0, scripts: 0 });
     expect(Object.keys(lines[0]?.fields ?? {}).sort()).toEqual(
-      ['amounts', 'bytes', 'percentLabels', 'reason', 'scripts', 'slug', 'structured', 'textLength', 'truncated', 'verdict', 'wasPrices'].sort(),
+      ['amounts', 'bytes', 'percentLabels', 'reason', 'saveLabels', 'scripts', 'slug', 'structured', 'textLength', 'truncated', 'verdict', 'wasPrices'].sort(),
     );
     // no field holds page text, and no field uses a name the logger would drop
     expect(JSON.stringify(entries)).not.toContain('old-price');
@@ -219,8 +219,9 @@ describe('processStore: page validation (Story 3.3)', () => {
     const text = `<html><body>${'<p>R10</p>'.repeat(Math.ceil((3 * 1024 * 1024 + 100) / 9))}</body></html>`;
     const { named } = await runStore({}, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: text } });
     expect(named('page_validated')[0]?.fields).toMatchObject({ truncated: true, verdict: 'unverifiable', reason: 'unreadable' });
+    // whole: the store's address says /sale, so a listing with no discount signal is "not readable" (Story 3.10), not ended
     const whole = await runStore2(`<html><body>${'<p>R10</p>'.repeat(10)}</body></html>`);
-    expect(whole.named('page_validated')[0]?.fields).toMatchObject({ truncated: false, verdict: 'ended', reason: 'no_discounts' });
+    expect(whole.named('page_validated')[0]?.fields).toMatchObject({ truncated: false, verdict: 'unverifiable', reason: 'discounts_not_readable' });
   });
 
   /** A second ok store run, after clearing the database. */
@@ -294,7 +295,9 @@ describe('processStore: sale records (Story 3.5)', () => {
   const NIGHT1 = '2026-10-30T03:10:00.000Z';
   const NIGHT2 = '2026-10-31T03:10:00.000Z';
   const PAGE_OK = '<html><head><title>Sale</title></head><body><ol><li><span class="old-price">R999</span><span>R499</span></li><li><span class="old-price">R599</span><span>R299</span></li></ol></body></html>';
-  const PAGE_NO_SALE = '<html><head><title>Specials</title></head><body><ol><li>R100</li><li>R200</li><li>R300</li></ol></body></html>';
+  // A plain listing: no discount, and neither its title nor the address (/women) calls it a sale, so it ends the sale (Story 3.10).
+  const PLAIN = 'https://shop.example/women';
+  const PAGE_NO_SALE = '<html><head><title>Women\'s Tops</title></head><body><ol><li>R100</li><li>R200</li><li>R300</li></ol></body></html>';
   type SaleRow = { state: string; validation: string; discount_percent: number | null; last_result: string; first_seen_at: string | null; last_checked_at: string; last_validated_at: string | null; ended_at: string | null };
   const records = () => rows<SaleRow>(t.db, 'SELECT state, validation, discount_percent, last_result, first_seen_at, last_checked_at, last_validated_at, ended_at FROM sale_records');
 
@@ -316,14 +319,28 @@ describe('processStore: sale records (Story 3.5)', () => {
   });
 
   it('a page with no sale ends the sale, and a valid page on the next night starts a new one', async () => {
-    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
-    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
-    await night(2, NIGHT2, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_NO_SALE } });
+    await seedRetailers(t.db, [{ id: 1, saleUrl: PLAIN }]);
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [PLAIN]: { status: 200, body: PAGE_OK } });
+    await night(2, NIGHT2, { [ROBOTS]: OK_ROBOTS, [PLAIN]: { status: 200, body: PAGE_NO_SALE } });
     expect(await records()).toMatchObject([{ state: 'ended', validation: 'none', last_result: 'ok', ended_at: '2026-10-31T03:10:00Z', last_validated_at: '2026-10-30T03:10:00Z', first_seen_at: '2026-10-30T03:10:00Z' }]);
     await insertRun(t.db, '2026-11-01T03:10:00Z', 'cron', 1);
-    const network = fakeFetch({ [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: PAGE_OK } });
+    const network = fakeFetch({ [ROBOTS]: OK_ROBOTS, [PLAIN]: { status: 200, body: PAGE_OK } });
     await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 3, retailerId: 1 }, fakeDeps({ start: '2026-11-01T03:10:00.000Z', fetch: network.fetch }).deps);
     expect(await records()).toMatchObject([{ state: 'active', validation: 'content_verified', ended_at: null, first_seen_at: '2026-11-01T03:10:00Z', last_validated_at: '2026-11-01T03:10:00Z' }]);
+  });
+
+  it('a page priced in ZAR with was prices is valid and saves its percentage (Story 3.10)', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    const ZAR_PAGE = '<html><head><title>Specials</title></head><body><ol><li><span class="special-price">ZAR 69.00</span><span class="old-price">ZAR 80.00</span></li><li><span class="special-price">ZAR 45.00</span><span class="old-price">ZAR 60.00</span></li></ol></body></html>';
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: ZAR_PAGE } });
+    expect(await records()).toMatchObject([{ state: 'active', validation: 'content_verified', discount_percent: 25 }]);
+  });
+
+  it('a specials page with priced products and no readable discount stays active, URL-verified, with no percentage (Story 3.10)', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE }]);
+    const SPECIALS = '<html><head><title>Tech Deals &amp; Specials</title></head><body><ol><li>R 99</li><li>R 1,299</li><li>R 8,499</li></ol></body></html>';
+    await night(1, NIGHT1, { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: SPECIALS } });
+    expect(await records()).toMatchObject([{ state: 'active', validation: 'url_verified', discount_percent: null, ended_at: null }]);
   });
 
   it('a 404 ends the sale', async () => {
@@ -572,7 +589,7 @@ describe('processStore: discount extraction (Story 3.4)', () => {
     let extracted = '';
     deps.validate = (page) => {
       validated = page.text;
-      return { verdict: 'valid', reason: 'discounts_found', signals: { amounts: 4, percentLabels: 0, wasPrices: 2, structured: 0, scripts: 0, textLength: 10 } };
+      return { verdict: 'valid', reason: 'discounts_found', signals: { amounts: 4, percentLabels: 0, wasPrices: 2, structured: 0, saveLabels: 0, scripts: 0, textLength: 10 } };
     };
     deps.extract = (_method, input) => {
       extracted = input.page;

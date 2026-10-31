@@ -29,6 +29,11 @@ const product = (n: number, extra = ''): string => `<li><a href="/p/${n}">Produc
 /** A listing of `count` priced products; `extra` is added to each. */
 const listing = (count: number, extra = ''): string => `<ol>${Array.from({ length: count }, (_, i) => product(i + 1, extra)).join('')}</ol>`;
 const WAS = '<span class="old-price">R999.00</span>';
+// A page and an address that do not call themselves a sale (Story 3.10): the default title and address above do, so a listing with no
+// discounts is `unverifiable` there; `no_discounts` (ended) needs these.
+const PLAIN_URL = 'https://shop.example/women';
+const PLAIN_TITLE = "Women's Tops | Shop";
+const plain = (body: string, over: Partial<PageInput> = {}) => judge(html(body, PLAIN_TITLE), { expectedUrl: PLAIN_URL, finalUrl: PLAIN_URL, ...over });
 
 describe('the saved page samples (AC3, AC6)', () => {
   it('has samples from at least 5 different real stores and at least 5 hand-made ones', () => {
@@ -52,7 +57,7 @@ describe('the saved page samples (AC3, AC6)', () => {
 
   it('covers every verdict and every reason except the ones that need no markup', () => {
     const reasons = new Set(manifest.map((s) => s.expect.reason));
-    for (const reason of ['discounts_found', 'redirected_away', 'error_page', 'empty_listing', 'no_discounts', 'challenge_page', 'login_page', 'javascript_shell'] as const) {
+    for (const reason of ['discounts_found', 'redirected_away', 'error_page', 'empty_listing', 'no_discounts', 'discounts_not_readable', 'challenge_page', 'login_page', 'javascript_shell'] as const) {
       expect(reasons.has(reason), reason).toBe(true);
     }
   });
@@ -129,7 +134,7 @@ describe('rule 4: error pages', () => {
   });
   it('is not an error page when the page has prices or discounts', () => {
     expect(judge(html(listing(5, WAS), 'Error: 404 prices dropped')).verdict).toBe('valid');
-    expect(judge(html(listing(4), 'Oops, no errors here')).reason).toBe('no_discounts');
+    expect(judge(html(listing(4), 'Oops, no errors here'), { expectedUrl: PLAIN_URL, finalUrl: PLAIN_URL }).reason).toBe('no_discounts');
   });
 });
 
@@ -210,7 +215,7 @@ describe('rule 6: pages that need JavaScript', () => {
     expect(judge(html(scripts + `<p>${'word '.repeat(400)}</p>`)).reason).not.toBe('javascript_shell'); // plenty of text
   });
   it('is not a shell when the page lists priced products, even with a root container', () => {
-    expect(judge(html('<div id="root">' + listing(5) + '</div>')).reason).toBe('no_discounts');
+    expect(plain('<div id="root">' + listing(5) + '</div>').reason).toBe('no_discounts');
   });
   it('a shell is still a shell when it was truncated', () => {
     expect(judge(html('<div id="root"></div>'), { truncated: true }).reason).toBe('javascript_shell');
@@ -219,7 +224,7 @@ describe('rule 6: pages that need JavaScript', () => {
 
 describe('rule 7: empty listings', () => {
   it('says so in words, case-insensitively', () => {
-    for (const phrase of ['No products found', '0 results for sale', 'Nothing found here', 'There are no items', 'No results', "Sorry, we couldn't find anything"]) {
+    for (const phrase of ['No products found', '0 results for sale', 'Nothing found here', 'There are no products', 'No results', "Sorry, we couldn't find anything"]) {
       expect(judge(html(`<p>${phrase}</p>`)), phrase).toMatchObject({ verdict: 'ended', reason: 'empty_listing' });
     }
     expect(judge(html('<p>NO PRODUCTS FOUND</p>')).reason).toBe('empty_listing');
@@ -231,8 +236,8 @@ describe('rule 7: empty listings', () => {
 
 describe('rule 8: no discounts', () => {
   it('is no_discounts for a page of priced products with no discount signal', () => {
-    expect(judge(html(listing(3)))).toMatchObject({ verdict: 'ended', reason: 'no_discounts' });
-    expect(judge(html(listing(2))).reason).not.toBe('no_discounts'); // 2 amounts is not "a listing"
+    expect(plain(listing(3))).toMatchObject({ verdict: 'ended', reason: 'no_discounts' });
+    expect(plain(listing(2)).reason).not.toBe('no_discounts'); // 2 amounts is not "a listing"
   });
   it('is not no_discounts when there is some discount signal, even if too few to be a sale', () => {
     expect(judge(html(listing(5, ''))  .replace('</ol>', WAS + '</ol>')).reason).toBe('unreadable');
@@ -274,7 +279,7 @@ describe('what the function returns', () => {
     const result = judge(html(listing(3, WAS) + '<p>Secret retailer sentence</p>'));
     expect(JSON.stringify(result)).not.toContain('Secret retailer sentence');
     expect(Object.keys(result).sort()).toEqual(['reason', 'signals', 'verdict']);
-    expect(Object.keys(result.signals).sort()).toEqual(['amounts', 'percentLabels', 'scripts', 'structured', 'textLength', 'wasPrices']);
+    expect(Object.keys(result.signals).sort()).toEqual(['amounts', 'percentLabels', 'saveLabels', 'scripts', 'structured', 'textLength', 'wasPrices']);
   });
   it('does not change its input and gives the same answer twice', () => {
     const input: PageInput = { text: html(listing(3, WAS)), expectedUrl: URL_OK, finalUrl: URL_OK, truncated: false };
@@ -324,5 +329,99 @@ describe('recordEffect (AC4, AC5)', () => {
     for (const verdict of ['valid', 'ended', 'blocked', 'unverifiable'] as const) {
       if (verdict !== 'valid') expect(recordEffect(verdict).validation).not.toBe('content_verified');
     }
+  });
+});
+
+describe('Story 3.10: fewer false "ended" verdicts', () => {
+  describe('amounts with a currency code (AC1)', () => {
+    it.each(['ZAR 69.00', 'ZAR69', 'ZAR 1 299.00', 'ZAR1,299.00', 'R 69.00', 'R1,299'])('counts %s as an amount', (price) => {
+      const page = html(`<span>${price}</span><span>${price}</span><span>${price}</span>`, PLAIN_TITLE);
+      expect(judge(page, { expectedUrl: PLAIN_URL, finalUrl: PLAIN_URL }).signals.amounts).toBe(3);
+    });
+    it('does not count a word that only ends in zar, or a prefix inside a word', () => {
+      const result = judge(html('<span>BAZAR 69</span><span>LAZAR 12.00</span><span>XZAR 5</span>', PLAIN_TITLE));
+      expect(result.signals.amounts).toBe(0);
+    });
+    it('reads Gelmar-style prices: two special and regular prices make a sale', () => {
+      const pair = (now: string, was: string) => `<span class="special-price"><span class="price">ZAR ${now}</span></span><span class="old-price"><span class="price">ZAR ${was}</span></span>`;
+      expect(judge(html(pair('69.00', '80.00') + pair('45.00', '60.00'), 'Specials'))).toMatchObject({ verdict: 'valid', reason: 'discounts_found' });
+    });
+  });
+
+  describe('"Save R" labels (AC2)', () => {
+    it.each(['Save R 15.00', 'SAVE R15', 'Save ZAR 15.00', 'save r 1 299.00'])('counts "%s" as a saving label', (label) => {
+      expect(judge(html(`<span>${label}</span>`)).signals.saveLabels).toBe(1);
+    });
+    it.each(['Save the date', 'Save 20 R', 'Save R', 'Saved R 15.00', 'Please save R 15.00 now', 'Save R 15.00 on every pack of milk we sell this week'])('does not count "%s"', (label) => {
+      expect(judge(html(`<span>${label}</span>`)).signals.saveLabels).toBe(0);
+    });
+    it('makes a page with two labels and two prices a sale', () => {
+      const card = (n: number) => `<li><span>Product ${n}</span><span class="label">Save R 15.00</span><span class="price">R 89.99</span></li>`;
+      const result = judge(html(`<ol>${card(1)}${card(2)}</ol>`, 'SPAR Specials'));
+      expect(result).toMatchObject({ verdict: 'valid', reason: 'discounts_found', signals: { saveLabels: 2 } });
+      expect(result.signals.amounts).toBeGreaterThanOrEqual(2); // the saving's own amount counts too
+    });
+    it('counts one label as a signal, but one signal alone is not enough for a sale', () => {
+      const result = judge(html('<span>Save R 15.00</span>' + listing(3), 'Offers'));
+      expect(result.verdict).not.toBe('valid');
+    });
+  });
+
+  describe('empty listing is not triggered by site furniture (AC3)', () => {
+    const furniture = '<div class="empty">You have no items in your wish list.</div><div class="empty">You have no items to compare.</div><p>You have no items in your cart.</p>';
+    it('is not an empty listing when the only "no items" words are wish list, compare and cart widgets', () => {
+      const result = plain(furniture);
+      expect(result.reason).not.toBe('empty_listing');
+      expect(result.verdict).toBe('unverifiable');
+    });
+    it('is still an empty listing for "no products" and no discount signal', () => {
+      expect(plain('<p>No products found</p>')).toMatchObject({ verdict: 'ended', reason: 'empty_listing' });
+    });
+    it('is never an empty listing when the page holds a discount signal', () => {
+      const result = plain('<p>No products found</p><span class="old-price">R100</span>');
+      expect(result.reason).not.toBe('empty_listing');
+    });
+  });
+
+  describe('a page that calls itself a sale is not called ended (AC4)', () => {
+    const noDiscounts = listing(4);
+    const WORDS = ['sale', 'special', 'deal', 'offer', 'promo', 'promotion', 'clearance', 'discount', 'outlet', 'saving'];
+    it.each(WORDS)('"%s" in the title makes it unverifiable, in capitals and in the plural too', (word) => {
+      for (const title of [`Shop ${word}`, `SHOP ${word.toUpperCase()}S`, `${word}s | Shop`]) {
+        expect(judge(html(noDiscounts, title), { expectedUrl: PLAIN_URL, finalUrl: PLAIN_URL }), title).toMatchObject({ verdict: 'unverifiable', reason: 'discounts_not_readable' });
+      }
+    });
+    it('also when only the main heading says so', () => {
+      expect(judge(html(`<h1>Big Clearance</h1>${noDiscounts}`, PLAIN_TITLE), { expectedUrl: PLAIN_URL, finalUrl: PLAIN_URL })).toMatchObject({ verdict: 'unverifiable', reason: 'discounts_not_readable' });
+    });
+    it.each(['https://shop.example/sale', 'https://shop.example/region-and-national-specials', 'https://shop.example/special.html', 'https://shop.example/co-sale/', 'https://shop.example/promos', 'https://shop.example/store/Deals?x=1'])(
+      'also when only the address path says so: %s',
+      (url) => {
+        expect(judge(html(noDiscounts, PLAIN_TITLE), { expectedUrl: url, finalUrl: url })).toMatchObject({ verdict: 'unverifiable', reason: 'discounts_not_readable' });
+      },
+    );
+    it('is still ended when none of the three says so', () => {
+      expect(plain(noDiscounts)).toMatchObject({ verdict: 'ended', reason: 'no_discounts' });
+    });
+    it.each(['Wholesale Tiles', 'Ideal Home', "A Specialist's Shop", 'Dealer Locator', 'Specialty Foods', 'Resale Cars', 'Salesforce Partners'])('a look-alike title ("%s") does not count', (title) => {
+      expect(judge(html(noDiscounts, title), { expectedUrl: PLAIN_URL, finalUrl: PLAIN_URL })).toMatchObject({ verdict: 'ended', reason: 'no_discounts' });
+    });
+    it.each(['/dealers', '/specialty-foods', '/wholesale', '/ideal-home'])('a look-alike path (%s) does not count', (path) => {
+      const url = `https://shop.example${path}`;
+      expect(judge(html(noDiscounts, PLAIN_TITLE), { expectedUrl: url, finalUrl: url })).toMatchObject({ verdict: 'ended', reason: 'no_discounts' });
+    });
+    it('a sale word in the body text only does not save it', () => {
+      expect(plain('<p>Our big sale starts soon, special offers every day</p>' + noDiscounts)).toMatchObject({ verdict: 'ended', reason: 'no_discounts' });
+    });
+    it('keeps the order of the rules: a redirect, challenge, login or error page still wins', () => {
+      expect(judge(html(noDiscounts, 'Sale'), { finalUrl: 'https://other.example/sale' })).toMatchObject({ verdict: 'ended', reason: 'redirected_away' });
+      expect(judge(html(noDiscounts, 'Just a moment... sale'))).toMatchObject({ verdict: 'blocked', reason: 'challenge_page' });
+    });
+    it('does not change what recordEffect does with unverifiable', () => {
+      expect(recordEffect('unverifiable')).toEqual({ state: 'active', validation: 'url_verified' });
+    });
+    it('an address that does not parse is not a reason to throw', () => {
+      expect(() => judge(html(noDiscounts, PLAIN_TITLE), { expectedUrl: 'not a url', finalUrl: 'not a url' })).not.toThrow();
+    });
   });
 });

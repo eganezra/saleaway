@@ -182,13 +182,18 @@ export interface UnfinishedRun {
   storesTotal: number;
 }
 
-// D1 allows 50 queries per invocation; closing a run takes 2, so 10 runs at a time is far inside it.
+// D1 allows 50 queries per invocation; closing a run takes 2 (a count and an update) and the list takes 1, so 10 runs at a time is
+// 21 queries, far inside it. Do not raise this: 100 runs would be 201 queries and the invocation would fail part way (Story 3.10).
 const MAX_RUNS_PER_FINALIZE = 10;
 
-/** Runs with no finish time, oldest first. Normally exactly one: today's. */
+/**
+ * Runs with no finish time, **newest first**, at most `MAX_RUNS_PER_FINALIZE`. Normally exactly one: today's. Newest first so that
+ * tonight's run is always among the ones closed, even when older runs were left open (on 2026-10-31 fifteen were open, and
+ * the 10 oldest were closed, leaving that night's run open); the older ones drain over the next nights.
+ */
 export async function listUnfinishedRuns(db: D1Database): Promise<UnfinishedRun[]> {
   const { results } = await db
-    .prepare('SELECT id, stores_total FROM pipeline_runs WHERE finished_at IS NULL ORDER BY id LIMIT ?1')
+    .prepare('SELECT id, stores_total FROM pipeline_runs WHERE finished_at IS NULL ORDER BY id DESC LIMIT ?1')
     .bind(MAX_RUNS_PER_FINALIZE)
     .all<{ id: number; stores_total: number }>();
   return results.map((row) => ({ id: row.id, storesTotal: row.stores_total }));

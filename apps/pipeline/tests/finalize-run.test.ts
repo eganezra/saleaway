@@ -97,6 +97,65 @@ describe('finalizeRun', () => {
     expect(named('run_finalized')).toEqual([]);
   });
 
+  describe('many open runs (Story 3.10)', () => {
+    /** The database with every prepared statement counted: each is one D1 query. */
+    const counted = () => {
+      let n = 0;
+      const db = new Proxy(t.db, {
+        get(target, prop) {
+          if (prop === 'prepare') return (sql: string) => (n += 1, target.prepare(sql));
+          const value = Reflect.get(target, prop, target) as unknown;
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      });
+      return { db, count: () => n };
+    };
+    const openRuns = async (n: number) => {
+      const ids: number[] = [];
+      for (let i = 0; i < n; i++) ids.push(await insertRun(t.db, `2026-10-${String(10 + i).padStart(2, '0')}T03:00:00Z`, 'manual', 1));
+      return ids;
+    };
+
+    it('closes the 10 newest of 15 open runs, so the latest run is closed, and the 5 oldest the next night', async () => {
+      const ids = await openRuns(15);
+      expect(await finalizeRun(env(), fakeDeps().deps)).toBe(10);
+      const open = (await runs()).filter((r) => r.finished_at === null).map((r) => r.id);
+      expect(open).toEqual(ids.slice(0, 5));
+      expect(await finalizeRun(env(), fakeDeps().deps)).toBe(5);
+      expect((await runs()).every((r) => r.finished_at !== null)).toBe(true);
+    });
+
+    it('closes tonight\'s run first even when older runs were left open', async () => {
+      const ids = await openRuns(15);
+      await save(ids[14] as number, 1, 'ok');
+      await finalizeRun(env(), fakeDeps().deps);
+      expect(await runs()).toContainEqual(expect.objectContaining({ id: ids[14], stores_ok: 1 }));
+      expect((await runs()).find((r) => r.id === ids[14])?.finished_at).not.toBeNull();
+    });
+
+    it('does not close a closed run again', async () => {
+      await openRuns(3);
+      await finalizeRun(env(), fakeDeps().deps);
+      const first = await runs();
+      expect(await finalizeRun(env(), fakeDeps({ start: '2026-11-05T03:45:00Z' }).deps)).toBe(0);
+      expect(await runs()).toEqual(first);
+    });
+
+    it('uses at most 21 queries for 15 open runs (D1 allows 50 per invocation)', async () => {
+      await openRuns(15);
+      const { db, count } = counted();
+      await finalizeRun(makeEnv(db, fakeQueue().queue), fakeDeps().deps);
+      expect(count()).toBeLessThanOrEqual(21);
+      expect(count()).toBeGreaterThan(0);
+    });
+
+    it('with more than 10 open, one finalize still leaves the rest open (the cap holds)', async () => {
+      await openRuns(25);
+      expect(await finalizeRun(env(), fakeDeps().deps)).toBe(10);
+      expect((await runs()).filter((r) => r.finished_at === null)).toHaveLength(15);
+    });
+  });
+
   it('does nothing when there are no runs', async () => {
     expect(await finalizeRun(env(), fakeDeps().deps)).toBe(0);
   });

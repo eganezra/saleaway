@@ -158,6 +158,25 @@ describe('the range (AC4) and nothing readable (AC5)', () => {
   });
 });
 
+describe('prices written with the currency code (Story 3.10)', () => {
+  const zarPair = (now: string, was: string): string => `<li><span class="special-price"><span class="price">ZAR ${now}</span></span><span class="old-price"><span class="price">ZAR ${was}</span></span></li>`;
+  it('reads a ZAR was and now pair', () => {
+    expect(extractHtmlDiscount(html(`<ol>${zarPair('69.00', '80.00')}</ol>`))).toBe(14);
+  });
+  it('takes the deepest of several ZAR pairs', () => {
+    expect(extractHtmlDiscount(html(`<ol>${zarPair('69.00', '80.00')}${zarPair('175.00', '250.00')}${zarPair('45.00', '60.00')}</ol>`))).toBe(30);
+  });
+  it('reads ZAR and R on one page, and ZAR with a thousands group', () => {
+    expect(extractHtmlDiscount(html(`<ol>${zarPair('69.00', '80.00')}${pair('R150', 'R200')}${zarPair('1 299.00', '2 599.00')}</ol>`))).toBe(50);
+  });
+  it('does not read a word that only ends in zar as a price', () => {
+    expect(extractHtmlDiscount(html('<ol><li><span class="old-price">BAZAR 200</span><span>BAZAR 100</span></li></ol>'))).toBeNull();
+  });
+  it('gives nothing for a page that only has saving labels (no was price and no percentage)', () => {
+    expect(extractHtmlDiscount(html('<ol><li><span>Save R 15.00</span><span>R 89.99</span></li><li><span>Save R 10.00</span><span>R 45.99</span></li></ol>'))).toBeNull();
+  });
+});
+
 describe('prices written without a thousands separator (found in QA review)', () => {
   // Before the fix a price such as R1299 was not seen at all, so the next product's amount was taken as the was amount
   // of the marker and the page gave 75 instead of 23.

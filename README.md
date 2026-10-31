@@ -252,11 +252,11 @@ A manual run starts a **new** run and fetches **every store again**, which break
 Since Story 3.3 the pipeline reads each sale page it fetched (an ordinary `ok` answer, at most 3 MiB) and decides what it is. The rules are in `packages/core/src/validate.ts` and are tested on small trimmed samples of real pages (`packages/core/tests/fixtures/pages/`, with a manifest `index.json`). There are four answers:
 
 - **valid**: the page shows discounted products (percentage-off labels, old and new prices, or price fields in its data, and at least two prices);
-- **ended**: the page is up but there is no sale on it (an error page, an empty listing, products with no discount, or it sent us to the home page);
+- **ended**: the page is up but there is no sale on it (an error page, an empty listing, products with no discount on a page that does not call itself a sale, or it sent us to the home page);
 - **blocked**: the page is a robot check or a login page, which is treated like a blocked request (the last good record is kept);
 - **unverifiable**: the page cannot be judged, for example a JavaScript application whose products are not in the HTML, or a page that was cut at the size limit. Such a store is shown as "On sale", checked by its address only.
 
-A page is called "not a sale" only when something on it says so. For now the answer is only **written to the log** (one `page_validated` line per store, with counts and the answer, never page text); saving it is Story 3.5, and the live site does not change.
+A page is called "not a sale" only when something on it says so. Since Story 3.10 the check also reads prices written `ZAR 69.00`, counts "Save R 15.00" labels as discounts, ignores "no items in your wish list" style text, and does **not** call a page `ended` just because it shows no readable discount when its title, heading or address calls it a sale (a specials or promotions page): such a page is `unverifiable` and the store stays "On sale". For now the answer is only **written to the log** (one `page_validated` line per store, with counts and the answer, never page text); saving it is Story 3.5, and the live site does not change.
 
 ### Check the first records
 
@@ -272,7 +272,7 @@ pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --remote --command
 "SELECT r.slug, s.last_result, s.last_checked_at FROM sale_records s JOIN retailers r ON r.id = s.retailer_id WHERE s.state = 'ended' ORDER BY r.slug"
 ```
 
-Open a few of the stores in the second list in a browser. If one still shows a real sale, the rule is wrong for that store: do not deploy the web app yet, and tell the developer which store. Stores with a `last_result` of `blocked` or `error` and the state `unknown` have never been checked successfully.
+Open a few of the stores in the second list in a browser. If one still shows a real sale, the rule is wrong for that store: do not deploy the web app yet, and tell the developer which store. Stores with a `last_result` of `blocked` or `error` and the state `unknown` have never been checked successfully. **A store judged `ended` while its page still shows a sale means the validator is wrong, not the store** (this is how Story 3.10 started: on 2026-10-31 eight stores were judged `ended` and none rightly).
 
 ### How the discount is read
 
