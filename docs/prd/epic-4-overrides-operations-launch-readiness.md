@@ -42,8 +42,8 @@ so that visitors don't land on dead pages.
 ### Acceptance Criteria
 
 1. A script flags every seeded URL that does not return a successful page.
-2. The 21 search-only URLs are checked in a browser and their status is updated in the Retailers table.
-3. The Crocs SA row (seeded hidden, without a URL) gets its sale URL and is made visible.
+2. The 21 search-only URLs are checked and their status is updated in the Retailers table (through the seed file). 7 of them are already proven by the page content of run 17 (a discount figure was read from the page); the other 14 are checked in a browser by the user.
+3. The Crocs SA row, which is not yet in the database, is added with its sale URL and is visible.
 4. Stores whose URL cannot be fixed are hidden.
 5. Black Friday URLs showing 2025 content are marked unverified (supports Story 2.6).
 6. The script runs from the operator's computer with the pipeline's user-agent and its `robots.txt` and URL-safety rules (these are shared code in `packages/core`), at most once a day, and records for each store hidden by Story 3.9 whether it answers from there. This is the free test of another network, and its result is the input for Story 5.4 and for Story 3.8.
