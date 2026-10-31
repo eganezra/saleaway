@@ -4,7 +4,7 @@ _Added by the PO on 2026-10-29 after validating all documents._
 
 ## Launch-critical vs deferrable
 
-- **Launch-critical (the site cannot go live honestly without these):** Stories 1.1 to 1.4, 2.1 to 2.5, 3.1 to 3.6, 3.9 (added 2026-10-30), 4.1, 4.3, 4.4 and 4.5.
+- **Launch-critical (the site cannot go live honestly without these):** Stories 1.1 to 1.4, 2.1 to 2.5, 3.1 to 3.6, 3.9 (added 2026-10-30), 3.10 (added 2026-10-31), 4.1, 4.3, 4.4 and 4.5.
 - **Deferrable if time runs short, cut in this order:** 2.6 (Black Friday badge), 3.7 (Biggest discounts card), 4.6 (failure alert and retention), 4.2 (health report; use the run log tables meanwhile), the HTML and structured-data extractors inside 3.4 (keep Shopify and manual), and the anchor menu in 2.2.
 - **Conditional:** Story 3.8 (fallback runner), built only if a different network gets through where the Worker is blocked, or the CPU measurement in Story 3.4 fails.
 - **Launch store count (decided 2026-10-30):** the site launches with the stores that work from the Worker, 57 of the 92 with a sale page (Story 3.9). The other 35 come back in Story 5.4.

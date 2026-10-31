@@ -142,3 +142,21 @@ so that the site launches with stores that work and no store is shown that nobod
 4. An operator can still fetch one hidden store with `POST /admin/run?store=<slug>`, so a store can be tested again before it is shown.
 5. The command is run on the live database, and the live home page shows 57 store cards and none of the 35 hidden ones (the page is not cached yet; once Story 2.4 adds caching, allow about 10 minutes).
 6. The README explains how to hide and restore stores, and that blocking can change from day to day.
+
+## Story 3.10 Fewer False "Ended" Verdicts
+
+_Added by the SM on 2026-10-31 after the first nightly run (run 17): the validator judged 8 stores `ended`, and none of the eight was shown to be correctly ended (Spar and Gelmar still show sales; the others show sale pages the validator could not read). A store judged `ended` disappears from the site once the web app uses the records, so the web app is not deployed until this is fixed._
+
+As the operator,
+I want the sale-page check to stop calling a store's sale over when the page still shows one,
+so that the live site does not lose stores that have a sale on.
+
+### Acceptance Criteria
+
+1. A price written with the currency code, for example `ZAR 69.00`, counts as an amount, in the page validator and in the discount extractors.
+2. A text element that begins with "Save" and an amount (`Save R 15.00`) counts as a discount signal.
+3. Words in a page's site furniture, such as "You have no items in your wish list", do not make the validator call the listing empty, and a page that holds discount signals is never called an empty listing.
+4. A page that lists priced products but shows no discount signal is called `ended` only if the page does not call itself a sale (its title, main heading or address path has a word such as "sale", "special", "deal", "offer", "promo", "clearance", "discount", "outlet" or "savings"); otherwise it is `unverifiable` and the store stays "On sale".
+5. Saved samples of the four pages wrongly judged on 2026-10-31 (Spar, Gelmar, Evetech, Mr Price) are in the page samples and give the right verdicts; the existing samples keep theirs.
+6. The finalize step closes the night's run even when many older runs are still open.
+7. After the pipeline is deployed with this change, the next nightly run no longer ends those four stores, and the morning check is repeated.
