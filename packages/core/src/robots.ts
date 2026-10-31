@@ -1,4 +1,7 @@
-// robots.txt rules (RFC 9309), pure: the caller fetches the file and passes its text in.
+// robots.txt rules (RFC 9309). `isAllowedByRobots` is pure: the caller fetches the file and passes its text in. `checkRobots`
+// (moved here from the pipeline in Story 4.3) fetches it through the `fetch` function it is given.
+import { discard, fetchPage, readLimited } from './fetcher';
+import type { FetchFn } from './fetcher';
 
 const MAX_TEXT_LENGTH = 500 * 1024; // RFC 9309: a crawler must parse at least 500 KiB
 const MAX_PATTERN_LENGTH = 1024;
@@ -113,4 +116,33 @@ export function isAllowedByRobots(robotsTxt: string, pathAndQuery: string, agent
     }
   }
   return best === null ? true : best.allow;
+}
+
+export type RobotsDecision = 'allowed' | 'disallowed' | 'unreachable';
+
+export interface RobotsResult {
+  decision: RobotsDecision;
+  /** The robots.txt text when it was read (the answer was 2xx), else null. */
+  text: string | null;
+}
+
+/**
+ * Asks a site's robots.txt whether the page may be fetched (RFC 9309), and returns its text so that another path of
+ * the same site (a Shopify feed, Story 3.4) can be checked without a second request.
+ * - a file that arrives: its rules decide
+ * - a 4xx answer, including 404 and 403: the file is "unavailable", so everything is allowed
+ * - a 5xx answer, a timeout, a network failure or an endless redirect: "unreachable", so the page is not fetched
+ */
+export async function checkRobots(origin: string, pathAndQuery: string, fetchFn: FetchFn): Promise<RobotsResult> {
+  const result = await fetchPage(`${origin}/robots.txt`, fetchFn);
+  if (!result.ok) return { decision: 'unreachable', text: null };
+
+  const { status, response } = result;
+  if (status >= 200 && status <= 299) {
+    const body = await readLimited(response, MAX_TEXT_LENGTH);
+    if (body === null) return { decision: 'unreachable', text: null };
+    return { decision: isAllowedByRobots(body.text, pathAndQuery) ? 'allowed' : 'disallowed', text: body.text };
+  }
+  await discard(response);
+  return { decision: status >= 400 && status <= 499 ? 'allowed' : 'unreachable', text: null };
 }

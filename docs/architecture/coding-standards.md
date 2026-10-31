@@ -3,7 +3,7 @@
 ## Critical Fullstack Rules
 
 - **Shared logic lives in `packages/core`:** validation, extraction, ranking and visibility are pure functions there. Never copy them into an app.
-- **No I/O in core:** `packages/core` never calls `fetch`, D1 or the clock. The caller passes data and the current time in.
+- **No I/O in core:** `packages/core` never calls the global `fetch`, D1 or the clock. The caller passes data and the current time in. Code that needs the network (the polite fetcher and `checkRobots`, moved here in Story 4.3 so the pipeline and `ops:check-urls` ask for pages the same way) takes the `fetch` function as an argument.
 - **Facts only:** never store or render retailer images, descriptions, logos or page text (NFR7). Extractors return a number or `null`.
 - **Data access through repo functions:** no SQL outside `repo.ts`, `lib/db.ts` and the ops scripts.
 - **Config through the `Env` type:** read variables from `env`, never from globals.

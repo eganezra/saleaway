@@ -1,0 +1,1747 @@
+{
+  "checkedAt": "2026-10-31T10:57:18Z",
+  "userAgent": "SaleawayBot/1.0 (+https://saleaway.online/contact)",
+  "delaySeconds": 15,
+  "from": "operator computer",
+  "pages": 148,
+  "sites": 84,
+  "results": [
+    {
+      "slug": "takealot",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "takealot",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": true
+      }
+    },
+    {
+      "slug": "temu-sa-storefront",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "bash-tfg",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "bash-tfg",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "year_2026",
+        "words": true
+      }
+    },
+    {
+      "slug": "makro",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "makro",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "year_2026",
+        "words": true
+      }
+    },
+    {
+      "slug": "bob-shop",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "bob-shop",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "year_2026",
+        "words": true
+      }
+    },
+    {
+      "slug": "superbalist",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "superbalist",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "year_2026",
+        "words": true
+      }
+    },
+    {
+      "slug": "woolworths-all-depts",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "woolworths-all-depts",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": true
+      }
+    },
+    {
+      "slug": "amazon-co-za",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "amazon-co-za",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": true
+      }
+    },
+    {
+      "slug": "game-massmart",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "onedayonly",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "onedayonly",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "loot",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "shein-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "bash-tfg-fashion-apparel",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "bash-tfg-fashion-apparel",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "year_2026",
+        "words": true
+      }
+    },
+    {
+      "slug": "superbalist-fashion-apparel",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "superbalist-fashion-apparel",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "mr-price",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "mr-price",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "woolworths-fashion",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "woolworths-fashion",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "redirected_away",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "cotton-on-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "cotton-on-sa",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "truworths",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "truworths",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "edgars",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "edgars",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "year_2026",
+        "words": true
+      }
+    },
+    {
+      "slug": "ackermans",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "ackermans",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "zara-sa",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "sportscene-on-bash",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "sportscene-on-bash",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "totalsports-on-bash",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "sportsmans-warehouse",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "sportsmans-warehouse",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "nike-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "nike-sa",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "adidas-sa",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "adidas-sa",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "cape-union-mart-k-way",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 202,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "cape-union-mart-k-way",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 202,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "studio-88",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "studio-88",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "puma-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "puma-sa",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "under-armour-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "outdoor-warehouse",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "side-step",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "new-balance-sa",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "hi-tec-sa",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "blocked",
+      "httpStatus": 429,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "hi-tec-sa",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "incredible-connection",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "incredible-connection",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": true
+      }
+    },
+    {
+      "slug": "hifi-corp",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "hifi-corp",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": true
+      }
+    },
+    {
+      "slug": "samsung-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "samsung-sa",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "year_2026",
+        "words": false
+      }
+    },
+    {
+      "slug": "evetech",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "evetech",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "istore",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "istore",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "wootware",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "wootware",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "computer-mania",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "computer-mania",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "hirschs",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "hirschs",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": true
+      }
+    },
+    {
+      "slug": "matrix-warehouse",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "matrix-warehouse",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "dreamware-tech",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "mr-price-home",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "mr-price-home",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "fair-price",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "fair-price",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "decofurn",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "decofurn",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "cielo",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "cielo",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "house-home-lewis-group",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "house-home-lewis-group",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "sheet-street",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "sheet-street",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "hirschs-home-decor-furniture",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "hirschs-home-decor-furniture",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": true
+      }
+    },
+    {
+      "slug": "home-shop-on-bash",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "coricraft",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "blocked",
+      "httpStatus": 429,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "coricraft",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": true
+      }
+    },
+    {
+      "slug": "yuppiechef",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "error",
+      "httpStatus": null,
+      "error": "unsafe_redirect",
+      "blackFriday": null
+    },
+    {
+      "slug": "bradlows",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "error",
+      "httpStatus": null,
+      "error": "timeout",
+      "blackFriday": null
+    },
+    {
+      "slug": "bradlows",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "error",
+      "httpStatus": null,
+      "error": "timeout",
+      "blackFriday": null
+    },
+    {
+      "slug": "builders",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "builders",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "leroy-merlin-sa",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "leroy-merlin-sa",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "cashbuild",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "buco",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "ctm",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "ctm",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "gelmar",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "gelmar",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "build-it",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "build-it",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "plumblink",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "chamberlain",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "tile-africa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "tile-africa",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "adendorff-machinery-mart",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "clicks",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "clicks",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "year_2025",
+        "words": true
+      }
+    },
+    {
+      "slug": "dis-chem",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "dis-chem",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": true
+      }
+    },
+    {
+      "slug": "edgars-beauty",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "edgars-beauty",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "faithful-to-nature",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "faithful-to-nature",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "wellness-warehouse",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "blocked",
+      "httpStatus": 429,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "wellness-warehouse",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "mac-cosmetics-sa",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "mac-cosmetics-sa",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "the-body-shop-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "estee-lauder-sa",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "beauty-on-tapp",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "beauty-on-tapp",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "skin-renewal-online-skin-shop",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "checkers-sixty60",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "checkers-sixty60",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "pick-n-pay",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "pick-n-pay",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "woolworths-food",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "shoprite",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "shoprite",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "makro-food-liquor",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "makro-food-liquor",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "spar",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "food-lovers-market",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "faithful-to-nature-grocery-liquor",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "faithful-to-nature-grocery-liquor",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "norman-goodfellows",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "blocked",
+      "httpStatus": 429,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "norman-goodfellows",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "liquor-city",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "ackermans-baby-kids-toys",
+      "kind": "sale",
+      "hiddenReason": "same_site_as_blocked",
+      "class": "js_only",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "ackermans-baby-kids-toys",
+      "kind": "black_friday",
+      "hiddenReason": "same_site_as_blocked",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "pep",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "pep",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "toys-r-us-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "toys-r-us-sa",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "year_2026",
+        "words": true
+      }
+    },
+    {
+      "slug": "cotton-on-kids-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "cotton-on-kids-sa",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "no_year",
+        "words": false
+      }
+    },
+    {
+      "slug": "babies-r-us-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "babies-r-us-sa",
+      "kind": "black_friday",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": {
+        "year": "year_2026",
+        "words": true
+      }
+    },
+    {
+      "slug": "toy-kingdom",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "babies-galore",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "kids-emporium",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "hamleys-sa",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "naartjie",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "pet-heaven",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "petshop-science-on-checkers-sixty60",
+      "kind": "sale",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "petshop-science-on-checkers-sixty60",
+      "kind": "black_friday",
+      "hiddenReason": "http_403",
+      "class": "blocked",
+      "httpStatus": 403,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "absolute-pets",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "petworld",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "robots_unreachable",
+      "httpStatus": null,
+      "error": "robots_unreachable",
+      "blackFriday": null
+    },
+    {
+      "slug": "epetstore",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "canine-co",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "family-pet-centre",
+      "kind": "sale",
+      "hiddenReason": "http_429",
+      "class": "ok",
+      "httpStatus": 200,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "family-pet-centre",
+      "kind": "black_friday",
+      "hiddenReason": "http_429",
+      "class": "not_found",
+      "httpStatus": 404,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "zuki",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "turf-pet-hyper",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "no_address",
+      "httpStatus": null,
+      "error": null,
+      "blackFriday": null
+    },
+    {
+      "slug": "benji-moon",
+      "kind": "sale",
+      "hiddenReason": null,
+      "class": "error",
+      "httpStatus": null,
+      "error": "unsafe_redirect",
+      "blackFriday": null
+    }
+  ]
+}

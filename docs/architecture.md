@@ -386,7 +386,7 @@ Saleaway has no public API. The only HTTP endpoints are internal, so no OpenAPI 
 
 **Responsibility:** the commands in Stories 1.3, 3.9, 4.1, 4.2 and 4.3.
 
-**Key Interfaces:** `pnpm ops:seed`, `pnpm ops:hide` (hides or shows the stores in `docs/data/hidden-stores.json`), `pnpm ops:override` (creates, changes, clears, lists, exports and restores overrides; `--bring-back` shows a hidden store with manual values), `pnpm ops:coverage` (reads one run and the sale records and writes a coverage report; read-only), `pnpm ops:health`, `pnpm ops:check-urls`, `pnpm ops:run` (calls `/admin/run`).
+**Key Interfaces:** `pnpm ops:seed`, `pnpm ops:hide` (hides or shows the stores in `docs/data/hidden-stores.json`), `pnpm ops:override` (creates, changes, clears, lists, exports and restores overrides; `--bring-back` shows a hidden store with manual values), `pnpm ops:coverage` (reads one run and the sale records and writes a coverage report; read-only), `pnpm ops:check-urls` (asks every seeded sale and Black Friday address for its page from the operator's computer, with the pipeline's user-agent and rules, at most once in 24 hours; writes `docs/data/url-check.json` and `url-check.md`; no database), `pnpm ops:health`, `pnpm ops:run` (calls `/admin/run`).
 
 **Dependencies:** Wrangler (`wrangler d1 execute --remote`), authenticated by your Cloudflare login.
 
@@ -766,8 +766,7 @@ apps/pipeline/src/
 ├── start-run.ts      # purge, create run, enqueue with staggered delay
 ├── process-store.ts  # one store: robots, fetch, classify, validate, extract, save
 ├── finalize-run.ts   # totals and alert
-├── fetcher.ts        # polite fetch: UA, timeout, redirect cap, URL safety
-├── robots.ts         # robots.txt allow check
+├── (fetcher.ts and robots.ts moved to packages/core in Story 4.3: polite fetch, robots.txt allow check)
 ├── repo.ts           # D1 reads and writes (data access layer)
 └── alert.ts          # POST to ALERT_WEBHOOK_URL
 ```
@@ -783,6 +782,8 @@ apps/pipeline/src/
 **Built in Story 3.10 (2026-10-31):** fewer false `ended` verdicts. In `packages/core`: `AMOUNT` and `PRICE` in `page-scan.ts` accept `ZAR` as well as `R`; a new `SAVE_NODE` pattern; in `validate.ts` the `saveLabels` signal (a seventh count, counted as a discount signal), the narrower empty-listing rule, the "calls itself a sale" guard (`SALE_WORDS`, whole words, tested on the title, the first heading and the address path) and the new reason `discounts_not_readable`. Four real pages (Gelmar, Spar, Evetech, Mr Price) and one plain category page are page samples; the older `no-discounts-listing.html` sample is now `unverifiable` because its title and address say "specials". In `apps/pipeline`, `listUnfinishedRuns` returns the newest unfinished runs first (the cap of 10 stays: D1 allows 50 queries per invocation and closing a run takes 2). The extractors read `ZAR` prices too (a Gelmar-style pair gives its percentage).
 
 **Built in Story 3.6 (2026-10-31):** the coverage report. `scripts/ops/src/coverage-plan.ts` is pure (the buckets and the Markdown) and `coverage.ts` is the command: `pnpm ops:coverage --local | --remote [--run <id>] [--out docs/data/<file>.md]`. It runs two read-only queries (the run with its first and last result times, and every store with its result for that run, its sale record and its override; whether the override is still in force is decided in code by `isOverrideActive`, the rule the site uses), prints the report, or writes it when `--out` is given (inside `docs/data/`, a `.md` file, resolved from the repository root). It writes nothing to the database. `run_results` keeps each night's result, but `sale_records` is overwritten by every run, so the report states the date its records are from and warns when they are newer than the run it describes. Reports of the first runs are `docs/data/first-run-coverage.md` (with the free-tier check) and, when made, `docs/data/second-run-coverage.md`. `loot` was changed to `structured_data` in the live database by a one-row update (the seed never changes an existing store's method).
+
+**Built in Story 4.3 (2026-10-31):** the URL check. The polite fetcher (`fetchPage`, `readLimited`, `discard`, `USER_AGENT` and the limits) and `checkRobots` moved from `apps/pipeline` into `packages/core` (`fetcher.ts`, `robots.ts`), with their tests and the `FetchFn` type, so the pipeline and the operator script ask for pages the same way; they take the `fetch` function as an argument and read no clock, which is how core keeps its "no I/O" rule. No change of behavior. `scripts/ops/src/check-urls-plan.ts` is pure (the plan, the classes, the Black Friday year flags, the two files, the once-a-day rule) and `check-urls.ts` is the command: `pnpm ops:check-urls [--dry-run] [--only <slug> ...] [--delay <seconds>]`. It reads `docs/data/retailers-seed.tsv` and `docs/data/hidden-stores.json`, asks each distinct sale address and Black Friday address once (robots.txt first, once per site, and obeyed), `--delay` seconds apart (default 15), and writes `docs/data/url-check.json` and `url-check.md` only after every page was asked. A Black Friday page that answers has only its title and first heading read, for the year it claims. It refuses a second full run within 24 hours and has no flag to override that; `--only` (one to three stores) prints its answers, writes nothing and does not start that clock; `--dry-run` asks for nothing. It uses no database and no login.
 
 #### Function Template
 
@@ -926,6 +927,7 @@ saleaway/
 │   └── core/
 │       ├── src/
 │       │   ├── types.ts  logger.ts  url-safety.ts
+│       │   ├── fetcher.ts  (the polite fetcher, moved here from the pipeline in Story 4.3; robots.ts holds checkRobots too)
 │       │   ├── classify.ts  validate.ts
 │       │   ├── page-scan.ts  (the linear scanners the validator and the extractors share)
 │       │   ├── extract/ shopify-json.ts  html.ts  structured-data.ts  range.ts  index.ts
@@ -935,7 +937,7 @@ saleaway/
 ├── db/
 │   ├── migrations/                 # 0001_init.sql, then one file per later story
 │   └── seed/                       # seed script reads docs/data/retailers-seed.tsv
-├── scripts/ops/                    # seed, hide (Story 3.9), override (Story 4.1: override.ts, override-plan.ts), coverage (Story 3.6: coverage.ts, coverage-plan.ts), health, check-urls, run
+├── scripts/ops/                    # seed, hide (Story 3.9), override (Story 4.1: override.ts, override-plan.ts), coverage (Story 3.6: coverage.ts, coverage-plan.ts), check-urls (Story 4.3: check-urls.ts, check-urls-plan.ts), health, run
 ├── docs/                           # brief, prd, front-end-spec, architecture, data (incl. hidden-stores.json, overrides.json)
 ├── .env.example                    # variable names only, no values
 ├── pnpm-workspace.yaml  package.json  tsconfig.base.json
@@ -1214,7 +1216,7 @@ test('home page lists sales and has no accessibility violations', async ({ page 
 ### Critical Fullstack Rules
 
 - **Shared logic lives in `packages/core`:** validation, extraction, ranking and visibility are pure functions there. Never copy them into an app.
-- **No I/O in core:** `packages/core` never calls `fetch`, D1 or the clock. The caller passes data and the current time in.
+- **No I/O in core:** `packages/core` never calls the global `fetch`, D1 or the clock. The caller passes data and the current time in. Code that needs the network (the polite fetcher and `checkRobots`, moved here in Story 4.3 so the pipeline and `ops:check-urls` ask for pages the same way) takes the `fetch` function as an argument.
 - **Facts only:** never store or render retailer images, descriptions, logos or page text (NFR7). Extractors return a number or `null`.
 - **Data access through repo functions:** no SQL outside `repo.ts`, `lib/db.ts` and the ops scripts.
 - **Config through the `Env` type:** read variables from `env`, never from globals.

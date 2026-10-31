@@ -1,5 +1,10 @@
-import { isSafeFetchUrl, resolveRedirect } from '@saleaway/core';
-import type { FetchFn } from './types';
+import { isSafeFetchUrl, resolveRedirect } from './url-safety';
+
+// The polite fetcher (Story 3.1, moved into core in Story 4.3 so the pipeline and `ops:check-urls` ask for pages the same way).
+// It never calls the global `fetch`: the caller passes the function in, as it passes data and the time (coding standards).
+
+/** The `fetch` function the fetcher uses. It is injected so tests never touch the network. */
+export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 
 // The polite fetcher (NFR6): a clear user-agent on every request, a timeout, at most 3 redirects, https only,
 // every redirect target checked before it is requested, and no attempt to look like a browser.

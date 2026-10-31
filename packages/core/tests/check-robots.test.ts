@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { FetchFn } from '../src/fetcher';
 import { USER_AGENT } from '../src/fetcher';
 import { checkRobots } from '../src/robots';
-import type { FetchFn } from '../src/types';
-import { fakeFetch } from './helpers/fakes';
+import { fakeFetch } from './helpers/fake-fetch';
 
 /** The decision only: most tests are about that. */
 const decide = async (origin: string, pathAndQuery: string, fetchFn: FetchFn) => (await checkRobots(origin, pathAndQuery, fetchFn)).decision;

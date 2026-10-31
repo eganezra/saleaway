@@ -1,8 +1,20 @@
 import type { FetchClass, ValidationResult } from '@saleaway/core';
-import { classifyResponse, extractDiscount, extractShopifyDiscount, isSafeFetchUrl, nextSaleRecord, redirectedAway, toIsoUtc, validateSalePage } from '@saleaway/core';
-import { MAX_PAGE_BYTES, discard, fetchPage, readLimited } from './fetcher';
+import {
+  MAX_PAGE_BYTES,
+  checkRobots,
+  classifyResponse,
+  discard,
+  extractDiscount,
+  extractShopifyDiscount,
+  fetchPage,
+  isSafeFetchUrl,
+  nextSaleRecord,
+  readLimited,
+  redirectedAway,
+  toIsoUtc,
+  validateSalePage,
+} from '@saleaway/core';
 import { runProbe } from './probe';
-import { checkRobots } from './robots';
 import { fetchShopifyFeed } from './shopify';
 import type { FeedState } from './shopify';
 import { getRetailerForJob, getSaleRecord, saveRunResult, saveStoreResult } from './repo';

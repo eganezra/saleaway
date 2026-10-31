@@ -18,8 +18,12 @@ export type {
 } from './types';
 export { isSafeFetchUrl, resolveRedirect } from './url-safety';
 export { classifyResponse, redirectedAway } from './classify';
+export { firstElementText } from './page-scan';
 export type { FetchOutcome } from './classify';
-export { isAllowedByRobots } from './robots';
+export { checkRobots, isAllowedByRobots } from './robots';
+export type { RobotsDecision, RobotsResult } from './robots';
+export { ACCEPT, FETCH_TIMEOUT_MS, MAX_PAGE_BYTES, MAX_REDIRECTS, USER_AGENT, discard, fetchPage, readLimited } from './fetcher';
+export type { BodyText, FetchFailure, FetchFn, FetchPageResult } from './fetcher';
 export { parseHiddenStores } from './hidden-stores';
 export type { HiddenStore, HiddenStores } from './hidden-stores';
 export { rankStores } from './rank';

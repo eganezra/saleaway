@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_PAGE_BYTES } from '../src/fetcher';
+import { MAX_PAGE_BYTES } from '@saleaway/core';
 import { fetchShopifyFeed, isShopifyCollection, productsJsonUrl } from '../src/shopify';
 import { fakeDeps, fakeFetch } from './helpers/fakes';
 

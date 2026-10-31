@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { USER_AGENT } from '../src/fetcher';
+import { USER_AGENT } from '@saleaway/core';
 import { processStore, recordStoreError } from '../src/process-store';
 import { insertRun } from '../src/repo';
 import { createTestDb, resetData, rows, seedRetailers } from './helpers/db';

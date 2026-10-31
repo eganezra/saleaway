@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { BOT_USER_AGENT } from '../src/lib/bot';
 
 describe('the bot named on the About page (Story 2.5)', () => {
-  it('is the user-agent the pipeline sends', () => {
-    const source = readFileSync(fileURLToPath(new URL('../../pipeline/src/fetcher.ts', import.meta.url)), 'utf-8');
+  it('is the user-agent the pipeline and the ops scripts send (the shared fetcher in core)', () => {
+    const source = readFileSync(fileURLToPath(new URL('../../../packages/core/src/fetcher.ts', import.meta.url)), 'utf-8');
     const sent = /export const USER_AGENT = '([^']+)'/.exec(source)?.[1];
     expect(sent).toBe(BOT_USER_AGENT);
   });

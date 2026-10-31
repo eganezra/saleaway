@@ -1,4 +1,4 @@
-import { discard, fetchPage } from './fetcher';
+import { discard, fetchPage } from '@saleaway/core';
 import { productsJsonUrl } from './shopify';
 import type { Deps } from './types';
 

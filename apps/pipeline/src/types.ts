@@ -1,4 +1,6 @@
-import type { Logger, PageInput, ValidationResult, extractDiscount } from '@saleaway/core';
+import type { FetchFn, Logger, PageInput, ValidationResult, extractDiscount } from '@saleaway/core';
+
+export type { FetchFn };
 
 /** The queue message: process one store inside one run. */
 export interface StoreJob {
@@ -7,9 +9,6 @@ export interface StoreJob {
 }
 
 export type RunTrigger = 'cron' | 'manual';
-
-/** The `fetch` function the pipeline uses. It is injected so tests never touch the network. */
-export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 
 /** The part of `HTMLRewriter` the CPU probe uses. `HTMLRewriter` exists only in Workers, not in Node. */
 export interface RewriterLike {

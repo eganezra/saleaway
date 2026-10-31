@@ -60,7 +60,7 @@ The data lives in Cloudflare D1, database `saleaway`, bound as `DB` in both Work
 
 ```bash
 pnpm db:migrate:local         # apply migrations to the local database that `pnpm dev` reads
-pnpm ops:seed --local         # load the 10 categories and 106 stores locally
+pnpm ops:seed --local         # load the 10 categories and 107 stores locally
 
 pnpm db:migrate:remote        # apply migrations to the live database
 pnpm ops:seed --remote        # load the same data into the live database
@@ -69,7 +69,7 @@ pnpm ops:seed --remote        # load the same data into the live database
 - **Two copies of the data.** Local commands use a copy kept in `apps/web/.wrangler/state` (git-ignored), which is the one `pnpm dev` reads. The commands run from the web app's folder for that reason. The live database is separate.
 - **`ops:seed` needs `--local` or `--remote`.** With neither, or both, it stops without writing anything. In a terminal, Wrangler asks "Ok to proceed?" before it writes to the live database, and warns that the database may be unavailable to serve queries while the file runs. The run takes well under a second at today's size, but once the site is live, seed at a quiet time. If you answer no, Wrangler exits normally, so the command checks that the seeded rows are really in the database and reports `seed_not_applied` (exit code 1) when they are not.
 - **Running the seed again is safe.** It updates the stores and categories it knows (name, URLs, category, platform, rank, seed status) and adds nothing twice. It never changes `is_visible`, `extraction_method` or `black_friday_verified` on a store that already exists, and it never touches `sale_records` or `overrides`. So to show a store that was hidden, update its row (see below).
-- **After a seed** you should have 10 categories and 106 stores: 92 visible and 14 hidden (stores with no sale page yet). Crocs SA is not in the spreadsheet and is added when its sale URL is found (Story 4.3).
+- **After a seed** you should have 10 categories and 107 stores: 93 visible and 14 hidden (stores with no sale page yet). Crocs SA was added to the spreadsheet in Story 4.3 (the first seed of Story 1.3 had 106 stores: 92 visible and 14 hidden).
 - **Migrations are additive only** (new tables and columns), so rolling code back never needs a database rollback.
 
 ### Adding or changing a store
@@ -310,6 +310,20 @@ pnpm ops:coverage --remote --run 18 --out docs/data/second-run-coverage.md  # a 
 `pnpm ops:coverage` needs `--local` or `--remote` (with neither, or both, it stops) and only **reads** the database: it never writes to it and sends no request to any store. `--run <id>` picks the run (the default is the latest one with results); `--out <file>` writes the report instead of printing it, and the file must be a `.md` file inside `docs/data/`. The report counts the visible stores by what the run found (with a percentage, "On sale" only, judged ended, blocked, errors, manual), lists the stores that need hand work and the hidden stores by reason, and holds only store names, slugs and numbers.
 
 One thing to know: a store's sale record is rewritten by every nightly run, so the report says the date its records are from and warns when they are newer than the run you asked about. To describe a run, make the report soon after it. Two reports are kept: [`docs/data/first-run-coverage.md`](docs/data/first-run-coverage.md) (run 17, with the free-tier check) and, once made, `docs/data/second-run-coverage.md`. **Do not write over `first-run-coverage.md`:** it holds the free-tier check and the list of extraction methods changed, which were written by hand after it was generated, and run 17's state cannot be made again (the records have moved on). Print a new report, or write it to a new file name.
+
+### Checking the sale addresses
+
+```bash
+pnpm ops:check-urls --dry-run                      # how many pages, how long: asks for nothing
+pnpm ops:check-urls --only makro --only truworths  # a short look at one to three stores: prints, writes nothing
+pnpm ops:check-urls                                # the full check: every sale and Black Friday address, once
+```
+
+`pnpm ops:check-urls` asks every seeded sale address and Black Friday address for its page **from your computer** (no database and no login), with the same user-agent, `robots.txt` rules and address-safety rules as the nightly run (they are shared code in `packages/core`). It reads `docs/data/retailers-seed.tsv`, asks for each distinct address once, **15 seconds apart** (`--delay`, 5 to 120), reads each site's `robots.txt` first and does not ask for a page it forbids. The full run takes about 37 minutes; keep the computer awake and online. Only after every page was asked does it write `docs/data/url-check.json` and `docs/data/url-check.md`; if you stop it half way nothing is written and you may run it again.
+
+- **At most one full run in 24 hours.** It refuses a second one (it reads `checkedAt` in `docs/data/url-check.json`), and there is no flag to override that. `--only` (one to three stores) and `--dry-run` do not count: they write no file.
+- **What the report holds:** the sale addresses that did not return a page (not found, blocked, redirected away, errors), the Black Friday pages whose title or first heading says 2025 (these stay unverified), whether each store hidden by Story 3.9 answers from your computer (the input for Story 5.4), and a table of **every store** with what its sale address and Black Friday address answered. It holds names, slugs, classes and numbers only: no address and no page text, and **no load times** (they are not recorded).
+- **A store is flagged when** its page is anything but a normal answer or a JavaScript page. A 403 or 429 is bot protection, not a dead page.
 
 ### Try it on your computer
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseHideArgs, parseOverrideArgs, parseSeedArgs } from '../src/args';
+import { parseCheckUrlsArgs, parseHideArgs, parseOverrideArgs, parseSeedArgs } from '../src/args';
 
 describe('parseSeedArgs', () => {
   it('accepts --local', () => {
@@ -132,5 +132,33 @@ describe('parseOverrideArgs', () => {
   });
   it('shows the usage text with every error', () => {
     expect(bad(['--local', '--yes'])).toContain('Usage: pnpm ops:override');
+  });
+});
+
+describe('parseCheckUrlsArgs', () => {
+  it('has safe defaults: a full run, 15 seconds apart', () => {
+    expect(parseCheckUrlsArgs([])).toEqual({ ok: true, dryRun: false, delaySeconds: 15, only: null });
+  });
+  it('reads the options', () => {
+    expect(parseCheckUrlsArgs(['--dry-run', '--delay', '20'])).toEqual({ ok: true, dryRun: true, delaySeconds: 20, only: null });
+    expect(parseCheckUrlsArgs(['--only', 'makro', '--only', 'truworths'])).toEqual({ ok: true, dryRun: false, delaySeconds: 15, only: ['makro', 'truworths'] });
+  });
+  it.each([['4'], ['121'], ['0'], ['-5'], ['1.5'], ['abc'], ['1e2'], ['']])('refuses --delay %j', (value) => {
+    expect(parseCheckUrlsArgs(['--delay', value]).ok).toBe(false);
+  });
+  it('accepts the limits of --delay', () => {
+    expect(parseCheckUrlsArgs(['--delay', '5']).ok).toBe(true);
+    expect(parseCheckUrlsArgs(['--delay', '120']).ok).toBe(true);
+  });
+  it('allows one to three stores with --only, each once, each a valid slug', () => {
+    expect(parseCheckUrlsArgs(['--only', 'a', '--only', 'b', '--only', 'c']).ok).toBe(true);
+    expect(parseCheckUrlsArgs(['--only', 'a', '--only', 'b', '--only', 'c', '--only', 'd']).ok).toBe(false);
+    expect(parseCheckUrlsArgs(['--only', 'a', '--only', 'a']).ok).toBe(false);
+    for (const bad of ['Makro', 'ma kro', "x'; DROP", '../x', '']) expect(parseCheckUrlsArgs(['--only', bad]).ok, bad).toBe(false);
+  });
+  it('refuses a missing value, an unknown argument and anything given twice', () => {
+    for (const argv of [['--only'], ['--delay'], ['--only', '--dry-run'], ['--bogus'], ['--dry-run', '--dry-run'], ['--delay', '5', '--delay', '6'], ['makro']]) {
+      expect(parseCheckUrlsArgs(argv).ok, argv.join(' ')).toBe(false);
+    }
   });
 });

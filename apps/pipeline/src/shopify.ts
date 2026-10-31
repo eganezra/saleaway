@@ -1,5 +1,4 @@
-import { isAllowedByRobots } from '@saleaway/core';
-import { MAX_PAGE_BYTES, discard, fetchPage, readLimited } from './fetcher';
+import { MAX_PAGE_BYTES, discard, fetchPage, isAllowedByRobots, readLimited } from '@saleaway/core';
 import type { Deps } from './types';
 
 // A Shopify store's product feed (Story 3.4): `GET <collection>/products.json?limit=250`, asked once a night at most,

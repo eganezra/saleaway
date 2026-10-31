@@ -121,13 +121,14 @@ describe('the committed docs/data/hidden-stores.json', () => {
     }
   });
 
-  it('leaves 57 of the 92 visible stores, and no category empty', () => {
+  // 93 visible since Story 4.3 added Crocs SA (it has a sale address, so the seed shows it); the 35 of the decision of 2026-10-30 are unchanged.
+  it('leaves 58 of the 93 visible stores, and no category empty', () => {
     const hidden = new Set(list.stores.map((s) => s.slug));
     const visibleBefore = seed.retailers.filter((r) => r.isVisible);
-    expect(visibleBefore).toHaveLength(92);
+    expect(visibleBefore).toHaveLength(93);
     for (const slug of hidden) expect(visibleBefore.some((r) => r.slug === slug), slug).toBe(true);
     const left = visibleBefore.filter((r) => !hidden.has(r.slug));
-    expect(left).toHaveLength(57);
+    expect(left).toHaveLength(58);
     for (const category of seed.categories) {
       expect(left.some((r) => r.categorySlug === category.slug), category.slug).toBe(true);
     }

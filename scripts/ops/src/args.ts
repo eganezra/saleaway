@@ -1,3 +1,4 @@
+import { DEFAULT_DELAY_SECONDS, MAX_DELAY_SECONDS, MAX_ONLY, MIN_DELAY_SECONDS } from './check-urls-plan';
 export type SeedTarget = 'local' | 'remote';
 
 export type SeedArgs = { ok: true; target: SeedTarget } | { ok: false; message: string };
@@ -188,4 +189,57 @@ export function parseCoverageArgs(argv: readonly string[]): CoverageArgs {
   if (local && remote) return fail('Choose one of --local or --remote, not both.');
   if (!local && !remote) return fail('Say which database to read.');
   return { ok: true, target: local ? 'local' : 'remote', run, out };
+}
+
+export interface CheckUrlsOptions {
+  /** List what would be asked and ask nothing. */
+  dryRun: boolean;
+  /** Seconds between pages. */
+  delaySeconds: number;
+  /** Check only these stores (a short look; writes no file and does not start the 24-hour clock), or null for the full run. */
+  only: string[] | null;
+}
+
+export type CheckUrlsArgs = ({ ok: true } & CheckUrlsOptions) | { ok: false; message: string };
+
+const CHECK_URLS_USAGE = 'Usage: pnpm ops:check-urls [--dry-run] [--only <slug> ...] [--delay <seconds>]';
+
+/**
+ * `ops:check-urls` asks retailers' sites for pages, so its arguments are strict: `--delay` is a whole number of seconds from 5 to
+ * 120 (default 15), `--only` takes one to three slugs (each given once), and nothing may be given twice. Whether an `--only` slug
+ * is in the seed file is checked by the command, which reads the file.
+ */
+export function parseCheckUrlsArgs(argv: readonly string[]): CheckUrlsArgs {
+  const fail = (message: string): CheckUrlsArgs => ({ ok: false, message: `${message} ${CHECK_URLS_USAGE}` });
+  let dryRun = false;
+  let delaySeconds = DEFAULT_DELAY_SECONDS;
+  let delayGiven = false;
+  const only: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i] as string;
+    if (arg === '--dry-run') {
+      if (dryRun) return fail('--dry-run was given twice.');
+      dryRun = true;
+    } else if (arg === '--delay' || arg === '--only') {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith('--')) return fail(`${arg} needs a value.`);
+      i += 1;
+      if (arg === '--delay') {
+        if (delayGiven) return fail('--delay was given twice.');
+        delayGiven = true;
+        if (!/^\d{1,3}$/.test(value) || Number(value) < MIN_DELAY_SECONDS || Number(value) > MAX_DELAY_SECONDS) {
+          return fail(`--delay must be a whole number of seconds from ${MIN_DELAY_SECONDS} to ${MAX_DELAY_SECONDS}: ${value}.`);
+        }
+        delaySeconds = Number(value);
+      } else {
+        if (!SLUG_PATTERN.test(value)) return fail(`--only needs a store slug (lower case letters, digits and hyphens): ${value}.`);
+        if (only.includes(value)) return fail(`--only ${value} was given twice.`);
+        if (only.length >= MAX_ONLY) return fail(`--only takes at most ${MAX_ONLY} stores.`);
+        only.push(value);
+      }
+    } else {
+      return fail(`Unknown argument: ${arg}.`);
+    }
+  }
+  return { ok: true, dryRun, delaySeconds, only: only.length === 0 ? null : only };
 }

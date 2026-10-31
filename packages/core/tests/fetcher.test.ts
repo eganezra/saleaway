@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACCEPT, FETCH_TIMEOUT_MS, MAX_PAGE_BYTES, MAX_REDIRECTS, USER_AGENT, discard, fetchPage, readLimited } from '../src/fetcher';
-import { fakeFetch } from './helpers/fakes';
+import { fakeFetch } from './helpers/fake-fetch';
 
 const SALE = 'https://shop.example/sale';
 
