@@ -1,3 +1,4 @@
+import type { Renderer } from './render';
 import type { FetchFn, Logger, PageInput, ValidationResult, extractDiscount } from '@saleaway/core';
 
 export type { FetchFn };
@@ -30,4 +31,6 @@ export interface Deps {
   validate?: (page: PageInput) => ValidationResult;
   /** Reads the discount of a judged page. Production leaves it unset (the real `extractDiscount` runs); tests set a stub. */
   extract?: typeof extractDiscount;
+  /** Makes the renderer of a browser-read store (Story 5.1). Production leaves it unset (the real browser runs); tests set a fake. */
+  createRenderer?: (env: Pick<Env, 'BROWSER'>) => Renderer;
 }

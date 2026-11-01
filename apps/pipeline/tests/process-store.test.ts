@@ -4,7 +4,8 @@ import { processStore, recordStoreError } from '../src/process-store';
 import { insertRun } from '../src/repo';
 import { createTestDb, resetData, rows, seedRetailers } from './helpers/db';
 import type { RetailerSeed, TestDb } from './helpers/db';
-import { fakeDeps, fakeFetch, fakeFetchWithTrackedBody, fakeQueue, makeEnv } from './helpers/fakes';
+import { fakeDeps, fakeFetch, fakeFetchWithTrackedBody, fakeQueue, fakeRenderer, makeEnv, renderedPage } from './helpers/fakes';
+import type { RenderResult } from '../src/render';
 import type { Spec } from './helpers/fakes';
 
 let t: TestDb;
@@ -719,5 +720,203 @@ describe('recordStoreError', () => {
     await processStore(env(), { runId: 1, retailerId: 1 }, fakeDeps({ fetch: network.fetch }).deps);
     await recordStoreError(env(), { runId: 1, retailerId: 1 }, 'boom', fakeDeps().deps);
     expect(await saved()).toMatchObject([{ retailer_id: 1, result: 'error', error: 'boom' }]);
+  });
+});
+
+describe('processStore: stores read by a browser (Story 5.1)', () => {
+  const pairs = (...percents: number[]) =>
+    `<html><head><title>Sale</title></head><body><ol>${percents.map((p) => `<li><span class="old-price">R100</span><span>R${100 - p}</span></li>`).join('')}</ol></body></html>`;
+  const saved = () =>
+    rows<{ result: string; http_status: number | null; error: string | null; discount_percent: number | null; duration_ms: number | null; created_at: string }>(
+      t.db,
+      'SELECT result, http_status, error, discount_percent, duration_ms, created_at FROM run_results WHERE retailer_id = 1',
+    );
+  const records = () => rows<{ state: string; validation: string; discount_percent: number | null }>(t.db, 'SELECT state, validation, discount_percent FROM sale_records WHERE retailer_id = 1');
+
+  async function run(
+    seed: Partial<RetailerSeed>,
+    answer: RenderResult | ((url: string) => RenderResult),
+    options: { routes?: Record<string, Spec | Spec[]>; env?: Record<string, string> } = {},
+  ) {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE, fetchMode: 'browser', ...seed }]);
+    const network = fakeFetch(options.routes ?? { [ROBOTS]: OK_ROBOTS });
+    const made = fakeDeps({ start: '2026-10-30T03:10:00.000Z', stepMs: 5, fetch: network.fetch });
+    const rendered = fakeRenderer(answer);
+    made.deps.createRenderer = () => rendered.renderer;
+    const result = await processStore(makeEnv(t.db, fakeQueue().queue, options.env), { runId: 1, retailerId: 1 }, made.deps);
+    return { result, network, rendered, ...made };
+  }
+
+  it('a store that is not read by a browser never calls the renderer', async () => {
+    const { rendered, network } = await run({ fetchMode: 'plain' }, renderedPage(pairs(40)), { routes: { [ROBOTS]: OK_ROBOTS, [SALE]: { status: 200, body: pairs(25) } } });
+    expect(rendered.urls).toEqual([]);
+    expect(network.urls()).toEqual([ROBOTS, SALE]);
+  });
+
+  it('asks for robots.txt with a plain request, renders the page once and does not fetch it as well', async () => {
+    const { rendered, network, result } = await run({}, renderedPage(pairs(25, 40, 10)));
+    expect(network.urls()).toEqual([ROBOTS]);
+    expect(rendered.urls).toEqual([SALE]);
+    expect(result).toBe('ok');
+  });
+
+  it('judges the rendered page like any page and saves the deepest discount in the result and the record', async () => {
+    const { named } = await run({}, renderedPage(pairs(25, 40, 10)));
+    expect(await saved()).toMatchObject([{ result: 'ok', http_status: 200, error: null, discount_percent: 40 }]);
+    expect(await records()).toEqual([{ state: 'active', validation: 'content_verified', discount_percent: 40 }]);
+    expect(named('page_validated')[0]?.fields).toMatchObject({ slug: 'store-1', verdict: 'valid', reason: 'discounts_found' });
+    expect(named('discount_extracted')[0]?.fields).toMatchObject({ method: 'html', percent: 40 });
+  });
+
+  it('reads a structured_data store from the rendered page too', async () => {
+    const html = '<html><body><p>R100</p><p>R200</p><script>[{"listPrice":200,"price":100},{"listPrice":300,"price":225}]</script></body></html>';
+    await run({ extractionMethod: 'structured_data' }, renderedPage(html));
+    expect(await records()).toMatchObject([{ discount_percent: 50 }]);
+  });
+
+  it('does not treat a store the seed calls a JavaScript shell as one that cannot be read: the browser has run its JavaScript', async () => {
+    const { result } = await run({ seedStatus: 'verified_js_shell' }, renderedPage(pairs(30, 20, 10)));
+    expect(result).toBe('ok');
+    expect(await saved()).toMatchObject([{ result: 'ok', discount_percent: 30 }]);
+  });
+
+  it('logs one page_rendered line with numbers and the user-agent, and none of the page', async () => {
+    const html = pairs(40).replace('Sale', 'SECRET-PAGE-TEXT');
+    const { named, entries } = await run({}, renderedPage(html, { ms: 1234 }));
+    expect(named('page_rendered')).toEqual([
+      { level: 'info', message: 'page_rendered', fields: { slug: 'store-1', ok: true, status: 200, bytes: new TextEncoder().encode(html).byteLength, truncated: false, ms: 1234, userAgent: USER_AGENT } },
+    ]);
+    expect(JSON.stringify(entries)).not.toContain('SECRET-PAGE-TEXT');
+  });
+
+  it('classifies the status the store answered to the browser, like a plain fetch would', async () => {
+    for (const [status, expected] of [[404, 'not_found'], [403, 'blocked'], [429, 'blocked'], [503, 'blocked'], [500, 'error']] as const) {
+      await resetData(t.db);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      const { result } = await run({}, renderedPage('<html>x</html>', { status }));
+      expect(result, String(status)).toBe(expected);
+      expect(await saved(), String(status)).toMatchObject([{ result: expected, http_status: status, error: `http_${status}`, discount_percent: null }]);
+    }
+  });
+
+  it('records a render that ended on another site as redirected away', async () => {
+    const { result } = await run({}, renderedPage('<html>x</html>', { finalUrl: 'https://elsewhere.example/home' }));
+    expect(result).toBe('redirected_away');
+    expect(await saved()).toMatchObject([{ error: 'redirected_to_elsewhere.example' }]);
+  });
+
+  it('leaves the store as it is today when the render fails: "On sale" with a short reason, and no exception', async () => {
+    for (const reason of ['timeout', 'launch_failed', 'rate_limited', 'navigation_failed', 'render_failed'] as const) {
+      await resetData(t.db);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      const { result, rendered } = await run({}, { ok: false, reason, ms: 20_000 });
+      expect(result, reason).toBe('js_only');
+      expect(rendered.urls, reason).toEqual([SALE]); // exactly one try
+      expect(await saved(), reason).toMatchObject([{ result: 'js_only', http_status: null, error: reason, discount_percent: null }]);
+      expect(await records(), reason).toMatchObject([{ state: 'active', validation: 'url_verified' }]);
+    }
+  });
+
+  it('survives a renderer that throws: js_only, a log line, no exception', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE, fetchMode: 'browser' }]);
+    const made = fakeDeps({ start: '2026-10-30T03:10:00.000Z', fetch: fakeFetch({ [ROBOTS]: OK_ROBOTS }).fetch });
+    made.deps.createRenderer = () => ({ render: () => Promise.reject(new Error('boom')) });
+    await expect(processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, made.deps)).resolves.toBe('js_only');
+    expect(await saved()).toMatchObject([{ result: 'js_only', error: 'render_failed' }]);
+    expect(made.named('render_threw')).toHaveLength(1);
+  });
+
+  it('does not render a page that robots.txt forbids, or when robots.txt cannot be read', async () => {
+    const forbidden = await run({}, renderedPage(pairs(40)), { routes: { [ROBOTS]: { status: 200, body: 'User-agent: *\nDisallow: /sale\n' } } });
+    expect(forbidden.rendered.urls).toEqual([]);
+    expect(forbidden.result).toBe('blocked');
+    await resetData(t.db);
+    await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+    const unreadable = await run({}, renderedPage(pairs(40)), { routes: { [ROBOTS]: { status: 500 } } });
+    expect(unreadable.rendered.urls).toEqual([]);
+    expect(unreadable.result).toBe('error');
+  });
+
+  it('never renders a manual store, and makes no request for it', async () => {
+    const { rendered, network, result } = await run({ extractionMethod: 'manual' }, renderedPage(pairs(40)), { routes: {} });
+    expect(rendered.urls).toEqual([]);
+    expect(network.requests).toEqual([]);
+    expect(result).toBe('skipped_manual');
+  });
+
+  describe('the daily browser budget', () => {
+    async function spendToday(ms: number) {
+      await seedRetailers(t.db, [{ id: 2, fetchMode: 'browser' }]);
+      await insertRun(t.db, '2026-10-30T02:00:00Z', 'manual', 1);
+      await t.db
+        .prepare("INSERT INTO run_results (run_id, retailer_id, result, duration_ms, created_at) VALUES (2, 2, 'ok', ?1, '2026-10-30T02:30:00Z')")
+        .bind(ms)
+        .run();
+    }
+    // The fake clock starts at 2026-10-30T03:10Z, so "today" starts at 2026-10-30T00:00:00Z.
+
+    it('renders while the time used today plus the longest render stays within 480 seconds', async () => {
+      await spendToday(100_000);
+      const { rendered } = await run({}, renderedPage(pairs(40)));
+      expect(rendered.urls).toEqual([SALE]);
+    });
+
+    it('does not render when the day is used up: the store stays "On sale" with the reason browser_budget, and the skip is logged', async () => {
+      await spendToday(460_000);
+      const { rendered, result, named } = await run({}, renderedPage(pairs(40)));
+      expect(rendered.urls).toEqual([]);
+      expect(result).toBe('js_only');
+      expect(await saved()).toMatchObject([{ result: 'js_only', error: 'browser_budget', discount_percent: null }]);
+      expect(named('render_skipped')[0]?.fields).toMatchObject({ slug: 'store-1', reason: 'browser_budget', usedMs: 460_000 });
+    });
+
+    it('allows exactly up to the budget and refuses beyond it', async () => {
+      await spendToday(450_000);
+      expect((await run({}, renderedPage(pairs(40)))).rendered.urls).toEqual([SALE]);
+      await resetData(t.db);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      await spendToday(450_001);
+      expect((await run({}, renderedPage(pairs(40)))).rendered.urls).toEqual([]);
+    });
+
+    it('does not count yesterday, and follows the configured budget', async () => {
+      await seedRetailers(t.db, [{ id: 2, fetchMode: 'browser' }]);
+      await insertRun(t.db, '2026-10-29T03:00:00Z', 'cron', 1);
+      await t.db.prepare("INSERT INTO run_results (run_id, retailer_id, result, duration_ms, created_at) VALUES (2, 2, 'ok', 590000, '2026-10-29T23:59:59Z')").run();
+      expect((await run({}, renderedPage(pairs(40)))).rendered.urls).toEqual([SALE]);
+      await resetData(t.db);
+      await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+      expect((await run({}, renderedPage(pairs(40)), { env: { BROWSER_BUDGET_SECONDS: '0' } })).rendered.urls).toEqual([]);
+    });
+  });
+
+  it('never renders a store twice in one run: a second delivery of the message does not render and does not overwrite the result', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE, fetchMode: 'browser' }]);
+    const rendered = fakeRenderer(renderedPage(pairs(40)));
+    const first = fakeDeps({ start: '2026-10-30T03:10:00.000Z', stepMs: 5, fetch: fakeFetch({ [ROBOTS]: OK_ROBOTS }).fetch });
+    first.deps.createRenderer = () => rendered.renderer;
+    await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, first.deps);
+    const before = await saved();
+
+    const second = fakeDeps({ start: '2026-10-30T03:40:00.000Z', stepMs: 5, fetch: fakeFetch({ [ROBOTS]: OK_ROBOTS }).fetch });
+    second.deps.createRenderer = () => fakeRenderer(renderedPage(pairs(80))).renderer; // would give a different answer if it ran
+    const again = await processStore(makeEnv(t.db, fakeQueue().queue), { runId: 1, retailerId: 1 }, second.deps);
+
+    expect(rendered.urls).toEqual([SALE]);
+    expect(again).toBe('ok');
+    expect(await saved()).toEqual(before);
+    expect(second.named('render_skipped')[0]?.fields).toMatchObject({ reason: 'already_has_result', runId: 1 });
+  });
+
+  it('does render the same store again in the next run (one load per store per run)', async () => {
+    await seedRetailers(t.db, [{ id: 1, saleUrl: SALE, fetchMode: 'browser' }]);
+    await insertRun(t.db, '2026-10-31T03:00:00Z', 'cron', 1);
+    const rendered = fakeRenderer(renderedPage(pairs(40)));
+    for (const runId of [1, 2]) {
+      const made = fakeDeps({ start: `2026-10-${runId === 1 ? 30 : 31}T03:10:00.000Z`, stepMs: 5, fetch: fakeFetch({ [ROBOTS]: OK_ROBOTS }).fetch });
+      made.deps.createRenderer = () => rendered.renderer;
+      await processStore(makeEnv(t.db, fakeQueue().queue), { runId, retailerId: 1 }, made.deps);
+    }
+    expect(rendered.urls).toEqual([SALE, SALE]);
   });
 });

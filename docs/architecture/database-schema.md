@@ -28,7 +28,9 @@ CREATE TABLE retailers (
     CHECK (seed_status IN ('verified_products','verified_js_shell','search_only','no_sale_page')),
   is_visible             INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0,1)),
   created_at             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
-  updated_at             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  updated_at             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  -- added by migration 0004 (Story 5.1): how the sale page is obtained. 'plain' is a normal fetch, 'browser' a render by Cloudflare's browser.
+  fetch_mode             TEXT NOT NULL DEFAULT 'plain' CHECK (fetch_mode IN ('plain','browser'))
 );
 CREATE INDEX idx_retailers_category_rank ON retailers(category_id, rank);
 
@@ -112,5 +114,6 @@ The seed script (Story 1.3) must handle these facts about the spreadsheet:
 - **Store slugs.** `slugify(Store)`: lowercase, accents and apostrophes removed, any other run of non-alphanumeric characters becomes one `-` (`Hirsch's` gives `hirschs`, `Estée Lauder SA` gives `estee-lauder-sa`). The first row keeps the plain slug, a later row with the same slug gets `-<category-slug>`, and a slug still taken is an error.
 - **`Alt` rank** becomes 100 plus the row's 1-based position within its category (Side Step is the 11th Sport row, so 111).
 - **URLs, platform and visibility.** A cell that does not start with `https://` (for example `— (not found)`) becomes `NULL` for `sale_url` and `black_friday_url`. `is_visible` is 1 exactly when `sale_url` is set, so Cielo and Builders are hidden although their status is `search_only`. `platform` keeps the spreadsheet text unchanged. `black_friday_verified` is not set by the seed (it stays 0). The manual stores are matched by homepage host: `amazon.co.za`, `game.co.za`, `checkers.co.za`.
+- **`fetch_mode` (Story 5.1)** says how a store's page is obtained (`plain` or `browser`) and is never set by the seed: every store is `plain` until an operator switches it with a one-row `UPDATE`. It is a separate column because `extraction_method` has a CHECK that cannot be widened without rebuilding the table, which the additive-migrations rule forbids; `extraction_method` still says how the page's content is read.
 - **Columns the seed only sets on first insert:** `is_visible`, `extraction_method` and `black_friday_verified`. A re-seed never changes them, so a hidden store whose sale URL is found later stays hidden until the operator updates `is_visible`. Hidden stores are not fetched by the daily run. The stores hidden because the pipeline is blocked (Story 3.9, 35 stores on 2026-10-30), with the reason for each, are listed in `docs/data/hidden-stores.json`; `pnpm ops:hide` hides or shows them (`--undo`), and `POST /admin/run?store=<slug>` can still fetch one.
 - **First seed result (Story 1.3, 2026-10-29, local and live):** 10 categories and 106 retailers, 92 visible and 14 hidden; 84 `html`, 19 `shopify_json`, 3 `manual`; 68 Black Friday URLs. The first run writes 338 rows (index rows included) and a re-run about 222, far below the 100,000 rows a day Free limit.

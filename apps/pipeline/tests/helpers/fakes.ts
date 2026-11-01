@@ -1,4 +1,6 @@
+import { USER_AGENT } from '@saleaway/core';
 import type { Logger } from '@saleaway/core';
+import type { Renderer, RenderResult } from '../../src/render';
 import type { Deps, FetchFn, RewriterLike, StoreJob } from '../../src/types';
 
 type Level = 'debug' | 'info' | 'warn' | 'error';
@@ -102,6 +104,8 @@ export function makeEnv(db: D1Database, queue: Queue<StoreJob>, overrides: EnvOv
     STAGGER_SECONDS: '15',
     PIPELINE_ENABLED: 'true',
     MEASURE_CPU: 'false',
+    BROWSER_BUDGET_SECONDS: '480',
+    BROWSER: { fetch: () => Promise.reject(new Error('the test browser binding must not be used')) },
     ADMIN_TOKEN: 'test-token',
     ...overrides,
   } as unknown as Env;
@@ -127,4 +131,25 @@ export function fakeMessage(body: unknown, attempts = 1, id = 'msg-1') {
 
 export function fakeBatch(messages: Array<Message<unknown>>): MessageBatch<unknown> {
   return { queue: 'saleaway-fetch', messages, ackAll() {}, retryAll() {} } as unknown as MessageBatch<unknown>;
+}
+
+/**
+ * A renderer that never starts a browser (Story 5.1). It answers with `answer` (or what `answer(url)` returns), and records
+ * every address it was asked to render, so a test can say exactly how many renders happened.
+ */
+export function fakeRenderer(answer: RenderResult | ((url: string) => RenderResult)) {
+  const urls: string[] = [];
+  const renderer: Renderer = {
+    async render(url) {
+      urls.push(url);
+      return typeof answer === 'function' ? answer(url) : answer;
+    },
+  };
+  return { renderer, urls };
+}
+
+/** A page as the browser returns it: status 200 and the given HTML, in 40 ms, with the bot's user-agent. */
+export function renderedPage(html: string, overrides: Partial<Extract<RenderResult, { ok: true }>> = {}): RenderResult {
+  const bytes = new TextEncoder().encode(html).byteLength;
+  return { ok: true, status: 200, finalUrl: 'https://shop.example/sale', html, truncated: false, bytes, userAgent: USER_AGENT, ms: 40, ...overrides };
 }

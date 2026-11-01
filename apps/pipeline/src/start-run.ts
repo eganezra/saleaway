@@ -1,5 +1,7 @@
 import { toIsoUtc } from '@saleaway/core';
-import { getVisibleRetailerIds, insertRun } from './repo';
+import { RENDER_GAP_SECONDS, lanesDelays } from './render';
+import { getVisibleStores, insertRun } from './repo';
+import type { RunStore } from './repo';
 import type { Deps, RunTrigger, StoreJob } from './types';
 
 const DEFAULT_STAGGER_SECONDS = 15;
@@ -21,7 +23,8 @@ export function parseStaggerSeconds(raw: string | undefined): number | null {
 
 /**
  * Starts a run: records it, then puts one message per visible store on the queue, each delayed a bit
- * more than the one before so the stores are fetched about STAGGER_SECONDS apart (NFR6).
+ * more than the one before so the stores are fetched about STAGGER_SECONDS apart (NFR6). Stores read by a
+ * browser (Story 5.1) have their own lane, spaced RENDER_GAP_SECONDS apart (the free plan starts a new browser at most every 20 s).
  * Old results are not purged here: retention is Story 4.6.
  */
 export async function startRun(
@@ -39,17 +42,18 @@ export async function startRun(
   }
 
   // A run for one store (POST /admin/run?store=<slug>) has that store only; otherwise every runnable store.
-  const retailerIds = options.retailerId === undefined ? await getVisibleRetailerIds(env.DB) : [options.retailerId];
-  const runId = await insertRun(env.DB, toIsoUtc(clock()), trigger, retailerIds.length);
+  const stores: RunStore[] = options.retailerId === undefined ? await getVisibleStores(env.DB) : [{ id: options.retailerId, fetchMode: 'plain' }];
+  const delays = lanesDelays(stores, stagger, RENDER_GAP_SECONDS);
+  const runId = await insertRun(env.DB, toIsoUtc(clock()), trigger, stores.length);
 
   const queue = env.FETCH_QUEUE as Queue<StoreJob>;
   try {
-    for (let offset = 0; offset < retailerIds.length; offset += SEND_BATCH_LIMIT) {
-      const chunk = retailerIds.slice(offset, offset + SEND_BATCH_LIMIT);
+    for (let offset = 0; offset < stores.length; offset += SEND_BATCH_LIMIT) {
+      const chunk = stores.slice(offset, offset + SEND_BATCH_LIMIT);
       await queue.sendBatch(
-        chunk.map((retailerId, i) => ({
-          body: { runId, retailerId },
-          delaySeconds: Math.min((offset + i) * stagger, MAX_DELAY_SECONDS),
+        chunk.map((store, i) => ({
+          body: { runId, retailerId: store.id },
+          delaySeconds: Math.min(delays[offset + i] ?? 0, MAX_DELAY_SECONDS),
         })),
       );
     }
@@ -59,6 +63,6 @@ export async function startRun(
     throw err;
   }
 
-  log.info('run_started', { runId, trigger, storesTotal: retailerIds.length });
-  return { runId, storesTotal: retailerIds.length };
+  log.info('run_started', { runId, trigger, storesTotal: stores.length, browserStores: stores.filter((store) => store.fetchMode === 'browser').length });
+  return { runId, storesTotal: stores.length };
 }

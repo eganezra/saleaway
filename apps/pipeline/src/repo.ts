@@ -4,16 +4,25 @@ import type { RunTrigger } from './types';
 // Data access for the pipeline. All SQL for the pipeline lives here (coding standards).
 // Every function takes the database as a parameter.
 
+/** How a store's sale page is obtained (Story 5.1): a normal fetch, or a render by Cloudflare's browser. */
+export type FetchMode = 'plain' | 'browser';
+
+/** A store of a run: its id and how its page is obtained (the queue plans a lane for each kind). */
+export interface RunStore {
+  id: number;
+  fetchMode: FetchMode;
+}
+
 /** Stores to process: visible, with an https sale URL (the pipeline only ever fetches https). */
-export async function getVisibleRetailerIds(db: D1Database): Promise<number[]> {
+export async function getVisibleStores(db: D1Database): Promise<RunStore[]> {
   const { results } = await db
     .prepare(
-      `SELECT id FROM retailers
+      `SELECT id, fetch_mode FROM retailers
        WHERE is_visible = 1 AND substr(sale_url, 1, 8) = 'https://'
        ORDER BY id`,
     )
-    .all<{ id: number }>();
-  return results.map((row) => row.id);
+    .all<{ id: number; fetch_mode: FetchMode }>();
+  return results.map((row) => ({ id: row.id, fetchMode: row.fetch_mode }));
 }
 
 export async function insertRun(
@@ -35,22 +44,59 @@ export interface RetailerForJob {
   extractionMethod: string;
   saleUrl: string | null;
   seedStatus: string;
+  fetchMode: FetchMode;
 }
 
 export async function getRetailerForJob(db: D1Database, retailerId: number): Promise<RetailerForJob | null> {
   const row = await db
-    .prepare('SELECT id, slug, extraction_method, sale_url, seed_status FROM retailers WHERE id = ?1')
+    .prepare('SELECT id, slug, extraction_method, sale_url, seed_status, fetch_mode FROM retailers WHERE id = ?1')
     .bind(retailerId)
-    .first<{ id: number; slug: string; extraction_method: string; sale_url: string | null; seed_status: string }>();
+    .first<{ id: number; slug: string; extraction_method: string; sale_url: string | null; seed_status: string; fetch_mode: FetchMode }>();
   return row
-    ? { id: row.id, slug: row.slug, extractionMethod: row.extraction_method, saleUrl: row.sale_url, seedStatus: row.seed_status }
+    ? {
+        id: row.id,
+        slug: row.slug,
+        extractionMethod: row.extraction_method,
+        saleUrl: row.sale_url,
+        seedStatus: row.seed_status,
+        fetchMode: row.fetch_mode,
+      }
     : null;
+}
+
+/**
+ * The result already saved for this store in this run, or null. `saveStoreResult` is an upsert (a second save overwrites
+ * the first), and queue delivery is at least once, so a store read by a browser asks this first: it must never be
+ * rendered twice in one run (NFR6).
+ */
+export async function getResultInRun(db: D1Database, runId: number, retailerId: number): Promise<FetchClass | null> {
+  const row = await db
+    .prepare('SELECT result FROM run_results WHERE run_id = ?1 AND retailer_id = ?2')
+    .bind(runId, retailerId)
+    .first<{ result: FetchClass }>();
+  return row ? row.result : null;
+}
+
+/**
+ * The time (ms) spent on browser-rendered stores since `sinceIso` (today, 00:00:00Z). A store's whole time is more than its
+ * browser time, so this over-counts, which is the safe side for a daily allowance. The sum of nothing is 0.
+ */
+export async function browserMsSince(db: D1Database, sinceIso: string): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COALESCE(SUM(rr.duration_ms), 0) AS ms
+       FROM run_results rr JOIN retailers r ON r.id = rr.retailer_id
+       WHERE r.fetch_mode = 'browser' AND rr.created_at >= ?1`,
+    )
+    .bind(sinceIso)
+    .first<{ ms: number }>();
+  return row?.ms ?? 0;
 }
 
 /**
  * The id of a store that has an https sale URL, or null. Visibility is **not** checked: a store hidden for
  * launch (Story 3.9) can still be fetched by hand with `POST /admin/run?store=<slug>`, so it can be tested
- * again. A normal run uses `getVisibleRetailerIds` and skips hidden stores.
+ * again. A normal run uses `getVisibleStores` and skips hidden stores.
  */
 export async function findRunnableRetailerIdBySlug(db: D1Database, slug: string): Promise<number | null> {
   const row = await db

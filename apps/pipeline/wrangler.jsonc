@@ -16,6 +16,16 @@
     "producers": [{ "binding": "FETCH_QUEUE", "queue": "saleaway-fetch" }],
     "consumers": [{ "queue": "saleaway-fetch", "max_batch_size": 1, "max_retries": 1, "max_concurrency": 2 }]
   },
-  "vars": { "FINALIZE_CRON": "45 3 * * *", "STAGGER_SECONDS": "15", "PIPELINE_ENABLED": "true", "MEASURE_CPU": "false" },
+  "vars": {
+    "FINALIZE_CRON": "45 3 * * *",
+    "STAGGER_SECONDS": "15",
+    "PIPELINE_ENABLED": "true",
+    "MEASURE_CPU": "false",
+    // Story 5.1: of the free plan's 600 browser seconds a day, the pipeline stops rendering at this many (the rest is a margin).
+    "BROWSER_BUDGET_SECONDS": "480"
+  },
+  // Story 5.1: Cloudflare's browser, for stores that load their products with JavaScript. Used only by a store whose
+  // `fetch_mode` is `browser`; every store is `plain` until an operator switches it.
+  "browser": { "binding": "BROWSER" },
   "observability": { "enabled": true }
 }

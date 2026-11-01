@@ -61,6 +61,8 @@ export interface RetailerSeed {
   extractionMethod?: string;
   isVisible?: 0 | 1;
   saleUrl?: string | null;
+  /** How the page is obtained (Story 5.1); `plain` unless a test says `browser`. */
+  fetchMode?: 'plain' | 'browser';
 }
 
 /** Inserts one category (id 1) and the given stores. Slugs are derived from the id. */
@@ -69,8 +71,8 @@ export async function seedRetailers(db: D1Database, retailers: RetailerSeed[]): 
   const statements = retailers.map((r) =>
     db
       .prepare(
-        `INSERT INTO retailers (id, slug, name, homepage_url, category_id, extraction_method, sale_url, is_visible, seed_status)
-         VALUES (?1, ?2, ?3, 'https://store.example', 1, ?4, ?5, ?6, ?7)`,
+        `INSERT INTO retailers (id, slug, name, homepage_url, category_id, extraction_method, sale_url, is_visible, seed_status, fetch_mode)
+         VALUES (?1, ?2, ?3, 'https://store.example', 1, ?4, ?5, ?6, ?7, ?8)`,
       )
       .bind(
         r.id,
@@ -80,6 +82,7 @@ export async function seedRetailers(db: D1Database, retailers: RetailerSeed[]): 
         r.saleUrl === undefined ? `https://store-${r.id}.example/sale` : r.saleUrl,
         r.isVisible ?? 1,
         r.seedStatus ?? 'search_only',
+        r.fetchMode ?? 'plain',
       ),
   );
   for (let i = 0; i < statements.length; i += 50) await db.batch(statements.slice(i, i + 50));

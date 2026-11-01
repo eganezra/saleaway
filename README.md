@@ -241,8 +241,25 @@ The pipeline Worker (`saleaway-pipeline`) runs the daily job. **Today it fetches
 | Close the run (record the totals) | every day at **03:45 UTC** (05:45 South African time) |
 
 - **How a run works:** the start cron records a run and puts one message per visible store on the queue `saleaway-fetch`, each delayed a bit more than the one before (`STAGGER_SECONDS`, 15 by default, so about 23 minutes for 92 stores and about 14 for the 57 visible at launch). **Keep (number of stores - 1) x `STAGGER_SECONDS` under about 40 minutes** (26 seconds or less for 92 stores): the close cron runs 45 minutes after the start, and a run that is still going then is closed with the missing stores counted as a gap. A queue consumer handles one store per message and records one result in `run_results`. A store that fails is retried once and then recorded as an `error`, so one store never stops the others. The close cron writes the finish time and the totals (`stores_ok`, `stores_failed`) into `pipeline_runs`. Each store's result is one of `ok`, `js_only` (the page is known to load its products with JavaScript, so it can only be checked by address), `blocked`, `not_found`, `redirected_away`, `error`, or `skipped_manual` (a manual store is never fetched).
-- **Settings:** the variables `FINALIZE_CRON`, `STAGGER_SECONDS`, `PIPELINE_ENABLED` and `MEASURE_CPU` (leave it `false`: it is a measurement switch, see below) are in `apps/pipeline/wrangler.jsonc`. The only secret is `ADMIN_TOKEN` (set with `wrangler secret put ADMIN_TOKEN`, never in the repository, kept in your password manager).
+- **Settings:** the variables `FINALIZE_CRON`, `STAGGER_SECONDS`, `PIPELINE_ENABLED`, `BROWSER_BUDGET_SECONDS` (Story 5.1, see "Stores read by a browser") and `MEASURE_CPU` (leave it `false`: it is a measurement switch, see below) are in `apps/pipeline/wrangler.jsonc`. The only secret is `ADMIN_TOKEN` (set with `wrangler secret put ADMIN_TOKEN`, never in the repository, kept in your password manager).
 - **Queue allowance:** the Free plan includes 10,000 queue operations a day. A delivered message costs about 3, so a run of 92 stores uses about 280 (about 175 for the 57 visible at launch), plus one more for each retry.
+
+### Stores read by a browser (Story 5.1)
+
+Some stores (Takealot, Woolworths, Superbalist and others) show their products only after the page runs JavaScript, so a plain fetch finds no prices and they show "On sale" without a figure. For such a store the pipeline can load its sale page in **Cloudflare's browser** and read the prices from the result. This is **off for every store** until you switch it on, one store at a time.
+
+```bash
+# switch a store on (then check it): it is read by a browser from the next run
+pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --remote --command "UPDATE retailers SET fetch_mode = 'browser' WHERE slug = 'takealot'"
+pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --remote --command "SELECT slug, fetch_mode FROM retailers WHERE fetch_mode = 'browser'"
+# switch it off again
+pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --remote --command "UPDATE retailers SET fetch_mode = 'plain' WHERE slug = 'takealot'"
+```
+
+- **The free allowance is small:** Cloudflare's Free plan gives **10 minutes of browser time a day** (shared by everything, including a test run), 3 browsers at once and a new browser at most every 20 seconds. The pipeline stops rendering at `BROWSER_BUDGET_SECONDS` (480 seconds, set in `apps/pipeline/wrangler.jsonc`) and leaves the rest as a margin. When the day is used up, the stores that did not get their turn simply keep showing "On sale", with the reason `browser_budget` in their result. How many stores fit is decided by how long each render takes: watch the `page_rendered` lines (their `ms`) in the Workers Logs.
+- **It stays polite (NFR6):** each store is loaded **once** per run, only after its `robots.txt` allows it, with the bot's own user-agent (`SaleawayBot/1.0 ...`), without downloading images, fonts, media or style sheets, and without visiting any other page. Cloudflare marks its browser traffic as bot traffic and a store's own protection may stop it: that store stays "On sale", and nothing is done to get round it.
+- **If a render fails** (a timeout, no browser available, the store blocks it) the store keeps its "On sale" tag and the result row says why (`timeout`, `launch_failed`, `rate_limited`, `navigation_failed`, `render_failed`, `browser_budget`). Set a store that keeps failing back to `plain`.
+- **A manual run uses the same daily allowance.** Do not test between 02:50 and 03:50 UTC (the nightly run uses it then).
 
 ### Run it by hand
 

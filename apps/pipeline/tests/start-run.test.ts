@@ -47,6 +47,36 @@ describe('startRun', () => {
     ]);
   });
 
+  it('gives the stores read by a browser their own lane, 25 seconds apart, beside the plain lane (Story 5.1)', async () => {
+    await seedRetailers(t.db, [
+      { id: 1 },
+      { id: 2, fetchMode: 'browser' },
+      { id: 3 },
+      { id: 4, fetchMode: 'browser' },
+      { id: 5 },
+      { id: 6, fetchMode: 'browser' },
+    ]);
+    const { queue, allMessages } = fakeQueue();
+    await startRun(makeEnv(t.db, queue), 'cron', fakeDeps().deps);
+    const delayOf = (id: number) => allMessages().find((m) => (m.body as { retailerId: number }).retailerId === id)?.delaySeconds;
+    expect([1, 3, 5].map(delayOf)).toEqual([0, 15, 30]);
+    expect([2, 4, 6].map(delayOf)).toEqual([0, 25, 50]);
+  });
+
+  it('counts the browser stores in the run_started line', async () => {
+    await seedRetailers(t.db, [{ id: 1, fetchMode: 'browser' }, { id: 2 }, { id: 3, fetchMode: 'browser' }]);
+    const { deps, named } = fakeDeps();
+    await startRun(makeEnv(t.db, fakeQueue().queue), 'cron', deps);
+    expect(named('run_started')[0]?.fields).toMatchObject({ storesTotal: 3, browserStores: 2 });
+  });
+
+  it('starts a manual run of one store at once, whatever its mode', async () => {
+    await seedRetailers(t.db, [{ id: 1 }, { id: 2, fetchMode: 'browser' }]);
+    const { queue, allMessages } = fakeQueue();
+    await startRun(makeEnv(t.db, queue), 'manual', fakeDeps().deps, { retailerId: 2 });
+    expect(allMessages()).toEqual([{ body: { runId: 1, retailerId: 2 }, delaySeconds: 0 }]);
+  });
+
   it('uses the configured stagger', async () => {
     await seedRetailers(t.db, [{ id: 1 }, { id: 2 }, { id: 3 }]);
     const { queue, allMessages } = fakeQueue();
@@ -94,7 +124,7 @@ describe('startRun', () => {
     await seedRetailers(t.db, [{ id: 1 }]);
     const { deps, named, entries } = fakeDeps();
     await startRun(makeEnv(t.db, fakeQueue().queue), 'manual', deps);
-    expect(named('run_started')).toEqual([{ level: 'info', message: 'run_started', fields: { runId: 1, trigger: 'manual', storesTotal: 1 } }]);
+    expect(named('run_started')).toEqual([{ level: 'info', message: 'run_started', fields: { runId: 1, trigger: 'manual', storesTotal: 1, browserStores: 0 } }]);
     for (const entry of entries) {
       for (const reserved of ['level', 'message', 'time']) expect(Object.keys(entry.fields ?? {})).not.toContain(reserved);
     }

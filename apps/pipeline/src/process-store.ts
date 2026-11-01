@@ -15,9 +15,10 @@ import {
   validateSalePage,
 } from '@saleaway/core';
 import { runProbe } from './probe';
+import { RENDER_MAX_MS, createBrowserRenderer, parseBrowserBudgetSeconds, renderAllowed, startOfUtcDay } from './render';
 import { fetchShopifyFeed } from './shopify';
 import type { FeedState } from './shopify';
-import { getRetailerForJob, getSaleRecord, saveRunResult, saveStoreResult } from './repo';
+import { browserMsSince, getResultInRun, getRetailerForJob, getSaleRecord, saveRunResult, saveStoreResult } from './repo';
 import type { RetailerForJob } from './repo';
 import type { Deps, StoreJob } from './types';
 
@@ -48,12 +49,25 @@ async function validatePage(slug: string, response: Response, saleUrl: string, f
       deps.log.warn('page_read_failed', { slug });
       return null;
     }
+    return judgeText(slug, body, saleUrl, finalUrl, deps);
+  } catch (err) {
+    deps.log.warn('validation_failed', { slug, err });
+    await discard(response);
+    return null;
+  }
+}
+
+/**
+ * Judges the text of a page (the validator, unchanged) and logs one `page_validated` line. A page that was read by a plain fetch
+ * and a page rendered by a browser are judged the same way. It never throws: a failing validator is logged and the store carries on.
+ */
+function judgeText(slug: string, body: { text: string; bytes: number; truncated: boolean }, saleUrl: string, finalUrl: string, deps: Deps): JudgedPage | null {
+  try {
     const verdict = (deps.validate ?? validateSalePage)({ text: body.text, expectedUrl: saleUrl, finalUrl, truncated: body.truncated });
     deps.log.info('page_validated', { slug, verdict: verdict.verdict, reason: verdict.reason, bytes: body.bytes, truncated: body.truncated, ...verdict.signals });
     return { validation: verdict, text: body.text };
   } catch (err) {
     deps.log.warn('validation_failed', { slug, err });
-    await discard(response);
     return null;
   }
 }
@@ -85,10 +99,60 @@ async function readPercent(retailer: RetailerForJob, saleUrl: string, page: stri
   }
 }
 
+/** What the pipeline needs from `env` to process a store. */
+type ProcessEnv = Pick<Env, 'DB' | 'MEASURE_CPU' | 'BROWSER' | 'BROWSER_BUDGET_SECONDS'>;
+
+/**
+ * Reads a store through a browser (Story 5.1). The day's browser time is checked first (the free plan allows 10 minutes; the
+ * pipeline stops at its budget), then the page is rendered once, and the rendered HTML is classified, judged and read exactly as a
+ * plain page is. A render that cannot happen or fails leaves the store as it is today (`js_only`, "On sale") with a short reason
+ * word; it is a result, never an error that makes the queue retry (a retry would load the page twice).
+ */
+async function renderStore(retailer: RetailerForJob, saleUrl: string, robotsText: string | null, env: ProcessEnv, deps: Deps): Promise<Outcome> {
+  const onSale = (error: string): Outcome => ({ result: 'js_only', httpStatus: null, error, validation: null, discountPercent: null });
+
+  const usedMs = await browserMsSince(env.DB, startOfUtcDay(deps.clock()));
+  if (!renderAllowed(usedMs, parseBrowserBudgetSeconds(env.BROWSER_BUDGET_SECONDS))) {
+    deps.log.warn('render_skipped', { slug: retailer.slug, reason: 'browser_budget', usedMs, maxRenderMs: RENDER_MAX_MS });
+    return onSale('browser_budget');
+  }
+
+  let rendered;
+  try {
+    rendered = await (deps.createRenderer ?? ((e) => createBrowserRenderer(e.BROWSER)))(env).render(saleUrl);
+  } catch (err) {
+    deps.log.warn('render_threw', { slug: retailer.slug, err });
+    return onSale('render_failed');
+  }
+  if (!rendered.ok) {
+    deps.log.warn('page_rendered', { slug: retailer.slug, ok: false, reason: rendered.reason, ms: rendered.ms });
+    return onSale(rendered.reason);
+  }
+  deps.log.info('page_rendered', { slug: retailer.slug, ok: true, status: rendered.status, bytes: rendered.bytes, truncated: rendered.truncated, ms: rendered.ms, userAgent: rendered.userAgent });
+
+  const result = classifyResponse({
+    status: rendered.status,
+    failed: false,
+    redirectedAway: redirectedAway(saleUrl, rendered.finalUrl),
+    knownJsShell: false, // the browser has run the page's JavaScript, so a 2xx is a page to read
+  });
+  let validation: ValidationResult | null = null;
+  let discountPercent: number | null = null;
+  if (result === 'ok') {
+    const judged = judgeText(retailer.slug, { text: rendered.html, bytes: rendered.bytes, truncated: rendered.truncated }, saleUrl, rendered.finalUrl, deps);
+    validation = judged?.validation ?? null;
+    if (judged !== null && judged.validation.verdict === 'valid') discountPercent = await readPercent(retailer, saleUrl, judged.text, robotsText, deps);
+  }
+  let error: string | null = null;
+  if (result === 'redirected_away') error = `redirected_to_${new URL(rendered.finalUrl).hostname}`;
+  else if (result !== 'ok') error = `http_${rendered.status}`;
+  return { result, httpStatus: rendered.status, error, validation, discountPercent };
+}
+
 /** Fetches and classifies one store, and judges the page when it is a plain `ok` answer. The probe runs only when MEASURE_CPU is on. */
 async function fetchAndClassify(
   retailer: RetailerForJob,
-  env: Pick<Env, 'MEASURE_CPU'>,
+  env: ProcessEnv,
   deps: Deps,
 ): Promise<Outcome> {
   // A manual store is never fetched, not even its robots.txt.
@@ -102,6 +166,10 @@ async function fetchAndClassify(
   const { decision: robots, text: robotsText } = await checkRobots(url.origin, `${url.pathname}${url.search}`, deps.fetch);
   if (robots === 'disallowed') return { result: 'blocked', httpStatus: null, error: 'robots_disallow', validation: null, discountPercent: null };
   if (robots === 'unreachable') return { result: 'error', httpStatus: null, error: 'robots_unreachable', validation: null, discountPercent: null };
+
+  // A store that loads its products with JavaScript is read by a browser (Story 5.1) instead of a plain fetch: robots.txt has
+  // been read, and the page is loaded once.
+  if (retailer.fetchMode === 'browser') return renderStore(retailer, saleUrl, robotsText, env, deps);
 
   const page = await fetchPage(saleUrl, deps.fetch);
   if (!page.ok) return { result: 'error', httpStatus: null, error: page.reason, validation: null, discountPercent: null };
@@ -143,7 +211,7 @@ async function fetchAndClassify(
  * so the queue does not retry it. It throws only for real bugs and database failures.
  */
 export async function processStore(
-  env: Pick<Env, 'DB' | 'MEASURE_CPU'>,
+  env: ProcessEnv,
   job: StoreJob,
   deps: Deps,
 ): Promise<FetchClass> {
@@ -154,6 +222,15 @@ export async function processStore(
     // longer exists. Log it and write nothing: the gap shows in the run's totals.
     deps.log.error('retailer_not_found', { ...job });
     return 'error';
+  }
+
+  // A store read by a browser is never rendered twice in one run: queue delivery is at least once and saving a result overwrites.
+  if (retailer.fetchMode === 'browser') {
+    const already = await getResultInRun(env.DB, job.runId, job.retailerId);
+    if (already !== null) {
+      deps.log.info('render_skipped', { slug: retailer.slug, reason: 'already_has_result', runId: job.runId });
+      return already;
+    }
   }
 
   const outcome = await fetchAndClassify(retailer, env, deps);

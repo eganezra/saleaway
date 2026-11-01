@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  browserMsSince,
   closeRun,
   countResultsByClass,
   findRunnableRetailerIdBySlug,
+  getResultInRun,
   getRetailerForJob,
   getSaleRecord,
-  getVisibleRetailerIds,
+  getVisibleStores,
   insertRun,
   listUnfinishedRuns,
   saveRunResult,
@@ -47,7 +49,7 @@ describe('the test database', () => {
   });
 });
 
-describe('getVisibleRetailerIds', () => {
+describe('getVisibleStores', () => {
   it('returns visible stores with an https URL, in id order, and skips the rest', async () => {
     await seedRetailers(t.db, [
       { id: 5 },
@@ -58,11 +60,23 @@ describe('getVisibleRetailerIds', () => {
       { id: 7, saleUrl: 'HTTPS://UPPER.example/sale' },
       { id: 1 },
     ]);
-    expect(await getVisibleRetailerIds(t.db)).toEqual([1, 2, 5]);
+    expect(await getVisibleStores(t.db)).toEqual([
+      { id: 1, fetchMode: 'plain' },
+      { id: 2, fetchMode: 'plain' },
+      { id: 5, fetchMode: 'plain' },
+    ]);
+  });
+
+  it('says how each store is obtained (Story 5.1)', async () => {
+    await seedRetailers(t.db, [{ id: 1, fetchMode: 'browser' }, { id: 2 }]);
+    expect(await getVisibleStores(t.db)).toEqual([
+      { id: 1, fetchMode: 'browser' },
+      { id: 2, fetchMode: 'plain' },
+    ]);
   });
 
   it('returns an empty list when there are no stores', async () => {
-    expect(await getVisibleRetailerIds(t.db)).toEqual([]);
+    expect(await getVisibleStores(t.db)).toEqual([]);
   });
 });
 
@@ -87,6 +101,7 @@ describe('insertRun and getRetailerForJob', () => {
       extractionMethod: 'manual',
       saleUrl: 'https://store-1.example/sale',
       seedStatus: 'verified_js_shell',
+      fetchMode: 'plain',
     });
     expect(await getRetailerForJob(t.db, 999)).toBeNull();
   });
@@ -110,7 +125,7 @@ describe('findRunnableRetailerIdBySlug', () => {
 
   it('does not change what a normal run processes: hidden stores are still skipped there', async () => {
     await seedRetailers(t.db, [{ id: 1 }, { id: 2, isVisible: 0 }]);
-    expect(await getVisibleRetailerIds(t.db)).toEqual([1]);
+    expect(await getVisibleStores(t.db)).toEqual([{ id: 1, fetchMode: 'plain' }]);
   });
 });
 
@@ -288,5 +303,64 @@ describe('listUnfinishedRuns and closeRun', () => {
     const ids: number[] = [];
     for (let i = 0; i < 12; i++) ids.push(await insertRun(t.db, `2026-10-${String(10 + i).padStart(2, '0')}T03:00:00Z`, 'cron', 1));
     expect((await listUnfinishedRuns(t.db)).map((r) => r.id)).toEqual(ids.slice(2).reverse());
+  });
+});
+
+describe('fetch_mode (Story 5.1, migration 0004)', () => {
+  it('defaults to plain for a store that does not say, and refuses a value that is not plain or browser', async () => {
+    await t.db.prepare("INSERT OR IGNORE INTO categories (id, slug, name) VALUES (1, 'test', 'Test')").run();
+    await t.db
+      .prepare("INSERT INTO retailers (id, slug, name, homepage_url, category_id) VALUES (9, 'nine', 'Nine', 'https://nine.example', 1)")
+      .run();
+    const [row] = await rows<{ fetch_mode: string }>(t.db, 'SELECT fetch_mode FROM retailers WHERE id = 9');
+    expect(row?.fetch_mode).toBe('plain');
+    await expect(t.db.prepare("UPDATE retailers SET fetch_mode = 'headless' WHERE id = 9").run()).rejects.toThrow();
+    await t.db.prepare("UPDATE retailers SET fetch_mode = 'browser' WHERE id = 9").run();
+    expect((await rows<{ fetch_mode: string }>(t.db, 'SELECT fetch_mode FROM retailers WHERE id = 9'))[0]?.fetch_mode).toBe('browser');
+  });
+
+  it('getRetailerForJob returns it', async () => {
+    await seedRetailers(t.db, [{ id: 1, fetchMode: 'browser' }, { id: 2 }]);
+    expect((await getRetailerForJob(t.db, 1))?.fetchMode).toBe('browser');
+    expect((await getRetailerForJob(t.db, 2))?.fetchMode).toBe('plain');
+  });
+});
+
+describe('getResultInRun', () => {
+  it('returns the result saved for this store in this run, and null for another store or another run', async () => {
+    await seedRetailers(t.db, [{ id: 1 }, { id: 2 }]);
+    const run = await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 2);
+    await saveRunResult(t.db, { runId: run, retailerId: 1, result: 'ok', httpStatus: 200, discountPercent: null, durationMs: 10, error: null, createdAt: '2026-10-30T03:00:05Z' });
+    expect(await getResultInRun(t.db, run, 1)).toBe('ok');
+    expect(await getResultInRun(t.db, run, 2)).toBeNull();
+    expect(await getResultInRun(t.db, run + 1, 1)).toBeNull();
+  });
+});
+
+describe('browserMsSince', () => {
+  async function result(runId: number, retailerId: number, durationMs: number | null, createdAt: string) {
+    await saveRunResult(t.db, { runId, retailerId, result: 'ok', httpStatus: 200, discountPercent: null, durationMs, error: null, createdAt });
+  }
+
+  it('is 0 when nothing was rendered', async () => {
+    expect(await browserMsSince(t.db, '2026-10-31T00:00:00Z')).toBe(0);
+  });
+
+  it('adds up the time of browser stores since the given moment, and only theirs', async () => {
+    await seedRetailers(t.db, [{ id: 1, fetchMode: 'browser' }, { id: 2, fetchMode: 'browser' }, { id: 3 }]);
+    const run = await insertRun(t.db, '2026-10-31T03:00:00Z', 'cron', 3);
+    const old = await insertRun(t.db, '2026-10-30T03:00:00Z', 'cron', 1);
+    await result(run, 1, 12_000, '2026-10-31T03:00:20Z');
+    await result(run, 2, 8_500, '2026-10-31T03:00:45Z');
+    await result(run, 3, 90_000, '2026-10-31T03:00:30Z'); // a plain store: not counted
+    await result(old, 1, 20_000, '2026-10-30T03:00:20Z'); // yesterday: not counted
+    expect(await browserMsSince(t.db, '2026-10-31T00:00:00Z')).toBe(20_500);
+  });
+
+  it('ignores a result with no duration', async () => {
+    await seedRetailers(t.db, [{ id: 1, fetchMode: 'browser' }]);
+    const run = await insertRun(t.db, '2026-10-31T03:00:00Z', 'cron', 1);
+    await result(run, 1, null, '2026-10-31T03:00:20Z');
+    expect(await browserMsSince(t.db, '2026-10-31T00:00:00Z')).toBe(0);
   });
 });
