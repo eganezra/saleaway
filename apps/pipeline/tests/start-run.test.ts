@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { RENDER_GAP_SECONDS } from '../src/render';
 import { startRun } from '../src/start-run';
 import { createTestDb, resetData, rows, seedRetailers } from './helpers/db';
 import type { TestDb } from './helpers/db';
@@ -47,7 +48,7 @@ describe('startRun', () => {
     ]);
   });
 
-  it('gives the stores read by a browser their own lane, 25 seconds apart, beside the plain lane (Story 5.1)', async () => {
+  it('gives the stores read by a browser their own lane, RENDER_GAP_SECONDS apart, beside the plain lane (Story 5.1)', async () => {
     await seedRetailers(t.db, [
       { id: 1 },
       { id: 2, fetchMode: 'browser' },
@@ -60,7 +61,7 @@ describe('startRun', () => {
     await startRun(makeEnv(t.db, queue), 'cron', fakeDeps().deps);
     const delayOf = (id: number) => allMessages().find((m) => (m.body as { retailerId: number }).retailerId === id)?.delaySeconds;
     expect([1, 3, 5].map(delayOf)).toEqual([0, 15, 30]);
-    expect([2, 4, 6].map(delayOf)).toEqual([0, 25, 50]);
+    expect([2, 4, 6].map(delayOf)).toEqual([0, RENDER_GAP_SECONDS, 2 * RENDER_GAP_SECONDS]);
   });
 
   it('counts the browser stores in the run_started line', async () => {

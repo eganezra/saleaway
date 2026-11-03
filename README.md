@@ -261,7 +261,7 @@ pnpm --filter @saleaway/web exec wrangler d1 execute saleaway --remote --command
 - **If a render fails** (a timeout, no browser available, the store blocks it) the store keeps its "On sale" tag and the result row says why (`timeout`, `launch_failed`, `rate_limited`, `navigation_failed`, `render_failed`, `browser_budget`). Set a store that keeps failing back to `plain`.
 - **A manual run uses the same daily allowance.** Do not test between 02:50 and 03:50 UTC (the nightly run uses it then).
 - **What the first test found (2026-11-02 and 2026-11-03):** the browser loads the pages (status 200, 5 to 28 seconds, user-agent confirmed) but **no percentage was read for Takealot, Woolworths or Superbalist**, so no store was switched on and all three are back on `plain`. Details: `docs/data/browser-spike.md`. The code stays dormant for later.
-- **Known limit:** Cloudflare's "a new browser at most every 20 seconds" appears to count from when the previous browser **closes**, but the lane gap (`RENDER_GAP_SECONDS`, 25 s) counts from when it **starts**. A render longer than about 5 s can leave the next store `rate_limited` (it happened once, 2026-11-02). Widen the gap before using browser mode on more than one store.
+- **Gap between renders:** Cloudflare allows a new browser only 20 seconds after the previous one has **closed**. The render lane (`RENDER_GAP_SECONDS`) is therefore the longest render (30 s) plus 25 s = 55 s apart. This was found in the first test (2026-11-02: a render of 27 s followed 25 s later by the next launch was refused with `rate_limited`) and fixed in the review of Story 5.1.
 
 ### Run it by hand
 

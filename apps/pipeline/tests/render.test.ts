@@ -60,23 +60,27 @@ describe('startOfUtcDay', () => {
 describe('lanesDelays', () => {
   const stores = (...modes: Array<'plain' | 'browser'>) => modes.map((fetchMode) => ({ fetchMode }));
   it('spaces plain stores 15 apart and browser stores 25 apart, each lane from 0', () => {
-    expect(lanesDelays(stores('plain', 'browser', 'plain', 'browser', 'plain', 'browser'), 15, RENDER_GAP_SECONDS)).toEqual([0, 0, 15, 25, 30, 50]);
+    expect(lanesDelays(stores('plain', 'browser', 'plain', 'browser', 'plain', 'browser'), 15, RENDER_GAP_SECONDS)).toEqual([0, 0, 15, RENDER_GAP_SECONDS, 30, 2 * RENDER_GAP_SECONDS]);
   });
   it('is the old single lane when no store is read by a browser', () => {
     expect(lanesDelays(stores('plain', 'plain', 'plain'), 15, RENDER_GAP_SECONDS)).toEqual([0, 15, 30]);
   });
   it('handles only browser stores, one store and none', () => {
-    expect(lanesDelays(stores('browser', 'browser'), 15, RENDER_GAP_SECONDS)).toEqual([0, 25]);
+    expect(lanesDelays(stores('browser', 'browser'), 15, RENDER_GAP_SECONDS)).toEqual([0, RENDER_GAP_SECONDS]);
     expect(lanesDelays(stores('browser'), 15, RENDER_GAP_SECONDS)).toEqual([0]);
     expect(lanesDelays([], 15, RENDER_GAP_SECONDS)).toEqual([]);
   });
   it('keeps the two lanes independent: the plain lane does not shift when a browser store comes between', () => {
     expect(lanesDelays(stores('plain', 'plain', 'plain'), 15, 25)).toEqual(lanesDelays(stores('plain', 'browser', 'plain', 'browser', 'plain'), 15, 25).filter((_, i) => i % 2 === 0));
   });
-  it('keeps browser starts at least 20 seconds apart (the free plan\'s limit), and the whole lane of 21 stores under 9 minutes', () => {
+  it('leaves at least 20 seconds between one browser CLOSING and the next one starting, even when a render takes the whole 30 seconds (the free plan\'s limit)', () => {
+    // Cloudflare counts the 20 seconds from when the previous browser closes, not from when it started (Story 5.1 spike: a render of
+    // 27 s followed 25 s later by the next launch was refused with `rate_limited`). A render never runs past RENDER_MAX_MS.
+    expect(RENDER_GAP_SECONDS - RENDER_MAX_MS / 1000).toBeGreaterThanOrEqual(20);
+  });
+  it('keeps the whole lane of 21 stores well inside the 45 minutes between the nightly start and the finalising run', () => {
     const delays = lanesDelays(stores(...Array.from({ length: 21 }, () => 'browser' as const)), 15, RENDER_GAP_SECONDS);
-    for (let i = 1; i < delays.length; i++) expect((delays[i] as number) - (delays[i - 1] as number)).toBeGreaterThanOrEqual(20);
-    expect(delays[delays.length - 1]).toBeLessThan(9 * 60);
+    expect(delays[delays.length - 1]).toBeLessThan(30 * 60);
   });
 });
 
@@ -207,6 +211,19 @@ describe('createBrowserRenderer', () => {
       state.handler?.(r.value);
       expect(r.seen, type).toEqual({ aborted: 0, continued: 1 });
     }
+  });
+
+  it('does not raise an unhandled rejection when a request can no longer be answered (the page has gone)', async () => {
+    const { renderer, state } = setup();
+    await renderer.render('https://shop.example/sale');
+    const gone = (type: string): RequestLike => ({
+      resourceType: () => type,
+      abort: () => Promise.reject(new Error('Target closed')),
+      continue: () => Promise.reject(new Error('Request is already handled')),
+    });
+    state.handler?.(gone('image'));
+    state.handler?.(gone('script'));
+    await new Promise((resolve) => setTimeout(resolve, 0)); // a rejection nobody handles would fail the test run here
   });
 
   it('waits at most 8 seconds for a price to show in the text', async () => {

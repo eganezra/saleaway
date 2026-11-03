@@ -8,8 +8,12 @@ import type { FetchMode } from './repo';
 
 /** The most one render may take: navigation 20 s, a bounded wait for a price (8 s), then closing. */
 export const RENDER_MAX_MS = 30_000;
-/** The free plan allows a new browser every 20 seconds; render stores are spaced 25 apart, in their own lane. */
-export const RENDER_GAP_SECONDS = 25;
+/**
+ * Render stores are spaced this far apart, in their own lane. The free plan allows a new browser only 20 seconds after the previous
+ * one has CLOSED (Story 5.1 spike: a render of 27 s followed 25 s later by the next launch was refused as `rate_limited`), and a
+ * render may take up to RENDER_MAX_MS, so the gap is that plus 25 seconds of margin.
+ */
+export const RENDER_GAP_SECONDS = RENDER_MAX_MS / 1000 + 25;
 /** Of the free plan's 600 browser seconds a day, the pipeline plans for 480 and leaves a margin for test runs. */
 export const DEFAULT_BROWSER_BUDGET_SECONDS = 480;
 const MAX_BROWSER_BUDGET_SECONDS = 600;
@@ -146,8 +150,16 @@ export function createBrowserRenderer(binding: { fetch: typeof fetch }, launch: 
         await page.setUserAgent(USER_AGENT);
         await page.setRequestInterception(true);
         page.on('request', (request) => {
-          if (BLOCKED_RESOURCES.has(request.resourceType())) void request.abort();
-          else void request.continue();
+          // Answering a request can fail once the page has gone ("Target closed", "already handled"); that is not an error of ours,
+          // and a rejection nobody handles would be reported by the runtime.
+          void (async () => {
+            try {
+              if (BLOCKED_RESOURCES.has(request.resourceType())) await request.abort();
+              else await request.continue();
+            } catch {
+              // nothing left to answer
+            }
+          })();
         });
         const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT_MS });
         if (response === null) return failed('navigation_failed');
